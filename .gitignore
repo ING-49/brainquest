@@ -1,0 +1,18 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+/captures
+.externalNativeBuild
+.cxx
+update-server/apks/*.apk
+update-server/patches/*.patch
+
+# 验收截图与本地工具产物
+.shots/
+__pycache__/
+update-server/manifest.json
+*.log
+.zcode/

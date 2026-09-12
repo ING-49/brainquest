@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 毕业帽（学士帽）造型 -->
+    <group android:scaleX="1.0" android:scaleY="1.0">
+        <!-- 帽顶菱形 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54,32 L78,44 L54,56 L30,44 Z" />
+        <!-- 帽檐底座 -->
+        <path
+            android:fillColor="#E8DDF5"
+            android:pathData="M42,50 L42,60 C42,64 66,64 66,60 L66,50 L54,56 Z" />
+        <!-- 流苏 -->
+        <path
+            android:fillColor="#FFD54F"
+            android:pathData="M76,46 L76,58 M76,58 C76,62 70,62 70,58"
+            android:strokeColor="#FFD54F"
+            android:strokeWidth="2.5" />
+        <path
+            android:fillColor="#FFD54F"
+            android:pathData="M70,57 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0" />
+        <!-- 帽子上的灯泡（智慧） -->
+        <path
+            android:fillColor="#FFD54F"
+            android:pathData="M54,38 C50.7,38 48,40.7 48,44 C48,46.2 49.2,47.6 50.2,48.7 C50.8,49.4 51,49.8 51,50.5 L57,50.5 C57,49.8 57.2,49.4 57.8,48.7 C58.8,47.6 60,46.2 60,44 C60,40.7 57.3,38 54,38 Z" />
+        <path
+            android:strokeColor="#6750A4"
+            android:strokeWidth="1.2"
+            android:pathData="M52,52 L56,52 M52.5,54 L55.5,54" />
+    </group>
+</vector>
