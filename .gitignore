@@ -16,3 +16,5 @@ __pycache__/
 update-server/manifest.json
 *.log
 .zcode/
+update-server/manifest_gh.json
+update-server/gh_release/

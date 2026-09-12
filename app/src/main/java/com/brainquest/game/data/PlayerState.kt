@@ -41,7 +41,7 @@ data class PlayerState(
     val dailyResults: Map<String, DailyResult> = emptyMap(),
     val dailyStreak: Int = 0,
     val contentVersions: Map<String, Int> = emptyMap(),
-    val updateServerUrl: String = "http://10.0.2.2:8000",
+    val updateServerUrl: String = "https://github.com/ING-49/brainquest/releases/latest/download",
     val soundOn: Boolean = true,
     val hapticsOn: Boolean = true,
     val hardMode: Boolean = false, // 🎓 大学考研模式：开启后每日挑战出大学科目高难题

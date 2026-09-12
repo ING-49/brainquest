@@ -105,11 +105,20 @@ Android 高版本限制 DexClassLoader 代码级热更，本项目采用业内�
 3. 首次启动若 Windows 弹防火墙提示，点「允许访问」；若被拦截，管理员 PowerShell 执行：
    `netsh advfirewall firewall add rule name="BrainQuest Update" dir=in action=allow protocol=TCP localport=8000`
 
-### 场景 3：公网生产（推荐，无需自己开机跑服务）
-把 `update-server` 目录内容（manifest.json、apks/、patches/、packs/）上传到任意静态托管：
-- **Gitee Pages**（国内快）/ **阿里云 OSS / 腾讯云 COS**（几毛钱/月、支持 HTTPS）/ 自有 VPS nginx
-- 发布流程：`python release.py` → 把生成的 4 样东西同步上去（可写进 CI）
-- 用户 App「设置 → 更新服务器地址」填公网 URL 即可，建议生产使用 HTTPS
+### 场景 3：GitHub Releases 托管（当前默认，推荐）
+无需任何自己运行的服务。发版流程：
+1. 改代码后把 `app/build.gradle.kts` 的 versionCode/versionName 升级
+2. `gradlew assembleDebug` 构建，产物复制为 `update-server/apks/BrainQuest-v<版本>.apk`
+3. `cd update-server && python release.py` 生成差分补丁与 manifest（内含自校验）
+4. `GH_EXE=<gh路径> python tools/publish_github.py` → 自动创建 GitHub Release 并上传资产
+5. App 服务器地址填 `https://github.com/ING-49/brainquest/releases/latest/download`
+   （latest 永远指向最新 Release，App「检查更新」即从 GitHub 拉取）
+
+### 场景 4：全自动发版（GitHub Actions）
+已内置 `.github/workflows/release.yml`：把新版本打 tag（如 `v1.2.0`，须与 build.gradle.kts 的 versionName 一致）并 push，云端自动构建、生成差分、发布 Release。发版 = `git tag v1.2.0 && git push --tags`。
+
+模拟器连不上 GitHub 时，可用开发中继：`python tools/dev_relay.py`（App 填 http://10.0.2.2:8000，主机代取 GitHub 内容）。
+真机用户网络无法直连 GitHub 的，可自建中继或换国内静态托管（OSS 等），App 地址可配。
 - 安全：补丁下载后 SHA-256 校验 + 合成后与安装前双重签名比对，被篡改的补丁装不上
 
 ## 五、工程结构

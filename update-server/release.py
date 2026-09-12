@@ -69,7 +69,8 @@ def build_packs(manifest):
 def apk_version_code(path):
     """用 aapt2 从 APK 中读取真实 versionCode / versionName"""
     sdk = os.environ.get("ANDROID_HOME", r"E:/Tools/Android-Studio/Android/SDK")
-    aapt2 = os.path.join(sdk, "build-tools", "34.0.0", "aapt2.exe")
+    exe = "aapt2.exe" if os.name == "nt" else "aapt2"
+    aapt2 = os.path.join(sdk, "build-tools", "34.0.0", exe)
     import subprocess
     out = subprocess.run([aapt2, "dump", "badging", path], capture_output=True, text=True).stdout
     m = re.search(r"versionCode='(\d+)'", out)
