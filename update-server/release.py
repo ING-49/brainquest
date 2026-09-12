@@ -16,6 +16,7 @@ import re
 import zipfile
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+SDK = os.environ.get("ANDROID_HOME", r"E:/Tools/Android-Studio/Android/SDK")
 APKS = os.path.join(ROOT, "apks")
 PATCHES = os.path.join(ROOT, "patches")
 PACKS = os.path.join(ROOT, "packs")
@@ -68,7 +69,7 @@ def build_packs(manifest):
 
 def apk_version_code(path):
     """用 aapt2 从 APK 中读取真实 versionCode / versionName"""
-    sdk = os.environ.get("ANDROID_HOME", r"E:/Tools/Android-Studio/Android/SDK")
+    sdk = SDK
     exe = "aapt2.exe" if os.name == "nt" else "aapt2"
     bt = os.path.join(sdk, "build-tools", os.environ.get("ANDROID_BUILD_TOOLS", "34.0.0"))
     if not os.path.isdir(bt):
@@ -129,8 +130,30 @@ def build_patch(manifest):
         return
 
     code_o, name_o = apk_version_code(old)
-    if code_o >= code_n:
-        raise SystemExit(f"[patch] 版本号异常：old code={code_o} 应小于 new code={code_n}，请检查 apks/ 下的文件")
+
+    def signer_sha(path):
+        """读取 APK 签名证书指纹，用于跨签名守卫"""
+        import subprocess
+        exe = "apksigner.bat" if os.name == "nt" else "apksigner"
+        bt = os.environ.get("ANDROID_BUILD_TOOLS", "34.0.0")
+        signer = os.path.join(SDK, "build-tools", bt, exe)
+        out = subprocess.run([signer, "verify", "--print-certs", path],
+                             capture_output=True, text=True).stdout
+        import re as _re
+        m = _re.search(r"SHA-256 digest: ([0-9a-f]+)", out)
+        return m.group(1) if m else "unknown"
+
+    sig_o = signer_sha(old)
+    sig_n = signer_sha(new)
+    if sig_o != sig_n:
+        print(f"[patch] 跳过差分：old 与 new 签名证书不同（签名迁移版本），发布全量 APK")
+        manifest["latestVersionName"] = name_n
+        manifest["latestVersionCode"] = code_n
+        manifest["fullApk"] = f"apks/{os.path.basename(new)}"
+        manifest["fullApkSha256"] = sha256(new)
+        manifest["patches"] = [p for p in manifest.get("patches", [])]
+        return
+
     data, new_size = make_custom_patch(old, new)
     patch_path = os.path.join(PATCHES, f"{code_o}_to_{code_n}.patch")
     with open(patch_path, "wb") as f:
