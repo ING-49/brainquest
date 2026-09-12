@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write
 
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -28,10 +31,33 @@ jobs:
             echo "tag v$TAG 与 versionName $GRADLE_VER 不一致，请修改后重新打 tag"; exit 1
           fi
 
+      - name: 拉取历史版本的 APK（保证差分补丁连续）
+        run: |
+          for tag in $(gh release list --json tagName --jq '.[].tagName' | grep -v "^${GITHUB_REF_NAME}$"); do
+            gh release download "$tag" -p "BrainQuest-*.apk" -D update-server/apks --clobber || true
+          done
+          ls -la update-server/apks/
+
       - name: 构建 APK
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+
+      - name: 恢复正式签名配置（如已配置 Secrets）
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            mkdir -p keystore
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore/brainquest-release.keystore
+            cat > keystore/keystore.properties <<EOF
+          storeFile=keystore/brainquest-release.keystore
+          storePassword=${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          keyAlias=${{ secrets.KEYSTORE_KEY_ALIAS }}
+          keyPassword=${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          EOF
+            echo "签名配置已恢复"
+          else
+            echo "未配置签名 Secrets，使用 debug 签名"
+          fi
 
       - uses: actions/setup-python@v5
         with:
@@ -47,5 +73,3 @@ jobs:
 
       - name: 发布到 GitHub Releases
         run: python tools/publish_github.py
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

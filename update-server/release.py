@@ -70,7 +70,14 @@ def apk_version_code(path):
     """用 aapt2 从 APK 中读取真实 versionCode / versionName"""
     sdk = os.environ.get("ANDROID_HOME", r"E:/Tools/Android-Studio/Android/SDK")
     exe = "aapt2.exe" if os.name == "nt" else "aapt2"
-    aapt2 = os.path.join(sdk, "build-tools", "34.0.0", exe)
+    bt = os.path.join(sdk, "build-tools", os.environ.get("ANDROID_BUILD_TOOLS", "34.0.0"))
+    if not os.path.isdir(bt):
+        # 环境变量指定版本不存在时，任选一个带 aapt2 的版本（CI 兼容）
+        for v in sorted(os.listdir(os.path.join(sdk, "build-tools")), reverse=True):
+            if os.path.isfile(os.path.join(sdk, "build-tools", v, exe)):
+                bt = os.path.join(sdk, "build-tools", v)
+                break
+    aapt2 = os.path.join(bt, exe)
     import subprocess
     out = subprocess.run([aapt2, "dump", "badging", path], capture_output=True, text=True).stdout
     m = re.search(r"versionCode='(\d+)'", out)
