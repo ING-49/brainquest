@@ -20,3 +20,5 @@ update-server/manifest_gh.json
 update-server/gh_release/
 update-server/release_notes.md
 keystore/
+update-server/apks/_hold/
+update-server/packs/*.zip
