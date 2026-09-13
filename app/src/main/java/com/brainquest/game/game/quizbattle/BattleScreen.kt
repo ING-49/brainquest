@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,6 +75,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
 
     var answered by remember { mutableStateOf(false) }
     var chosen by remember { mutableIntStateOf(-1) }
+    var fillInput by remember { mutableStateOf("") }
     var feedback by remember { mutableStateOf<String?>(null) }
     var lastDamage by remember { mutableIntStateOf(0) }
     var timeLeft by remember { mutableIntStateOf(battle.timeLimitSec) }
@@ -98,7 +102,8 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
         answered = false
         chosen = -1
         feedback = null
-        timeLeft = battle.timeLimitSec
+        fillInput = ""
+        timeLeft = battle.timeLimitFor(battle.question)
         while (timeLeft > 0 && !answered && resultState == 0) {
             delay(1000)
             timeLeft--
@@ -112,6 +117,18 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
         enemyShake.snapTo(0f)
         enemyShake.animateTo(1f, tween(120))
         enemyShake.animateTo(0f, tween(200))
+    }
+
+    fun doFill(input: String) {
+        if (answered || resultState != 0 || input.isBlank()) return
+        answered = true
+        chosen = 0
+        scope.launch {
+            handleAnswer(vm, battle, context, sfxOn, hapticOn, index = -100, fillInput = input, onDone = { dmg, fb ->
+                lastDamage = dmg; feedback = fb
+                if (dmg > 0) shakeEnemy()
+            }, onEnd = { rs -> resultState = rs })
+        }
     }
 
     fun doAnswer(index: Int) {
@@ -229,7 +246,24 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
                     modifier = Modifier.padding(vertical = 10.dp).verticalScroll(rememberScrollState()),
                 )
                 val q = battle.question
-                q?.options?.forEachIndexed { i, opt ->
+                if (q?.type == "fill") {
+                    // 填空题：键入答案（时限已 +10s）
+                    OutlinedTextField(
+                        value = fillInput,
+                        onValueChange = { fillInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = !answered,
+                        label = { Text("输入答案后提交") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        trailingIcon = { Text("= ?") },
+                    )
+                    Button(
+                        onClick = { doFill(fillInput) },
+                        enabled = !answered && fillInput.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    ) { Text("提交答案") }
+                } else q?.options?.forEachIndexed { i, opt ->
                     val isEliminated = i in battle.eliminated
                     if (!isEliminated || answered) {
                         val bg = when {
@@ -362,10 +396,11 @@ private suspend fun handleAnswer(
     index: Int,
     onDone: suspend (Int, String) -> Unit,
     onEnd: (Int) -> Unit,
+    fillInput: String? = null,
 ) {
     val q = battle.question ?: return
-    val dmg = battle.answer(index)
-    vm.recordAnswer(q, index)
+    val dmg = if (fillInput != null) battle.answerFill(fillInput) else battle.answer(index)
+    vm.recordAnswer(q, if (fillInput != null) (if (dmg > 0) q.answer else -1) else index)
     if (dmg > 0) {
         Sfx.play(context, sfxOn, SfxType.CORRECT)
         onDone(dmg, "⚔️ 造成 $dmg 伤害！")

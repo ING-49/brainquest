@@ -54,6 +54,12 @@ fun DailyScreen(vm: AppViewModel, nav: NavHostController) {
                         color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
                     )
+                    if (player.hardMode) {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { nav.navigate(com.brainquest.game.ui.Routes.PAPERS) },
+                            modifier = Modifier.padding(top = 8.dp),
+                        ) { Text("📄 真题试卷（历年真题精选，含解析）") }
+                    }
                 }
             }
         }

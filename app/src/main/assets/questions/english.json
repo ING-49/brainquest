@@ -365,9 +365,9 @@
       "difficulty": 3,
       "question": "“increasingly”的意思是？",
       "options": [
-        "越来越少地即可彻底解决",
+        "越来越少地",
         "日益；越来越多地",
-        "立刻",
+        "立刻、马上完成",
         "间接地"
       ],
       "answer": 1,
@@ -435,8 +435,8 @@
       "options": [
         "meet",
         "meeting",
-        "met",
-        "meets即可彻底解决"
+        "have met",
+        "meets"
       ],
       "answer": 1,
       "explanation": "look forward to 中 to 是介词，后接动名词 meeting。",
@@ -536,9 +536,9 @@
       "question": "interpret 的意思是？",
       "options": [
         "口译；解释",
-        "打断即可彻底解决",
-        "干预",
-        "采访"
+        "打断别人谈话",
+        "干预他国内政",
+        "采访某个人物"
       ],
       "answer": 0,
       "explanation": "interpreter 口译员；interrupt 打断；intervene 干预。",
@@ -620,10 +620,10 @@
       "difficulty": 4,
       "question": "“take...into account”的意思是？",
       "options": [
-        "解释说明即可彻底解决",
+        "解释说明",
         "把…考虑在内",
-        "记帐",
-        "质问"
+        "记录账目信息",
+        "当众质问某人"
       ],
       "answer": 1,
       "explanation": "take sth into account = take sth into consideration 把…考虑在内。",
@@ -671,10 +671,10 @@
       "difficulty": 4,
       "question": "priority 的意思是？",
       "options": [
-        "可能性即可彻底解决",
+        "事情的可能性",
         "优先事项",
-        "财产",
-        "多数"
+        "名下的财产",
+        "占多数的部分"
       ],
       "answer": 1,
       "explanation": "prior 优先的 → priority 优先事项；give priority to 优先考虑。",
@@ -688,10 +688,10 @@
       "difficulty": 5,
       "question": "scrutiny 的意思是？",
       "options": [
-        "剧本即可彻底解决",
+        "一个剧本",
         "仔细审查",
-        "雕塑",
-        "安全"
+        "一件雕塑",
+        "系统安全"
       ],
       "answer": 1,
       "explanation": "scrutiny 仔细审查；under scrutiny 受到严格审查。",
@@ -723,9 +723,9 @@
       "question": "vulnerable 的意思是？",
       "options": [
         "易受伤害的",
-        "凶猛的即可彻底解决",
-        "真空的",
-        "自愿的"
+        "凶猛而危险",
+        "真空的环境",
+        "出于自愿的"
       ],
       "answer": 0,
       "explanation": "vulnerable 脆弱的、易受攻击的；be vulnerable to 易受…伤害。",
@@ -757,9 +757,9 @@
       "question": "resilient 的意思是？",
       "options": [
         "有韧性的",
-        "依赖的即可彻底解决",
-        "多余的",
-        "放纵的"
+        "过分依赖的",
+        "多余无用的",
+        "放纵随意的"
       ],
       "answer": 0,
       "explanation": "resilience 韧性 → resilient 有韧性、恢复快的。",
@@ -807,10 +807,10 @@
       "difficulty": 5,
       "question": "“a double-edged sword”的含义是？",
       "options": [
-        "双倍奖励即可彻底解决",
+        "承诺给出双倍的奖励",
         "双刃剑（利弊并存）",
         "双重标准",
-        "两面派"
+        "两面派做法"
       ],
       "answer": 1,
       "explanation": "比喻利弊并存的事物。",
@@ -825,9 +825,9 @@
       "question": "entrepreneur 的意思是？",
       "options": [
         "企业家",
-        "娱乐即可彻底解决",
-        "入口",
-        "热情"
+        "娱乐活动",
+        "出入口",
+        "热情态度"
       ],
       "answer": 0,
       "explanation": "entrepreneur 企业家、创业者；entrepreneurship 创业精神。",
@@ -927,7 +927,7 @@
       "question": "“ increase ”的反义词是？",
       "options": [
         "decrease",
-        "release即可彻底解决",
+        "release",
         "please",
         "erase"
       ],
@@ -962,7 +962,7 @@
       "options": [
         "Tuesday",
         "Wednesday",
-        "Thursday即可彻底解决",
+        "Thursday",
         "Sunday"
       ],
       "answer": 1,

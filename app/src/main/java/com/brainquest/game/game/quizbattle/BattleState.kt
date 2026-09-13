@@ -131,6 +131,23 @@ class BattleState(
     /** 超时按答错处理 */
     fun timeout(): Int = answer(-1)
 
+    /** 填空题作答：文本归一化后与答案比较 */
+    fun answerFill(input: String): Int {
+        val q = question ?: return 0
+        val expected = q.options.firstOrNull()?.trim() ?: return 0
+        val ok = normalizeNum(input) == normalizeNum(expected)
+        return answer(if (ok) q.answer else -1)
+    }
+
+    /** 每题时限：填空题多给 10 秒 */
+    fun timeLimitFor(q: Question?): Int =
+        if (q?.type == "fill") timeLimitSec + 10 else timeLimitSec
+
+    private fun normalizeNum(s: String): String =
+        s.trim().replace("，", "").replace(",", "").removeSuffix("。").let {
+            it.toDoubleOrNull()?.let { v -> if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString() } ?: it
+        }
+
     fun enemyAttack(): Int {
         val base = 10 + level * 3
         return if (isBoss) (base * 1.6).toInt() else base

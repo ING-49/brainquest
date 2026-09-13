@@ -19,11 +19,25 @@ object MathGenerator {
             4 -> level4(rng)
             else -> level5(rng)
         }
+        val qText = if (text.endsWith("？") || text.endsWith("?")) text else "$text = ?"
+        if (rng.nextInt(3) == 0 && d <= 3) {  // 低难度口算 1/3 概率出填空题
+            return Question(
+                id = "gen_mf_${System.nanoTime()}_${rng.nextInt(9999)}",
+                subject = Subjects.MATH,
+                difficulty = d,
+                type = "fill",
+                question = qText,
+                options = listOf(ans.toString()),
+                answer = 0,
+                explanation = "$text = $ans",
+                tags = listOf("口算", "填空"),
+            )
+        }
         return Question(
             id = "gen_m_${System.nanoTime()}_${rng.nextInt(9999)}",
             subject = Subjects.MATH,
             difficulty = d,
-            question = "$text = ?",
+            question = qText,
             options = buildOptions(ans, rng),
             answer = 0,
             explanation = "$text = $ans",
@@ -51,7 +65,7 @@ object MathGenerator {
 
     private fun level4(rng: Random): Pair<String, Int> = when (rng.nextInt(3)) {
         0 -> { val a = rng.nextInt(6, 16); val b = rng.nextInt(2, 15); "($a − $b) × ${b + 1}" to ((a - b) * (b + 1)) }
-        1 -> { val a = rng.nextInt(3, 15); val x = rng.nextInt(3, 15); val b = rng.nextInt(2, 40); "$x × $a + $b = ${x * a + b}，x = ?" to x }
+        1 -> { val x = rng.nextInt(3, 15); val a = rng.nextInt(3, 15); val b = rng.nextInt(2, 40); "x × $a + $b = ${x * a + b}，x = ?" to x }
         else -> { val a = rng.nextInt(4, 14); "$a²" to (a * a) }
     }
 

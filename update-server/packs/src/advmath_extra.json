@@ -44,7 +44,7 @@
       "difficulty": 3,
       "question": "热更加餐：y = x·ln x 的导数是？",
       "options": [
-        "ln x即可彻底解决",
+        "ln x",
         "1/x",
         "ln x + 1",
         "x"
@@ -62,10 +62,10 @@
       "difficulty": 4,
       "question": "热更加餐：∫ ln x dx = ?",
       "options": [
-        "x ln x + C",
+        "x·ln x + C（漏减 x 项）",
         "x ln x − x + C",
         "ln x / x + C",
-        "x²/2·ln x + C即可彻底解决"
+        "x²/2·ln x + C"
       ],
       "answer": 1,
       "explanation": "分部积分：u=lnx, dv=dx → xlnx − ∫x·(1/x)dx = xlnx − x + C。",
@@ -134,10 +134,10 @@
       "difficulty": 3,
       "question": "热更加餐：隐函数 xy=1 在 x=1 处的 y′ = ?",
       "options": [
-        "1即可彻底解决",
+        "恰好等于 1",
         "−1",
         "0",
-        "2"
+        "±2"
       ],
       "answer": 1,
       "explanation": "y=1/x，y′=−1/x²=−1（x=1）。",

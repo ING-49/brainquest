@@ -26,7 +26,7 @@
       "subject": "高频电子线路",
       "difficulty": 4,
       "type": "single",
-      "question": "【真题】上题条件下的镜像干扰频率为？",
+      "question": "【真题】超外差接收机中频 f_I=465kHz，接收 f_S=1000kHz 的信号，其镜像干扰频率 f_N = ?",
       "options": [
         "1930kHz",
         "535kHz",
@@ -34,7 +34,7 @@
         "465kHz"
       ],
       "answer": 0,
-      "explanation": "f_N = f_L + f_I = 1465+465 = 1930kHz，与本振差频仍为中频。",
+      "explanation": "镜像频率与本振相差一个中频：f_N = f_L + f_I = (f_S+f_I) + f_I = 1000+930 = 1930kHz，与有用信号关于本振对称。",
       "tags": [
         "真题",
         "混频"

@@ -110,7 +110,7 @@ class QuestionBank(private val context: Context) {
             while (result.size < count && i < count * 4) {
                 val subject = shuffled[result.size % shuffled.size]
                 val q = pick(subject, 2, rng)
-                if (q != null && result.none { it.id == q.id && it.question == q.question }) result.add(q)
+                if (q != null && q.type != "fill" && result.none { it.id == q.id && it.question == q.question }) result.add(q)
                 i++
             }
             return result
@@ -130,7 +130,7 @@ class QuestionBank(private val context: Context) {
         while (result.size < count && i < count * 4) {
             val subject = uniSubjects[result.size % uniSubjects.size]
             val q = pick(subject, 4, rng)
-            if (q != null && result.none { it.id == q.id && it.question == q.question }) result.add(q)
+            if (q != null && q.type != "fill" && result.none { it.id == q.id && it.question == q.question }) result.add(q)
             i++
         }
         return result.shuffled(rng)
