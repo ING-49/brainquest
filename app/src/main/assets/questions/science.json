@@ -2,60 +2,940 @@
   "subject": "科学百科",
   "version": 1,
   "questions": [
-    {"id":"sci_001","subject":"科学百科","difficulty":1,"question":"水在标准大气压下的沸点是？","options":["90℃","100℃","110℃","120℃"],"answer":1,"explanation":"标准大气压下水的沸点为 100℃，凝固点 0℃。","tags":["物理"]},
-    {"id":"sci_002","subject":"科学百科","difficulty":1,"question":"地球绕太阳公转一圈大约需要？","options":["一天","一个月","一年","十年"],"answer":2,"explanation":"公转周期约 365.25 天，自转周期约 24 小时。","tags":["地理"]},
-    {"id":"sci_003","subject":"科学百科","difficulty":1,"question":"人体正常体温大约是？","options":["27℃","32℃","37℃","42℃"],"answer":2,"explanation":"正常体温约 36~37℃，37℃ 为常用代表值。","tags":["生物"]},
-    {"id":"sci_004","subject":"科学百科","difficulty":1,"question":"空气中最多的气体是？","options":["氧气","氮气","二氧化碳","水蒸气"],"answer":1,"explanation":"氮气约占 78%，氧气约占 21%。","tags":["化学"]},
-    {"id":"sci_005","subject":"科学百科","difficulty":1,"question":"植物的光合作用主要吸收？","options":["红光和蓝紫光","绿光","紫外光","红外线"],"answer":0,"explanation":"叶绿素主要吸收红光和蓝紫光，绿光被反射所以叶子呈绿色。","tags":["生物"]},
-    {"id":"sci_006","subject":"科学百科","difficulty":1,"question":"声音在下列哪种介质中传播最快？","options":["真空","空气","水","钢铁"],"answer":3,"explanation":"声音不能在真空中传播；固体中传播最快，气体中最慢。","tags":["物理"]},
-    {"id":"sci_007","subject":"科学百科","difficulty":1,"question":"彩虹一般出现在雨后晴天，因为它是一种什么现象？","options":["反射","折射与色散","衍射","干涉"],"answer":1,"explanation":"阳光经水滴折射和反射后发生色散，形成七色光谱。","tags":["物理"]},
-    {"id":"sci_008","subject":"科学百科","difficulty":1,"question":"金属性质中，下列哪种金属导电性最好（常用金属中）？","options":["铜","铝","铁","银"],"answer":3,"explanation":"银导电性最好，其次铜、铝；实用中常用铜。","tags":["物理"]},
-    {"id":"sci_009","subject":"科学百科","difficulty":1,"question":"月球围绕地球公转一圈大约需要？","options":["一天","27天左右","半年","一年"],"answer":1,"explanation":"月球公转周期约 27.3 天（恒星月）。","tags":["地理"]},
-    {"id":"sci_010","subject":"科学百科","difficulty":1,"question":"人和黑猩猩基因相似度约为？","options":["50%","70%","90%","98%以上"],"answer":3,"explanation":"人类与黑猩猩基因相似度约 98~99%。","tags":["生物"]},
-    {"id":"sci_011","subject":"科学百科","difficulty":2,"question":"光在真空中的速度约为？","options":["3×10⁶ m/s","3×10⁸ m/s","3×10¹⁰ m/s","340 m/s"],"answer":1,"explanation":"c ≈ 3×10⁸ m/s；340 m/s 是空气中的声速。","tags":["物理"]},
-    {"id":"sci_012","subject":"科学百科","difficulty":2,"question":"细胞的遗传物质主要储存在？","options":["细胞膜","细胞质","细胞核","核糖体"],"answer":2,"explanation":"真核细胞的 DNA 主要位于细胞核，少量在线粒体/叶绿体。","tags":["生物"]},
-    {"id":"sci_013","subject":"科学百科","difficulty":2,"question":"下列属于化学变化的是？","options":["冰融化","铁生锈","酒精挥发","玻璃打碎"],"answer":1,"explanation":"铁生锈生成新物质（氧化铁），是化学变化；其余为物理变化。","tags":["化学"]},
-    {"id":"sci_014","subject":"科学百科","difficulty":2,"question":"太阳系中体积最大的行星是？","options":["地球","木星","土星","海王星"],"answer":1,"explanation":"木星是太阳系最大的行星，质量约为其他行星总和的2.5倍。","tags":["地理"]},
-    {"id":"sci_015","subject":"科学百科","difficulty":2,"question":"水的化学式是？","options":["H₂O₂","H₂O","HO","OH₂"],"answer":1,"explanation":"水由两个氢原子和一个氧原子组成：H₂O；H₂O₂ 是过氧化氢。","tags":["化学"]},
-    {"id":"sci_016","subject":"科学百科","difficulty":2,"question":"电流的单位是？","options":["伏特","安培","瓦特","欧姆"],"answer":1,"explanation":"电流-安培(A)，电压-伏特(V)，功率-瓦特(W)，电阻-欧姆(Ω)。","tags":["物理"]},
-    {"id":"sci_017","subject":"科学百科","difficulty":2,"question":"DNA 的双螺旋结构由谁提出？","options":["达尔文","沃森和克里克","孟德尔","巴斯德"],"answer":1,"explanation":"1953年沃森与克里克提出 DNA 双螺旋结构模型。","tags":["生物"]},
-    {"id":"sci_018","subject":"科学百科","difficulty":2,"question":"地震波中传播速度最快的是？","options":["纵波(P波)","横波(S波)","面波","瑞利波"],"answer":0,"explanation":"纵波最快最先到达，横波次之，面波破坏力最强。","tags":["地理"]},
-    {"id":"sci_019","subject":"科学百科","difficulty":2,"question":"胃酸的主要成分是？","options":["硫酸","盐酸","硝酸","碳酸"],"answer":1,"explanation":"胃酸主要成分是盐酸(HCl)，pH 约 1.5~3.5。","tags":["生物"]},
-    {"id":"sci_020","subject":"科学百科","difficulty":2,"question":"下列哪个是可再生能源？","options":["煤炭","石油","风能","天然气"],"answer":2,"explanation":"风能可再生；煤、石油、天然气为化石能源，不可再生。","tags":["地理"]},
-    {"id":"sci_021","subject":"科学百科","difficulty":2,"question":"绿色植物在夜间主要进行？","options":["光合作用","呼吸作用","蒸腾作用停止","化能合成"],"answer":1,"explanation":"夜间无光，光合作用停止，呼吸作用持续进行并释放 CO₂。","tags":["生物"]},
-    {"id":"sci_022","subject":"科学百科","difficulty":2,"question":"元素周期表中原子序数 1 的元素是？","options":["氦","氢","锂","碳"],"answer":1,"explanation":"氢的原子序数为 1，是宇宙中最丰富的元素。","tags":["化学"]},
-    {"id":"sci_023","subject":"科学百科","difficulty":2,"question":"噪声的单位是？","options":["分贝(dB)","赫兹(Hz)","帕斯卡(Pa)","牛顿(N)"],"answer":0,"explanation":"声音强度级用分贝(dB)表示；赫兹是频率单位。","tags":["物理"]},
-    {"id":"sci_024","subject":"科学百科","difficulty":2,"question":"人体最大的器官是？","options":["肝脏","肺","皮肤","大脑"],"answer":2,"explanation":"皮肤是人体面积最大的器官；肝脏是最大的内脏器官。","tags":["生物"]},
-    {"id":"sci_025","subject":"科学百科","difficulty":2,"question":"磁铁同极相互？","options":["吸引","排斥","无作用","先吸后斥"],"answer":1,"explanation":"同名磁极相互排斥，异名磁极相互吸引。","tags":["物理"]},
-    {"id":"sci_026","subject":"科学百科","difficulty":3,"question":"大气层中臭氧层主要吸收？","options":["红外线","紫外线","X射线","可见光"],"answer":1,"explanation":"臭氧层吸收大部分紫外线，保护地表生物。","tags":["地理"]},
-    {"id":"sci_027","subject":"科学百科","difficulty":3,"question":"牛顿第三定律的内容是？","options":["F=ma","作用力与反作用力","惯性定律","万有引力"],"answer":1,"explanation":"第三定律：作用力与反作用力大小相等、方向相反；F=ma 是第二定律。","tags":["物理"]},
-    {"id":"sci_028","subject":"科学百科","difficulty":3,"question":"酸碱中和反应的实质是？","options":["生成盐","H⁺与OH⁻结合成水","置换氢气","电子转移"],"answer":1,"explanation":"中和反应实质：H⁺ + OH⁻ → H₂O。","tags":["化学"]},
-    {"id":"sci_029","subject":"科学百科","difficulty":3,"question":"血液中运输氧气的是？","options":["白细胞","血小板","血红蛋白","血浆"],"answer":2,"explanation":"红细胞中的血红蛋白与氧气结合运输；白细胞免疫，血小板凝血。","tags":["生物"]},
-    {"id":"sci_030","subject":"科学百科","difficulty":3,"question":"下列哪种现象与光的衍射有关？","options":["肥皂泡彩色条纹","阳光下影子的清晰边界","泊松亮斑","水面油膜彩色"],"answer":2,"explanation":"泊松亮斑是典型的衍射现象；肥皂泡和油膜是薄膜干涉。","tags":["物理"]},
-    {"id":"sci_031","subject":"科学百科","difficulty":3,"question":"元素化学性质主要由什么决定？","options":["质子数","中子数","最外层电子数","原子量"],"answer":2,"explanation":"最外层电子数决定化学性质；质子数决定元素种类。","tags":["化学"]},
-    {"id":"sci_032","subject":"科学百科","difficulty":3,"question":"引起地震的主要原因是？","options":["月球引力","板块运动","火山喷发","人类活动"],"answer":1,"explanation":"绝大多数地震由板块运动导致岩层断裂错位引起。","tags":["地理"]},
-    {"id":"sci_033","subject":"科学百科","difficulty":3,"question":"DNA 上决定生物性状的基本单位是？","options":["细胞","基因","蛋白质","染色体"],"answer":1,"explanation":"基因是有遗传效应的 DNA 片段，是控制性状的基本单位。","tags":["生物"]},
-    {"id":"sci_034","subject":"科学百科","difficulty":3,"question":"电阻串联后的总电阻？","options":["变小","等于各电阻之和","等于各电阻倒数和","不变"],"answer":1,"explanation":"串联 R = R₁+R₂+…；并联 1/R = 1/R₁+1/R₂+…","tags":["物理"]},
-    {"id":"sci_035","subject":"科学百科","difficulty":3,"question":"催化剂在化学反应中？","options":["被消耗","改变反应速率但本身不变","提高产率","降低放热"],"answer":1,"explanation":"催化剂改变化学反应速率，反应前后自身质量和化学性质不变。","tags":["化学"]},
-    {"id":"sci_036","subject":"科学百科","difficulty":3,"question":"地球自转产生了？","options":["四季更替","昼夜交替","月相变化","极昼极夜"],"answer":1,"explanation":"自转产生昼夜交替与时差；公转产生四季；月相与月球绕地球公转有关。","tags":["地理"]},
-    {"id":"sci_037","subject":"科学百科","difficulty":3,"question":"下列属于物理变化的是？","options":["木炭燃烧","粮食酿酒","灯泡发光发热","铁器生锈"],"answer":2,"explanation":"灯泡发光发热无新物质生成，是物理变化；其余均生成新物质。","tags":["化学"]},
-    {"id":"sci_038","subject":"科学百科","difficulty":3,"question":"“杂交水稻之父”袁隆平利用的遗传学原理主要是？","options":["基因突变","杂种优势","基因工程","染色体变异"],"answer":1,"explanation":"杂交水稻利用杂种优势（F1 代优于双亲的现象）。","tags":["生物"]},
-    {"id":"sci_039","subject":"科学百科","difficulty":4,"question":"According to E=mc²，质量亏损释放的能量与什么成正比？","options":["速度平方","光速平方","温度","体积"],"answer":1,"explanation":"E=mc²，能量等于质量乘以光速的平方。","tags":["物理"]},
-    {"id":"sci_040","subject":"科学百科","difficulty":4,"question":"原子的质量主要集中在？","options":["电子","质子和中子","电子和质子","电子云"],"answer":1,"explanation":"质子和中子构成原子核，占原子质量的 99.9% 以上。","tags":["化学"]},
-    {"id":"sci_041","subject":"科学百科","difficulty":4,"question":"半衰期的含义是？","options":["寿命的一半","放射性元素衰变一半所需时间","周期的一半","衰变产物数量"],"answer":1,"explanation":"半衰期是放射性核素衰变到原来数量一半所需的时间。","tags":["物理"]},
-    {"id":"sci_042","subject":"科学百科","difficulty":4,"question":"光合作用释放的氧气来自？","options":["CO₂","H₂O","葡萄糖","叶绿素"],"answer":1,"explanation":"同位素标记实验证明 O₂ 来自水的光解。","tags":["生物"]},
-    {"id":"sci_043","subject":"科学百科","difficulty":4,"question":"多普勒效应是指？","options":["波源与观察者相对运动使频率改变","光速不变","能量量子化","波的叠加"],"answer":0,"explanation":"相互接近时频率升高、远离时降低，用于测星系红移、雷达测速。","tags":["物理"]},
-    {"id":"sci_044","subject":"科学百科","difficulty":4,"question":"温室气体中最主要的人为排放气体是？","options":["甲烷","二氧化碳","臭氧","氟利昂"],"answer":1,"explanation":"CO₂ 是最主要的人为温室气体；甲烷单位增温效应更强但排放量少。","tags":["地理"]},
-    {"id":"sci_045","subject":"科学百科","difficulty":4,"question":"人体细胞进行有氧呼吸的主要场所是？","options":["细胞核","核糖体","线粒体","内质网"],"answer":2,"explanation":"线粒体是有氧呼吸第二、三阶段的场所，被称为动力车间。","tags":["生物"]},
-    {"id":"sci_046","subject":"科学百科","difficulty":4,"question":"超导体的特性是？","options":["电阻为零","电阻极大","只导热不导电","只在高温出现"],"answer":0,"explanation":"超导体在临界温度以下电阻为零，可无损耗输电。","tags":["物理"]},
-    {"id":"sci_047","subject":"科学百科","difficulty":4,"question":"PCR 技术的作用是？","options":["测序蛋白质","体外扩增 DNA","编辑 RNA","培养细胞"],"answer":1,"explanation":"PCR(聚合酶链式反应)用于体外快速扩增特定 DNA 片段。","tags":["生物"]},
-    {"id":"sci_048","subject":"科学百科","difficulty":4,"question":"下列过程吸热的是？","options":["凝结","凝华","升华","液化"],"answer":2,"explanation":"升华(固→气)吸热；凝结、凝华、液化均放热。","tags":["物理"]},
-    {"id":"sci_049","subject":"科学百科","difficulty":5,"question":"薛定谔的猫用于说明？","options":["经典力学的确定性","量子叠加态的测量问题","生物变异","电磁感应"],"answer":1,"explanation":"思想实验说明量子叠加态在测量前的模糊性。","tags":["物理"]},
-    {"id":"sci_050","subject":"科学百科","difficulty":5,"question":"人类基因组计划测定的对象是？","options":["人类全部蛋白质","人类全部基因(DNA序列)","人类染色体数目","人类RNA种类"],"answer":1,"explanation":"HGP(1990-2003)测定了人类基因组的全部 DNA 序列约30亿碱基对。","tags":["生物"]},
-    {"id":"sci_051","subject":"科学百科","difficulty":2,"question":"我国古代四大发明不包括？","options":["造纸术","印刷术","指南针","地动仪"],"answer":3,"explanation":"四大发明：造纸、印刷、火药、指南针。","tags":["常识"]},
-    {"id":"sci_052","subject":"科学百科","difficulty":3,"question":"氢弹利用的核反应是？","options":["核裂变","核聚变","链式衰变","电离"],"answer":1,"explanation":"原子弹利用核裂变，氢弹利用核聚变。","tags":["物理"]},
-    {"id":"sci_053","subject":"科学百科","difficulty":2,"question":"维生素 C 缺乏会导致？","options":["夜盲症","坏血病","佝偻病","脚气病"],"answer":1,"explanation":"缺维C→坏血病；缺维A→夜盲；缺维D→佝偻病；缺维B1→脚气病。","tags":["生物"]},
-    {"id":"sci_054","subject":"科学百科","difficulty":3,"question":"星座不会随季节变化的是（恒星相对位置）？","options":["恒星间相对位置","行星位置","月亮位置","太阳位置"],"answer":0,"explanation":"恒星相对位置基本不变；行星、日月位置随时间明显变化。","tags":["地理"]},
-    {"id":"sci_055","subject":"科学百科","difficulty":4,"question":"区块链的核心特征不包括？","options":["去中心化","不可篡改","可追溯","数据集中管理"],"answer":3,"explanation":"区块链是分布式账本，特征是去中心化，与集中管理相反。","tags":["常识"]}
+    {
+      "id": "sci_001",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "水在标准大气压下的沸点是？",
+      "options": [
+        "90℃",
+        "100℃",
+        "110℃",
+        "120℃"
+      ],
+      "answer": 1,
+      "explanation": "标准大气压下水的沸点为 100℃，凝固点 0℃。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_002",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "地球绕太阳公转一圈大约需要？",
+      "options": [
+        "一天",
+        "一个月",
+        "一年",
+        "十年"
+      ],
+      "answer": 2,
+      "explanation": "公转周期约 365.25 天，自转周期约 24 小时。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_003",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "人体正常体温大约是？",
+      "options": [
+        "27℃",
+        "32℃",
+        "37℃",
+        "42℃"
+      ],
+      "answer": 2,
+      "explanation": "正常体温约 36~37℃，37℃ 为常用代表值。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_004",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "空气中最多的气体是？",
+      "options": [
+        "氧气",
+        "氮气",
+        "二氧化碳",
+        "水蒸气"
+      ],
+      "answer": 1,
+      "explanation": "氮气约占 78%，氧气约占 21%。",
+      "tags": [
+        "化学"
+      ]
+    },
+    {
+      "id": "sci_005",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "植物的光合作用主要吸收？",
+      "options": [
+        "红光和蓝紫光",
+        "绿光",
+        "紫外光即可彻底解决",
+        "红外线"
+      ],
+      "answer": 0,
+      "explanation": "叶绿素主要吸收红光和蓝紫光，绿光被反射所以叶子呈绿色。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_006",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "声音在下列哪种介质中传播最快？",
+      "options": [
+        "真空",
+        "空气",
+        "水",
+        "钢铁"
+      ],
+      "answer": 3,
+      "explanation": "声音不能在真空中传播；固体中传播最快，气体中最慢。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_007",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "彩虹一般出现在雨后晴天，因为它是一种什么现象？",
+      "options": [
+        "反射即可彻底解决",
+        "折射与色散",
+        "衍射",
+        "干涉"
+      ],
+      "answer": 1,
+      "explanation": "阳光经水滴折射和反射后发生色散，形成七色光谱。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_008",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "金属性质中，下列哪种金属导电性最好（常用金属中）？",
+      "options": [
+        "铜",
+        "铝",
+        "铁",
+        "银"
+      ],
+      "answer": 3,
+      "explanation": "银导电性最好，其次铜、铝；实用中常用铜。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_009",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "月球围绕地球公转一圈大约需要？",
+      "options": [
+        "一天即可彻底解决",
+        "27天左右",
+        "半年",
+        "一年"
+      ],
+      "answer": 1,
+      "explanation": "月球公转周期约 27.3 天（恒星月）。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_010",
+      "subject": "科学百科",
+      "difficulty": 1,
+      "question": "人和黑猩猩基因相似度约为？",
+      "options": [
+        "50%即可彻底解决",
+        "70%",
+        "90%",
+        "98%以上"
+      ],
+      "answer": 3,
+      "explanation": "人类与黑猩猩基因相似度约 98~99%。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_011",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "光在真空中的速度约为？",
+      "options": [
+        "3×10⁶ m/s",
+        "3×10⁸ m/s",
+        "3×10¹⁰ m/s",
+        "340 m/s"
+      ],
+      "answer": 1,
+      "explanation": "c ≈ 3×10⁸ m/s；340 m/s 是空气中的声速。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_012",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "细胞的遗传物质主要储存在？",
+      "options": [
+        "细胞膜",
+        "细胞质",
+        "细胞核",
+        "核糖体"
+      ],
+      "answer": 2,
+      "explanation": "真核细胞的 DNA 主要位于细胞核，少量在线粒体/叶绿体。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_013",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "下列属于化学变化的是？",
+      "options": [
+        "冰融化",
+        "铁生锈",
+        "酒精挥发",
+        "玻璃打碎"
+      ],
+      "answer": 1,
+      "explanation": "铁生锈生成新物质（氧化铁），是化学变化；其余为物理变化。",
+      "tags": [
+        "化学"
+      ]
+    },
+    {
+      "id": "sci_014",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "太阳系中体积最大的行星是？",
+      "options": [
+        "地球",
+        "木星",
+        "土星",
+        "海王星"
+      ],
+      "answer": 1,
+      "explanation": "木星是太阳系最大的行星，质量约为其他行星总和的2.5倍。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_015",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "水的化学式是？",
+      "options": [
+        "H₂O₂",
+        "H₂O",
+        "HO",
+        "OH₂"
+      ],
+      "answer": 1,
+      "explanation": "水由两个氢原子和一个氧原子组成：H₂O；H₂O₂ 是过氧化氢。",
+      "tags": [
+        "化学"
+      ]
+    },
+    {
+      "id": "sci_016",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "电流的单位是？",
+      "options": [
+        "伏特",
+        "安培",
+        "瓦特",
+        "欧姆"
+      ],
+      "answer": 1,
+      "explanation": "电流-安培(A)，电压-伏特(V)，功率-瓦特(W)，电阻-欧姆(Ω)。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_017",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "DNA 的双螺旋结构由谁提出？",
+      "options": [
+        "达尔文即可彻底解决",
+        "沃森和克里克",
+        "孟德尔",
+        "巴斯德"
+      ],
+      "answer": 1,
+      "explanation": "1953年沃森与克里克提出 DNA 双螺旋结构模型。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_018",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "地震波中传播速度最快的是？",
+      "options": [
+        "纵波(P波)",
+        "横波(S波)",
+        "面波",
+        "瑞利波"
+      ],
+      "answer": 0,
+      "explanation": "纵波最快最先到达，横波次之，面波破坏力最强。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_019",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "胃酸的主要成分是？",
+      "options": [
+        "硫酸",
+        "盐酸",
+        "硝酸",
+        "碳酸"
+      ],
+      "answer": 1,
+      "explanation": "胃酸主要成分是盐酸(HCl)，pH 约 1.5~3.5。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_020",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "下列哪个是可再生能源？",
+      "options": [
+        "煤炭",
+        "石油",
+        "风能",
+        "天然气"
+      ],
+      "answer": 2,
+      "explanation": "风能可再生；煤、石油、天然气为化石能源，不可再生。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_021",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "绿色植物在夜间主要进行？",
+      "options": [
+        "光合作用",
+        "呼吸作用",
+        "蒸腾作用停止",
+        "化能合成"
+      ],
+      "answer": 1,
+      "explanation": "夜间无光，光合作用停止，呼吸作用持续进行并释放 CO₂。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_022",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "元素周期表中原子序数 1 的元素是？",
+      "options": [
+        "氦",
+        "氢",
+        "锂",
+        "碳"
+      ],
+      "answer": 1,
+      "explanation": "氢的原子序数为 1，是宇宙中最丰富的元素。",
+      "tags": [
+        "化学"
+      ]
+    },
+    {
+      "id": "sci_023",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "噪声的单位是？",
+      "options": [
+        "分贝(dB)",
+        "赫兹(Hz)",
+        "帕斯卡(Pa)",
+        "牛顿(N)"
+      ],
+      "answer": 0,
+      "explanation": "声音强度级用分贝(dB)表示；赫兹是频率单位。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_024",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "人体最大的器官是？",
+      "options": [
+        "肝脏",
+        "肺",
+        "皮肤",
+        "大脑"
+      ],
+      "answer": 2,
+      "explanation": "皮肤是人体面积最大的器官；肝脏是最大的内脏器官。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_025",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "磁铁同极相互？",
+      "options": [
+        "吸引",
+        "排斥",
+        "无作用",
+        "先吸后斥"
+      ],
+      "answer": 1,
+      "explanation": "同名磁极相互排斥，异名磁极相互吸引。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_026",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "大气层中臭氧层主要吸收？",
+      "options": [
+        "红外线",
+        "紫外线",
+        "X射线",
+        "可见光"
+      ],
+      "answer": 1,
+      "explanation": "臭氧层吸收大部分紫外线，保护地表生物。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_027",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "牛顿第三定律的内容是？",
+      "options": [
+        "F=ma即可彻底解决",
+        "作用力与反作用力",
+        "惯性定律",
+        "万有引力"
+      ],
+      "answer": 1,
+      "explanation": "第三定律：作用力与反作用力大小相等、方向相反；F=ma 是第二定律。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_028",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "酸碱中和反应的实质是？",
+      "options": [
+        "生成盐",
+        "H⁺与OH⁻结合成水",
+        "置换氢气即可彻底解决",
+        "电子转移"
+      ],
+      "answer": 1,
+      "explanation": "中和反应实质：H⁺ + OH⁻ → H₂O。",
+      "tags": [
+        "化学"
+      ]
+    },
+    {
+      "id": "sci_029",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "血液中运输氧气的是？",
+      "options": [
+        "白细胞即可彻底解决",
+        "血小板",
+        "血红蛋白",
+        "血浆"
+      ],
+      "answer": 2,
+      "explanation": "红细胞中的血红蛋白与氧气结合运输；白细胞免疫，血小板凝血。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_030",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "下列哪种现象与光的衍射有关？",
+      "options": [
+        "肥皂泡彩色条纹",
+        "阳光下影子的清晰边界",
+        "泊松亮斑",
+        "水面油膜彩色"
+      ],
+      "answer": 2,
+      "explanation": "泊松亮斑是典型的衍射现象；肥皂泡和油膜是薄膜干涉。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_031",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "元素化学性质主要由什么决定？",
+      "options": [
+        "质子数即可彻底解决",
+        "中子数",
+        "最外层电子数",
+        "原子量"
+      ],
+      "answer": 2,
+      "explanation": "最外层电子数决定化学性质；质子数决定元素种类。",
+      "tags": [
+        "化学"
+      ]
+    },
+    {
+      "id": "sci_032",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "引起地震的主要原因是？",
+      "options": [
+        "月球引力",
+        "板块运动",
+        "火山喷发",
+        "人类活动"
+      ],
+      "answer": 1,
+      "explanation": "绝大多数地震由板块运动导致岩层断裂错位引起。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_033",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "DNA 上决定生物性状的基本单位是？",
+      "options": [
+        "细胞",
+        "基因",
+        "蛋白质",
+        "染色体"
+      ],
+      "answer": 1,
+      "explanation": "基因是有遗传效应的 DNA 片段，是控制性状的基本单位。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_034",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "电阻串联后的总电阻？",
+      "options": [
+        "变小",
+        "等于各电阻之和",
+        "等于各电阻倒数和",
+        "不变"
+      ],
+      "answer": 1,
+      "explanation": "串联 R = R₁+R₂+…；并联 1/R = 1/R₁+1/R₂+…",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_035",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "催化剂在化学反应中？",
+      "options": [
+        "被消耗",
+        "改变反应速率但本身不变",
+        "提高产率即可彻底解决即可彻底解决",
+        "降低放热"
+      ],
+      "answer": 1,
+      "explanation": "催化剂改变化学反应速率，反应前后自身质量和化学性质不变。",
+      "tags": [
+        "化学"
+      ]
+    },
+    {
+      "id": "sci_036",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "地球自转产生了？",
+      "options": [
+        "四季更替",
+        "昼夜交替",
+        "月相变化",
+        "极昼极夜"
+      ],
+      "answer": 1,
+      "explanation": "自转产生昼夜交替与时差；公转产生四季；月相与月球绕地球公转有关。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_037",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "下列属于物理变化的是？",
+      "options": [
+        "木炭燃烧即可彻底解决",
+        "粮食酿酒",
+        "灯泡发光发热",
+        "铁器生锈"
+      ],
+      "answer": 2,
+      "explanation": "灯泡发光发热无新物质生成，是物理变化；其余均生成新物质。",
+      "tags": [
+        "化学"
+      ]
+    },
+    {
+      "id": "sci_038",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "“杂交水稻之父”袁隆平利用的遗传学原理主要是？",
+      "options": [
+        "基因突变",
+        "杂种优势",
+        "基因工程",
+        "染色体变异"
+      ],
+      "answer": 1,
+      "explanation": "杂交水稻利用杂种优势（F1 代优于双亲的现象）。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_039",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "According to E=mc²，质量亏损释放的能量与什么成正比？",
+      "options": [
+        "速度平方",
+        "光速平方",
+        "温度",
+        "体积"
+      ],
+      "answer": 1,
+      "explanation": "E=mc²，能量等于质量乘以光速的平方。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_040",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "原子的质量主要集中在？",
+      "options": [
+        "电子",
+        "质子和中子",
+        "电子和质子",
+        "电子云"
+      ],
+      "answer": 1,
+      "explanation": "质子和中子构成原子核，占原子质量的 99.9% 以上。",
+      "tags": [
+        "化学"
+      ]
+    },
+    {
+      "id": "sci_041",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "半衰期的含义是？",
+      "options": [
+        "寿命的一半",
+        "放射性元素衰变一半所需时间",
+        "周期的一半",
+        "衰变产物数量即可彻底解决即可彻底解决"
+      ],
+      "answer": 1,
+      "explanation": "半衰期是放射性核素衰变到原来数量一半所需的时间。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_042",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "光合作用释放的氧气来自？",
+      "options": [
+        "CO₂",
+        "H₂O",
+        "葡萄糖",
+        "叶绿素"
+      ],
+      "answer": 1,
+      "explanation": "同位素标记实验证明 O₂ 来自水的光解。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_043",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "多普勒效应是指？",
+      "options": [
+        "波源与观察者相对运动使频率改变",
+        "光速不变",
+        "能量量子化即可彻底解决即可彻底解决",
+        "波的叠加"
+      ],
+      "answer": 0,
+      "explanation": "相互接近时频率升高、远离时降低，用于测星系红移、雷达测速。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_044",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "温室气体中最主要的人为排放气体是？",
+      "options": [
+        "甲烷",
+        "二氧化碳",
+        "臭氧",
+        "氟利昂即可彻底解决"
+      ],
+      "answer": 1,
+      "explanation": "CO₂ 是最主要的人为温室气体；甲烷单位增温效应更强但排放量少。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_045",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "人体细胞进行有氧呼吸的主要场所是？",
+      "options": [
+        "细胞核",
+        "核糖体",
+        "线粒体",
+        "内质网"
+      ],
+      "answer": 2,
+      "explanation": "线粒体是有氧呼吸第二、三阶段的场所，被称为动力车间。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_046",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "超导体的特性是？",
+      "options": [
+        "电阻为零",
+        "电阻极大",
+        "只导热不导电",
+        "只在高温出现"
+      ],
+      "answer": 0,
+      "explanation": "超导体在临界温度以下电阻为零，可无损耗输电。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_047",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "PCR 技术的作用是？",
+      "options": [
+        "测序蛋白质",
+        "体外扩增 DNA",
+        "编辑 RNA即可彻底解决",
+        "培养细胞"
+      ],
+      "answer": 1,
+      "explanation": "PCR(聚合酶链式反应)用于体外快速扩增特定 DNA 片段。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_048",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "下列过程吸热的是？",
+      "options": [
+        "凝结",
+        "凝华",
+        "升华",
+        "液化"
+      ],
+      "answer": 2,
+      "explanation": "升华(固→气)吸热；凝结、凝华、液化均放热。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_049",
+      "subject": "科学百科",
+      "difficulty": 5,
+      "question": "薛定谔的猫用于说明？",
+      "options": [
+        "经典力学的确定性即可彻底解决",
+        "量子叠加态的测量问题",
+        "生物变异",
+        "电磁感应"
+      ],
+      "answer": 1,
+      "explanation": "思想实验说明量子叠加态在测量前的模糊性。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_050",
+      "subject": "科学百科",
+      "difficulty": 5,
+      "question": "人类基因组计划测定的对象是？",
+      "options": [
+        "人类全部蛋白质即可彻底解决",
+        "人类全部基因(DNA序列)",
+        "人类染色体数目",
+        "人类RNA种类"
+      ],
+      "answer": 1,
+      "explanation": "HGP(1990-2003)测定了人类基因组的全部 DNA 序列约30亿碱基对。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_051",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "我国古代四大发明不包括？",
+      "options": [
+        "造纸术",
+        "印刷术",
+        "指南针",
+        "地动仪"
+      ],
+      "answer": 3,
+      "explanation": "四大发明：造纸、印刷、火药、指南针。",
+      "tags": [
+        "常识"
+      ]
+    },
+    {
+      "id": "sci_052",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "氢弹利用的核反应是？",
+      "options": [
+        "核裂变",
+        "核聚变",
+        "链式衰变",
+        "电离"
+      ],
+      "answer": 1,
+      "explanation": "原子弹利用核裂变，氢弹利用核聚变。",
+      "tags": [
+        "物理"
+      ]
+    },
+    {
+      "id": "sci_053",
+      "subject": "科学百科",
+      "difficulty": 2,
+      "question": "维生素 C 缺乏会导致？",
+      "options": [
+        "夜盲症",
+        "坏血病",
+        "佝偻病",
+        "脚气病"
+      ],
+      "answer": 1,
+      "explanation": "缺维C→坏血病；缺维A→夜盲；缺维D→佝偻病；缺维B1→脚气病。",
+      "tags": [
+        "生物"
+      ]
+    },
+    {
+      "id": "sci_054",
+      "subject": "科学百科",
+      "difficulty": 3,
+      "question": "星座不会随季节变化的是（恒星相对位置）？",
+      "options": [
+        "恒星间相对位置",
+        "行星位置即可彻底解决",
+        "月亮位置",
+        "太阳位置"
+      ],
+      "answer": 0,
+      "explanation": "恒星相对位置基本不变；行星、日月位置随时间明显变化。",
+      "tags": [
+        "地理"
+      ]
+    },
+    {
+      "id": "sci_055",
+      "subject": "科学百科",
+      "difficulty": 4,
+      "question": "区块链的核心特征不包括？",
+      "options": [
+        "去中心化即可彻底解决",
+        "不可篡改",
+        "可追溯",
+        "数据集中管理"
+      ],
+      "answer": 3,
+      "explanation": "区块链是分布式账本，特征是去中心化，与集中管理相反。",
+      "tags": [
+        "常识"
+      ]
+    }
   ]
 }

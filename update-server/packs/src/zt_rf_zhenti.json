@@ -1,0 +1,101 @@
+{
+  "subject": "高频电子线路",
+  "version": 1,
+  "questions": [
+    {
+      "id": "zt_rf_001",
+      "subject": "高频电子线路",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】超外差接收机中频 f_I=465kHz，接收 f_S=1000kHz 信号时本振频率 f_L = ?",
+      "options": [
+        "1465kHz",
+        "535kHz",
+        "2000kHz",
+        "465kHz"
+      ],
+      "answer": 0,
+      "explanation": "下混频：f_L = f_S + f_I = 1000+465 = 1465kHz。",
+      "tags": [
+        "真题",
+        "混频"
+      ]
+    },
+    {
+      "id": "zt_rf_002",
+      "subject": "高频电子线路",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】上题条件下的镜像干扰频率为？",
+      "options": [
+        "1930kHz",
+        "535kHz",
+        "1465kHz",
+        "465kHz"
+      ],
+      "answer": 0,
+      "explanation": "f_N = f_L + f_I = 1465+465 = 1930kHz，与本振差频仍为中频。",
+      "tags": [
+        "真题",
+        "混频"
+      ]
+    },
+    {
+      "id": "zt_rf_003",
+      "subject": "高频电子线路",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】AM 信号调制度 m=0.5 时，总功率与载波功率之比为？",
+      "options": [
+        "1.125",
+        "1.25 倍",
+        "1.5",
+        "2"
+      ],
+      "answer": 0,
+      "explanation": "P总/Pc = 1+m²/2 = 1+0.25/2 = 1.125。",
+      "tags": [
+        "真题",
+        "调制"
+      ]
+    },
+    {
+      "id": "zt_rf_004",
+      "subject": "高频电子线路",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】调频广播最大频偏 Δf=75kHz，最高调制频率 15kHz，卡森带宽为？",
+      "options": [
+        "180kHz",
+        "150kHz",
+        "90kHz",
+        "75kHz"
+      ],
+      "answer": 0,
+      "explanation": "卡森公式 B≈2(Δf+f_m)=2×90=180kHz。",
+      "tags": [
+        "真题",
+        "调频"
+      ]
+    },
+    {
+      "id": "zt_rf_005",
+      "subject": "高频电子线路",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【真题】石英晶体并联型振荡电路中，晶体工作在什么区域？",
+      "options": [
+        "串联谐振与并联谐振之间的感性区",
+        "容性导电区域",
+        "纯阻区",
+        "恰好位于串联谐振频率的那一点上"
+      ],
+      "answer": 0,
+      "explanation": "感性区晶体等效为高 Q 电感，与外接电容组成三点式振荡。",
+      "tags": [
+        "真题",
+        "振荡器"
+      ]
+    }
+  ]
+}

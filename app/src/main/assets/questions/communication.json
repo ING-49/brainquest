@@ -2,50 +2,770 @@
   "subject": "通信原理",
   "version": 1,
   "questions": [
-    {"id":"comm_001","subject":"通信原理","difficulty":1,"question":"模拟信号数字化的三个步骤是？","options":["调制、解调、放大","抽样、量化、编码","滤波、放大、混频","编码、加密、传输"],"answer":1,"explanation":"A/D 三部曲：抽样（时间离散）、量化（幅度离散）、编码（变成码字）。","tags":["数字化"]},
-    {"id":"comm_002","subject":"通信原理","difficulty":1,"question":"奈奎斯特抽样定理要求抽样频率 f_s 满足？","options":["f_s ≤ 2f_H","f_s ≥ 2f_H","f_s = f_H","f_s ≥ f_H/2"],"answer":1,"explanation":"f_s ≥ 2f_H（f_H 为信号最高频率），否则出现频谱混叠。","tags":["抽样"]},
-    {"id":"comm_003","subject":"通信原理","difficulty":1,"question":"语音通信常用的标准抽样频率 8kHz 对应的信号带宽？","options":["3.4kHz","8kHz","16kHz","20Hz"],"answer":0,"explanation":"电话语音取 300~3400Hz，按 2×3400≈6.8kHz 加裕量取 8kHz。","tags":["抽样"]},
-    {"id":"comm_004","subject":"通信原理","difficulty":1,"question":"香农公式 C = B log₂(1+S/N) 中 B 表示？","options":["信噪比","信道带宽","误码率","码元速率"],"answer":1,"explanation":"C 为信道容量(bit/s)，B 带宽(Hz)，S/N 为信噪比。","tags":["信道容量"]},
-    {"id":"comm_005","subject":"通信原理","difficulty":1,"question":"数字通信相比模拟通信的主要优点是？","options":["带宽占用小","抗干扰能力强、可再生中继、易于加密","设备永远简单","不需要同步"],"answer":1,"explanation":"数字信号可判决再生、纠错、加密，代价是带宽与同步要求。","tags":["基础"]},
-    {"id":"comm_006","subject":"通信原理","difficulty":1,"question":"AM 调制属于？","options":["数字基带","线性调制（幅度调制）","非线性调制","数字调制"],"answer":1,"explanation":"AM/DSB/SSB/VSB 都是线性调制；FM/PM 是非线性调制（角度调制）。","tags":["模拟调制"]},
-    {"id":"comm_007","subject":"通信原理","difficulty":1,"question":"码元速率的单位是？","options":["bit/s","波特(Baud)","赫兹","瓦特"],"answer":1,"explanation":"码元速率 RB 单位波特；信息速率 Rb 单位 bit/s。","tags":["基础"]},
-    {"id":"comm_008","subject":"通信原理","difficulty":2,"question":"多进制时，信息速率与码元速率的关系是 Rb = RB·？","options":["log₂M","M","2M","log₁₀M"],"answer":0,"explanation":"每个码元携带 log₂M 比特，故 Rb = RB log₂M。","tags":["基础"]},
-    {"id":"comm_009","subject":"通信原理","difficulty":2,"question":"均匀量化在信号小时信噪比低，改进方法是？","options":["增大带宽","非均匀量化（如A律/μ律压扩）","减少量化级数","降低抽样率"],"answer":1,"explanation":"对数压扩使小信号获得更细量化级，PCM 电话采用 A 律（中国/欧洲）。","tags":["量化"]},
-    {"id":"comm_010","subject":"通信原理","difficulty":2,"question":"Delta 调制(ΔM)存在的两种量化噪声是？","options":["热噪声与散粒噪声","过载噪声与颗粒噪声","互调噪声","码间串扰"],"answer":1,"explanation":"信号斜率过大跟踪不上→过载噪声；缓慢变化时台阶抖动→颗粒噪声。","tags":["增量调制"]},
-    {"id":"comm_011","subject":"通信原理","difficulty":2,"question":"2ASK 调制用载波的有无表示信息，其解调方式可以是？","options":["只能相干","包络检波或相干解调","只能鉴频","只能锁相"],"answer":1,"explanation":"2ASK 包络含信息，可用包络检波（非相干），也可相干解调，相干性能更好。","tags":["数字调制"]},
-    {"id":"comm_012","subject":"通信原理","difficulty":2,"question":"2PSK 相干解调的主要问题是？","options":["带宽过大","相位模糊（倒π现象）","必须非相干","速率低"],"answer":1,"explanation":"载波恢复存在 0/π 模糊，实用中采用差分 2DPSK 解决。","tags":["数字调制"]},
-    {"id":"comm_013","subject":"通信原理","difficulty":2,"question":"眼图可以观察的性能不包括？","options":["码间串扰程度","噪声容限","最佳判决时刻","信道加密强度"],"answer":3,"explanation":"眼图反映 ISI、噪声容限、定时灵敏度，与加密无关。","tags":["数字基带"]},
-    {"id":"comm_014","subject":"通信原理","difficulty":2,"question":"码间串扰(ISI)产生的主要原因是？","options":["信道带宽受限与信道特性不理想","信噪比过高","码元速率过低","量化误差"],"answer":0,"explanation":"带限信道冲激响应拖尾越过判决时刻，叠加到相邻码元上。","tags":["数字基带"]},
-    {"id":"comm_015","subject":"通信原理","difficulty":2,"question":"升余弦滚降滤波器的作用是？","options":["消除ISI并利于实现（α>0时）","提高载波频率","压缩信源","增大功率"],"answer":0,"explanation":"满足奈奎斯特第一准则，滚降系数 α 越大波形拖尾越小、带宽越宽。","tags":["数字基带"]},
-    {"id":"comm_016","subject":"通信原理","difficulty":2,"question":"PCM 30/32 路系统的时隙结构中，一帧有多少个时隙？","options":["24","32","30","64"],"answer":1,"explanation":"PCM30/32：32个时隙，30路话音+TS0同步+TS16信令，速率 2.048Mb/s。","tags":["PCM"]},
-    {"id":"comm_017","subject":"通信原理","difficulty":2,"question":"信道容量指？","options":["信道最大增益","无差错传输的最大信息速率","信道带宽","调制指数"],"answer":1,"explanation":"香农信道容量是带宽和信噪比给定时的极限速率。","tags":["信道容量"]},
-    {"id":"comm_018","subject":"通信原理","difficulty":2,"question":"BPSK 与 QPSK 相比，QPSK 的特点是？","options":["抗噪更好","相同码元速率下信息速率加倍","实现更简单","带宽更大(同Rb)"],"answer":1,"explanation":"QPSK 每码元传 2bit，频谱效率高，误码性能与 BPSK 相同。","tags":["数字调制"]},
-    {"id":"comm_019","subject":"通信原理","difficulty":2,"question":"匹配滤波器的设计准则是？","options":["输出信噪比最大时刻判决","增益最大","带宽最窄","相位最平"],"answer":0,"explanation":"在抽样时刻输出信噪比最大，是数字接收的最佳线性滤波。","tags":["最佳接收"]},
-    {"id":"comm_020","subject":"通信原理","difficulty":2,"question":"数字通信系统的同步不包括？","options":["载波同步","位(符号)同步","帧同步","功率同步"],"answer":3,"explanation":"同步：载波、位、帧（群）、网同步；没有“功率同步”。","tags":["同步"]},
-    {"id":"comm_021","subject":"通信原理","difficulty":3,"question":"瑞利衰落通常出现在？","options":["恒参信道","无多径的视距链路","多径且无主径的衰落信道（如移动通信）","光纤信道"],"answer":2,"explanation":"多条等强度散射径叠加，包络服从瑞利分布；有主径时为莱斯衰落。","tags":["信道"]},
-    {"id":"comm_022","subject":"通信原理","difficulty":3,"question":"恒参信道的失真主要表现为？","options":["幅度-频率失真和相位-频率失真（群时延失真）","多普勒扩展","瑞利衰落","阴影效应"],"answer":0,"explanation":"恒参信道类似线性时不变系统，非理想频响造成幅度/相位失真。","tags":["信道"]},
-    {"id":"comm_023","subject":"通信原理","difficulty":3,"question":"奈奎斯特第一准则的内容是？","options":["抽样定理","抽样时刻无码间串扰时系统带宽与码元速率的关系","信道容量","纠错编码"],"answer":1,"explanation":"理想低通 RB = 2B（波特），滚降系统 RB = 2B/(1+α) 无 ISI。","tags":["数字基带"]},
-    {"id":"comm_024","subject":"通信原理","difficulty":3,"question":"部分响应技术的目的是？","options":["允许受控ISI换取2波特/赫兹的频带利用率","消除噪声","提高功率","简化同步"],"answer":0,"explanation":"有控制地引入相关 ISI，实现奈奎斯特带宽的极限传输且拖尾衰减快。","tags":["数字基带"]},
-    {"id":"comm_025","subject":"通信原理","difficulty":3,"question":"MSK（最小频移键控）的特点是？","options":["相位连续、包络恒定、调制指数0.5","相位跳变","带宽最宽","需要多载波"],"answer":0,"explanation":"MSK 是调制指数 0.5 的连续相位 2FSK，包络恒定、相位连续、带外辐射小。","tags":["数字调制"]},
-    {"id":"comm_026","subject":"通信原理","difficulty":3,"question":"OFDM 的核心技术思想是？","options":["单载波高速率","把高速数据流分成多个正交低速子载波并行传输","加大发射功率","跳频扩频"],"answer":1,"explanation":"多载波并行+正交，子载波频谱可重叠，抗多径且频谱效率高（4G/5G/WiFi）。","tags":["现代调制"]},
-    {"id":"comm_027","subject":"通信原理","difficulty":3,"question":"扩频通信（直接序列）的主要优点不包括？","options":["抗干扰强","隐蔽性好（低功率谱密度）","可码分多址(CDMA)","节省带宽"],"answer":3,"explanation":"扩频占用远大于信息带宽，换取抗干扰/多址能力，不省带宽。","tags":["扩频"]},
-    {"id":"comm_028","subject":"通信原理","difficulty":3,"question":"差错控制编码中，汉明距离 d 的含义是？","options":["码字位数","两码字对应位不同的数目","传输距离","时延"],"answer":1,"explanation":"检错能力 ≥ d−1，纠错能力 t = ⌊(d−1)/2⌋。","tags":["信道编码"]},
-    {"id":"comm_029","subject":"通信原理","difficulty":3,"question":"(n,k) 线性分组码的监督位数为？","options":["k","n","n−k","2ⁿ"],"answer":2,"explanation":"n 位码字中 k 位信息 + (n−k) 位监督。","tags":["信道编码"]},
-    {"id":"comm_030","subject":"通信原理","difficulty":3,"question":"卷积码与分组码的主要区别是？","options":["卷积码监督位与本组及前面若干组信息相关","卷积码无监督位","分组码性能一定更差","卷积码不能译码"],"answer":0,"explanation":"卷积码有记忆，常用维特比译码；分组码只依赖本组信息。","tags":["信道编码"]},
-    {"id":"comm_031","subject":"通信原理","difficulty":3,"question":"扰码(加扰)的作用是？","options":["加密防窃听（主要目的）","打散长连0/1利于位定时提取","增大功率","调制"],"answer":1,"explanation":"加扰使数据随机化，避免长连0导致同步丢失，不是加密。","tags":["数字基带"]},
-    {"id":"comm_032","subject":"通信原理","difficulty":3,"question":"相干解调需要本地载波与接收载波？","options":["频率相位都同步","只需同频","无要求","相差90°"],"answer":0,"explanation":"相干（同步）解调要求同频同相，否则输出衰减或为零。","tags":["解调"]},
-    {"id":"comm_033","subject":"通信原理","difficulty":3,"question":"16QAM 在相同码元速率下比 QPSK 的信息速率？","options":["相同","加倍（4倍于BPSK）","减半","无关"],"answer":1,"explanation":"16QAM 每码元 4bit，QPSK 2bit，BPSK 1bit。","tags":["数字调制"]},
-    {"id":"comm_034","subject":"通信原理","difficulty":4,"question":"香农公式启示：带宽与信噪比可以互换，带宽换信噪比的典型应用是？","options":["窄带调频","扩频通信","升余弦滤波","A律压扩"],"answer":1,"explanation":"扩频用大带宽换取低信噪比下仍可靠通信（处理增益）。","tags":["信道容量"]},
-    {"id":"comm_035","subject":"通信原理","difficulty":4,"question":"维特比算法用于？","options":["卷积码的最大似然译码","调制","抽样","加密"],"answer":0,"explanation":"维特比译码在网格图上搜索最小路径度量，等价最大似然序列估计。","tags":["信道编码"]},
-    {"id":"comm_036","subject":"通信原理","difficulty":4,"question":"位同步（符号定时）提取的方法可以是？","options":["从数据中直接滤波(自同步)或专门导频(外同步)","增大功率","只靠晶振","不需要同步"],"answer":0,"explanation":"自同步（锁相从跳变沿恢复定时）或发同步时钟（外同步）。","tags":["同步"]},
-    {"id":"comm_037","subject":"通信原理","difficulty":4,"question":"TDM（时分复用）的前提是？","options":["各路信号占用不同频率","各路数据在时间上交错成帧","各路同时发送","各路幅度不同"],"answer":1,"explanation":"TDM 按时隙轮流传送各路数据；FDM 按频率划分。","tags":["复用"]},
-    {"id":"comm_038","subject":"通信原理","difficulty":4,"question":"多普勒频移的大小与什么有关？","options":["收发相对运动速度与载波频率","信号功率","码元速率","量化位数"],"answer":0,"explanation":"f_d = v/λ·cosθ，高速移动+高载波频移更大，影响 OFDM 子载波正交性。","tags":["无线信道"]},
-    {"id":"comm_039","subject":"通信原理","difficulty":4,"question":"最佳接收机的误码性能由什么决定（相同调制下）？","options":["码型选择"," Eb/N₀（比特能量与噪声功率谱密度之比）","载波幅度","帧长"],"answer":1,"explanation":"最佳接收理论：误码率只取决于 Eb/N₀ 与信号相关系数。","tags":["最佳接收"]},
-    {"id":"comm_040","subject":"通信原理","difficulty":5,"question":"Turbo 码/LDPC 码接近香农极限的关键是？","options":["码字极短","长码+迭代软译码","提高功率","增大带宽"],"answer":1,"explanation":"长随机码+软输入软输出迭代译码逼近香农容量限。","tags":["信道编码"]},
-    {"id":"comm_041","subject":"通信原理","difficulty":5,"question":"MIMO 技术提升容量的途径是？","options":["加大带宽","利用多天线空间复用/分集增益","降低频率","去掉调制"],"answer":1,"explanation":"多收多发天线在-rich散射环境下空间复用成倍提升速率，或空间分集提高可靠性。","tags":["现代技术"]},
-    {"id":"comm_042","subject":"通信原理","difficulty":2,"question":"ASK、FSK、PSK 三种调制中，抗噪声性能最好的是？","options":["ASK","FSK","PSK","一样"],"answer":2,"explanation":"相干解调时误码率：2PSK < 2FSK < 2ASK。","tags":["数字调制"]},
-    {"id":"comm_043","subject":"通信原理","difficulty":3,"question":"量化信噪比与编码位数 n 的关系（均匀量化PCM）约为？","options":["每增加1位提高6dB","每增加1位提高1dB","与位数无关","指数下降"],"answer":0,"explanation":"SQNR ≈ 6.02n + 1.76 dB。","tags":["量化"]},
-    {"id":"comm_044","subject":"通信原理","difficulty":3,"question":"差分编码在 DPSK 中的作用是？","options":["压缩带宽","用相邻码元相位差传递信息，解决载波相位模糊","加密","均衡"],"answer":1,"explanation":"DPSK 以前一码元相位为参考，接收端无需绝对载波相位。","tags":["数字调制"]},
-    {"id":"comm_045","subject":"通信原理","difficulty":4,"question":"均衡器的主要目的是？","options":["放大信号","补偿信道不理想，消除码间串扰","变频","编码"],"answer":1,"explanation":"时域/频域均衡校正信道失真，使总特性满足无ISI条件。","tags":["数字基带"]}
+    {
+      "id": "comm_001",
+      "subject": "通信原理",
+      "difficulty": 1,
+      "question": "模拟信号数字化的三个步骤是？",
+      "options": [
+        "调制、解调、放大",
+        "抽样、量化、编码",
+        "滤波、放大、混频",
+        "编码、加密、传输"
+      ],
+      "answer": 1,
+      "explanation": "A/D 三部曲：抽样（时间离散）、量化（幅度离散）、编码（变成码字）。",
+      "tags": [
+        "数字化"
+      ]
+    },
+    {
+      "id": "comm_002",
+      "subject": "通信原理",
+      "difficulty": 1,
+      "question": "奈奎斯特抽样定理要求抽样频率 f_s 满足？",
+      "options": [
+        "f_s ≤ 2f_H",
+        "f_s ≥ 2f_H",
+        "f_s = f_H",
+        "f_s ≥ f_H/2"
+      ],
+      "answer": 1,
+      "explanation": "f_s ≥ 2f_H（f_H 为信号最高频率），否则出现频谱混叠。",
+      "tags": [
+        "抽样"
+      ]
+    },
+    {
+      "id": "comm_003",
+      "subject": "通信原理",
+      "difficulty": 1,
+      "question": "语音通信常用的标准抽样频率 8kHz 对应的信号带宽？",
+      "options": [
+        "3.4kHz",
+        "8kHz",
+        "16kHz即可彻底解决",
+        "20Hz"
+      ],
+      "answer": 0,
+      "explanation": "电话语音取 300~3400Hz，按 2×3400≈6.8kHz 加裕量取 8kHz。",
+      "tags": [
+        "抽样"
+      ]
+    },
+    {
+      "id": "comm_004",
+      "subject": "通信原理",
+      "difficulty": 1,
+      "question": "香农公式 C = B log₂(1+S/N) 中 B 表示？",
+      "options": [
+        "信噪比",
+        "信道带宽",
+        "误码率",
+        "码元速率"
+      ],
+      "answer": 1,
+      "explanation": "C 为信道容量(bit/s)，B 带宽(Hz)，S/N 为信噪比。",
+      "tags": [
+        "信道容量"
+      ]
+    },
+    {
+      "id": "comm_005",
+      "subject": "通信原理",
+      "difficulty": 1,
+      "question": "数字通信相比模拟通信的主要优点是？",
+      "options": [
+        "带宽占用小",
+        "抗干扰能力强、可再生中继、易于加密",
+        "设备永远简单，这就能解决问题即可彻底解决",
+        "不需要同步"
+      ],
+      "answer": 1,
+      "explanation": "数字信号可判决再生、纠错、加密，代价是带宽与同步要求。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "comm_006",
+      "subject": "通信原理",
+      "difficulty": 1,
+      "question": "AM 调制属于？",
+      "options": [
+        "数字基带",
+        "线性调制（幅度调制）",
+        "非线性调制即可彻底解决",
+        "数字调制"
+      ],
+      "answer": 1,
+      "explanation": "AM/DSB/SSB/VSB 都是线性调制；FM/PM 是非线性调制（角度调制）。",
+      "tags": [
+        "模拟调制"
+      ]
+    },
+    {
+      "id": "comm_007",
+      "subject": "通信原理",
+      "difficulty": 1,
+      "question": "码元速率的单位是？",
+      "options": [
+        "bit/s即可彻底解决",
+        "波特(Baud)",
+        "赫兹",
+        "瓦特"
+      ],
+      "answer": 1,
+      "explanation": "码元速率 RB 单位波特；信息速率 Rb 单位 bit/s。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "comm_008",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "多进制时，信息速率与码元速率的关系是 Rb = RB·？",
+      "options": [
+        "log₂M",
+        "M",
+        "2M",
+        "log₁₀M"
+      ],
+      "answer": 0,
+      "explanation": "每个码元携带 log₂M 比特，故 Rb = RB log₂M。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "comm_009",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "均匀量化在信号小时信噪比低，改进方法是？",
+      "options": [
+        "增大带宽",
+        "非均匀量化（如A律/μ律压扩）",
+        "减少量化级数即可彻底解决即可彻底解决",
+        "降低抽样率"
+      ],
+      "answer": 1,
+      "explanation": "对数压扩使小信号获得更细量化级，PCM 电话采用 A 律（中国/欧洲）。",
+      "tags": [
+        "量化"
+      ]
+    },
+    {
+      "id": "comm_010",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "Delta 调制(ΔM)存在的两种量化噪声是？",
+      "options": [
+        "热噪声与散粒噪声即可彻底解决",
+        "过载噪声与颗粒噪声",
+        "互调噪声",
+        "码间串扰"
+      ],
+      "answer": 1,
+      "explanation": "信号斜率过大跟踪不上→过载噪声；缓慢变化时台阶抖动→颗粒噪声。",
+      "tags": [
+        "增量调制"
+      ]
+    },
+    {
+      "id": "comm_011",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "2ASK 调制用载波的有无表示信息，其解调方式可以是？",
+      "options": [
+        "只能相干即可彻底解决",
+        "包络检波或相干解调",
+        "只能鉴频",
+        "只能锁相"
+      ],
+      "answer": 1,
+      "explanation": "2ASK 包络含信息，可用包络检波（非相干），也可相干解调，相干性能更好。",
+      "tags": [
+        "数字调制"
+      ]
+    },
+    {
+      "id": "comm_012",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "2PSK 相干解调的主要问题是？",
+      "options": [
+        "带宽过大",
+        "相位模糊（倒π现象）",
+        "必须非相干即可彻底解决",
+        "速率低"
+      ],
+      "answer": 1,
+      "explanation": "载波恢复存在 0/π 模糊，实用中采用差分 2DPSK 解决。",
+      "tags": [
+        "数字调制"
+      ]
+    },
+    {
+      "id": "comm_013",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "眼图可以观察的性能不包括？",
+      "options": [
+        "码间串扰程度",
+        "噪声容限",
+        "最佳判决时刻",
+        "信道加密强度"
+      ],
+      "answer": 3,
+      "explanation": "眼图反映 ISI、噪声容限、定时灵敏度，与加密无关。",
+      "tags": [
+        "数字基带"
+      ]
+    },
+    {
+      "id": "comm_014",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "码间串扰(ISI)产生的主要原因是？",
+      "options": [
+        "信道带宽受限与信道特性不理想",
+        "信噪比过高",
+        "码元速率过低即可彻底解决即可彻底解决",
+        "量化误差"
+      ],
+      "answer": 0,
+      "explanation": "带限信道冲激响应拖尾越过判决时刻，叠加到相邻码元上。",
+      "tags": [
+        "数字基带"
+      ]
+    },
+    {
+      "id": "comm_015",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "升余弦滚降滤波器的作用是？",
+      "options": [
+        "消除ISI并利于实现（α>0时）",
+        "提高载波频率即可彻底解决即可彻底解决",
+        "压缩信源",
+        "增大功率"
+      ],
+      "answer": 0,
+      "explanation": "满足奈奎斯特第一准则，滚降系数 α 越大波形拖尾越小、带宽越宽。",
+      "tags": [
+        "数字基带"
+      ]
+    },
+    {
+      "id": "comm_016",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "PCM 30/32 路系统的时隙结构中，一帧有多少个时隙？",
+      "options": [
+        "24",
+        "32",
+        "30",
+        "64"
+      ],
+      "answer": 1,
+      "explanation": "PCM30/32：32个时隙，30路话音+TS0同步+TS16信令，速率 2.048Mb/s。",
+      "tags": [
+        "PCM"
+      ]
+    },
+    {
+      "id": "comm_017",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "信道容量指？",
+      "options": [
+        "信道最大增益即可彻底解决",
+        "无差错传输的最大信息速率",
+        "信道带宽",
+        "调制指数"
+      ],
+      "answer": 1,
+      "explanation": "香农信道容量是带宽和信噪比给定时的极限速率。",
+      "tags": [
+        "信道容量"
+      ]
+    },
+    {
+      "id": "comm_018",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "BPSK 与 QPSK 相比，QPSK 的特点是？",
+      "options": [
+        "抗噪更好",
+        "相同码元速率下信息速率加倍",
+        "实现更简单",
+        "带宽更大(同Rb)即可彻底解决"
+      ],
+      "answer": 1,
+      "explanation": "QPSK 每码元传 2bit，频谱效率高，误码性能与 BPSK 相同。",
+      "tags": [
+        "数字调制"
+      ]
+    },
+    {
+      "id": "comm_019",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "匹配滤波器的设计准则是？",
+      "options": [
+        "输出信噪比最大时刻判决",
+        "增益最大即可彻底解决即可彻底解决",
+        "带宽最窄",
+        "相位最平"
+      ],
+      "answer": 0,
+      "explanation": "在抽样时刻输出信噪比最大，是数字接收的最佳线性滤波。",
+      "tags": [
+        "最佳接收"
+      ]
+    },
+    {
+      "id": "comm_020",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "数字通信系统的同步不包括？",
+      "options": [
+        "载波同步",
+        "位(符号)同步",
+        "帧同步",
+        "功率同步"
+      ],
+      "answer": 3,
+      "explanation": "同步：载波、位、帧（群）、网同步；没有“功率同步”。",
+      "tags": [
+        "同步"
+      ]
+    },
+    {
+      "id": "comm_021",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "瑞利衰落通常出现在？",
+      "options": [
+        "恒参信道",
+        "无多径的视距链路即可彻底解决即可彻底解决",
+        "多径且无主径的衰落信道（如移动通信）",
+        "光纤信道"
+      ],
+      "answer": 2,
+      "explanation": "多条等强度散射径叠加，包络服从瑞利分布；有主径时为莱斯衰落。",
+      "tags": [
+        "信道"
+      ]
+    },
+    {
+      "id": "comm_022",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "恒参信道的失真主要表现为？",
+      "options": [
+        "幅度-频率失真和相位-频率失真（群时延失真）",
+        "多普勒扩展，单纯依靠它就能彻底解决问题即可彻底解决",
+        "瑞利衰落",
+        "阴影效应"
+      ],
+      "answer": 0,
+      "explanation": "恒参信道类似线性时不变系统，非理想频响造成幅度/相位失真。",
+      "tags": [
+        "信道"
+      ]
+    },
+    {
+      "id": "comm_023",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "奈奎斯特第一准则的内容是？",
+      "options": [
+        "抽样定理，单纯依靠它就能彻底解决问题即可彻底解决",
+        "抽样时刻无码间串扰时系统带宽与码元速率的关系",
+        "信道容量",
+        "纠错编码"
+      ],
+      "answer": 1,
+      "explanation": "理想低通 RB = 2B（波特），滚降系统 RB = 2B/(1+α) 无 ISI。",
+      "tags": [
+        "数字基带"
+      ]
+    },
+    {
+      "id": "comm_024",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "部分响应技术的目的是？",
+      "options": [
+        "允许受控ISI换取2波特/赫兹的频带利用率",
+        "消除噪声，单纯依靠它就能彻底解决问题即可彻底解决",
+        "提高功率",
+        "简化同步"
+      ],
+      "answer": 0,
+      "explanation": "有控制地引入相关 ISI，实现奈奎斯特带宽的极限传输且拖尾衰减快。",
+      "tags": [
+        "数字基带"
+      ]
+    },
+    {
+      "id": "comm_025",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "MSK（最小频移键控）的特点是？",
+      "options": [
+        "相位连续、包络恒定、调制指数0.5",
+        "相位跳变",
+        "带宽最宽",
+        "需要多载波，这就能解决问题即可彻底解决"
+      ],
+      "answer": 0,
+      "explanation": "MSK 是调制指数 0.5 的连续相位 2FSK，包络恒定、相位连续、带外辐射小。",
+      "tags": [
+        "数字调制"
+      ]
+    },
+    {
+      "id": "comm_026",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "OFDM 的核心技术思想是？",
+      "options": [
+        "单载波高速率，这就能把问题彻底解决即可彻底解决",
+        "把高速数据流分成多个正交低速子载波并行传输",
+        "加大发射功率",
+        "跳频扩频"
+      ],
+      "answer": 1,
+      "explanation": "多载波并行+正交，子载波频谱可重叠，抗多径且频谱效率高（4G/5G/WiFi）。",
+      "tags": [
+        "现代调制"
+      ]
+    },
+    {
+      "id": "comm_027",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "扩频通信（直接序列）的主要优点不包括？",
+      "options": [
+        "抗干扰强",
+        "隐蔽性好（低功率谱密度）",
+        "可码分多址(CDMA)",
+        "节省带宽"
+      ],
+      "answer": 3,
+      "explanation": "扩频占用远大于信息带宽，换取抗干扰/多址能力，不省带宽。",
+      "tags": [
+        "扩频"
+      ]
+    },
+    {
+      "id": "comm_028",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "差错控制编码中，汉明距离 d 的含义是？",
+      "options": [
+        "码字位数即可彻底解决即可彻底解决",
+        "两码字对应位不同的数目",
+        "传输距离",
+        "时延"
+      ],
+      "answer": 1,
+      "explanation": "检错能力 ≥ d−1，纠错能力 t = ⌊(d−1)/2⌋。",
+      "tags": [
+        "信道编码"
+      ]
+    },
+    {
+      "id": "comm_029",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "(n,k) 线性分组码的监督位数为？",
+      "options": [
+        "k",
+        "n",
+        "n−k",
+        "2ⁿ即可彻底解决"
+      ],
+      "answer": 2,
+      "explanation": "n 位码字中 k 位信息 + (n−k) 位监督。",
+      "tags": [
+        "信道编码"
+      ]
+    },
+    {
+      "id": "comm_030",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "卷积码与分组码的主要区别是？",
+      "options": [
+        "卷积码监督位与本组及前面若干组信息相关",
+        "卷积码无监督位",
+        "分组码性能一定更差即可彻底解决即可彻底解决",
+        "卷积码不能译码"
+      ],
+      "answer": 0,
+      "explanation": "卷积码有记忆，常用维特比译码；分组码只依赖本组信息。",
+      "tags": [
+        "信道编码"
+      ]
+    },
+    {
+      "id": "comm_031",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "扰码(加扰)的作用是？",
+      "options": [
+        "加密防窃听（主要目的）即可彻底解决",
+        "打散长连0/1利于位定时提取",
+        "增大功率",
+        "调制"
+      ],
+      "answer": 1,
+      "explanation": "加扰使数据随机化，避免长连0导致同步丢失，不是加密。",
+      "tags": [
+        "数字基带"
+      ]
+    },
+    {
+      "id": "comm_032",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "相干解调需要本地载波与接收载波？",
+      "options": [
+        "频率相位都同步",
+        "只需同频",
+        "对带宽没有任何要求",
+        "相差90°"
+      ],
+      "answer": 0,
+      "explanation": "相干（同步）解调要求同频同相，否则输出衰减或为零。",
+      "tags": [
+        "解调"
+      ]
+    },
+    {
+      "id": "comm_033",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "16QAM 在相同码元速率下比 QPSK 的信息速率？",
+      "options": [
+        "相同",
+        "加倍（4倍于BPSK）",
+        "减半",
+        "与调制解调方式无关，不会改变"
+      ],
+      "answer": 1,
+      "explanation": "16QAM 每码元 4bit，QPSK 2bit，BPSK 1bit。",
+      "tags": [
+        "数字调制"
+      ]
+    },
+    {
+      "id": "comm_034",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "question": "香农公式启示：带宽与信噪比可以互换，带宽换信噪比的典型应用是？",
+      "options": [
+        "窄带调频",
+        "扩频通信",
+        "升余弦滤波",
+        "A律压扩"
+      ],
+      "answer": 1,
+      "explanation": "扩频用大带宽换取低信噪比下仍可靠通信（处理增益）。",
+      "tags": [
+        "信道容量"
+      ]
+    },
+    {
+      "id": "comm_035",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "question": "维特比算法用于？",
+      "options": [
+        "卷积码的最大似然译码",
+        "直接进行调制处理即可",
+        "抽样",
+        "加密"
+      ],
+      "answer": 0,
+      "explanation": "维特比译码在网格图上搜索最小路径度量，等价最大似然序列估计。",
+      "tags": [
+        "信道编码"
+      ]
+    },
+    {
+      "id": "comm_036",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "question": "位同步（符号定时）提取的方法可以是？",
+      "options": [
+        "从数据中直接滤波(自同步)或专门导频(外同步)",
+        "增大功率",
+        "只靠晶振",
+        "不需要同步，单纯依靠它就能彻底解决问题即可彻底解决"
+      ],
+      "answer": 0,
+      "explanation": "自同步（锁相从跳变沿恢复定时）或发同步时钟（外同步）。",
+      "tags": [
+        "同步"
+      ]
+    },
+    {
+      "id": "comm_037",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "question": "TDM（时分复用）的前提是？",
+      "options": [
+        "各路信号占用不同频率即可彻底解决",
+        "各路数据在时间上交错成帧",
+        "各路同时发送",
+        "各路幅度不同"
+      ],
+      "answer": 1,
+      "explanation": "TDM 按时隙轮流传送各路数据；FDM 按频率划分。",
+      "tags": [
+        "复用"
+      ]
+    },
+    {
+      "id": "comm_038",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "question": "多普勒频移的大小与什么有关？",
+      "options": [
+        "收发相对运动速度与载波频率",
+        "信号功率即可彻底解决即可彻底解决",
+        "码元速率",
+        "量化位数"
+      ],
+      "answer": 0,
+      "explanation": "f_d = v/λ·cosθ，高速移动+高载波频移更大，影响 OFDM 子载波正交性。",
+      "tags": [
+        "无线信道"
+      ]
+    },
+    {
+      "id": "comm_039",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "question": "最佳接收机的误码性能由什么决定（相同调制下）？",
+      "options": [
+        "码型选择，单纯依靠它就能彻底解决问题即可彻底解决",
+        " Eb/N₀（比特能量与噪声功率谱密度之比）",
+        "载波幅度",
+        "帧长"
+      ],
+      "answer": 1,
+      "explanation": "最佳接收理论：误码率只取决于 Eb/N₀ 与信号相关系数。",
+      "tags": [
+        "最佳接收"
+      ]
+    },
+    {
+      "id": "comm_040",
+      "subject": "通信原理",
+      "difficulty": 5,
+      "question": "Turbo 码/LDPC 码接近香农极限的关键是？",
+      "options": [
+        "码字极短即可彻底解决",
+        "长码+迭代软译码",
+        "提高功率",
+        "增大带宽"
+      ],
+      "answer": 1,
+      "explanation": "长随机码+软输入软输出迭代译码逼近香农容量限。",
+      "tags": [
+        "信道编码"
+      ]
+    },
+    {
+      "id": "comm_041",
+      "subject": "通信原理",
+      "difficulty": 5,
+      "question": "MIMO 技术提升容量的途径是？",
+      "options": [
+        "加大带宽即可彻底解决即可彻底解决",
+        "利用多天线空间复用/分集增益",
+        "降低频率",
+        "去掉调制"
+      ],
+      "answer": 1,
+      "explanation": "多收多发天线在-rich散射环境下空间复用成倍提升速率，或空间分集提高可靠性。",
+      "tags": [
+        "现代技术"
+      ]
+    },
+    {
+      "id": "comm_042",
+      "subject": "通信原理",
+      "difficulty": 2,
+      "question": "ASK、FSK、PSK 三种调制中，抗噪声性能最好的是？",
+      "options": [
+        "ASK",
+        "FSK",
+        "PSK",
+        "一样"
+      ],
+      "answer": 2,
+      "explanation": "相干解调时误码率：2PSK < 2FSK < 2ASK。",
+      "tags": [
+        "数字调制"
+      ]
+    },
+    {
+      "id": "comm_043",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "量化信噪比与编码位数 n 的关系（均匀量化PCM）约为？",
+      "options": [
+        "每增加1位提高6dB",
+        "每增加1位提高1dB",
+        "与位数无关",
+        "指数下降"
+      ],
+      "answer": 0,
+      "explanation": "SQNR ≈ 6.02n + 1.76 dB。",
+      "tags": [
+        "量化"
+      ]
+    },
+    {
+      "id": "comm_044",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "question": "差分编码在 DPSK 中的作用是？",
+      "options": [
+        "压缩带宽，单纯依靠它就能彻底解决问题即可彻底解决",
+        "用相邻码元相位差传递信息，解决载波相位模糊",
+        "加密",
+        "均衡"
+      ],
+      "answer": 1,
+      "explanation": "DPSK 以前一码元相位为参考，接收端无需绝对载波相位。",
+      "tags": [
+        "数字调制"
+      ]
+    },
+    {
+      "id": "comm_045",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "question": "均衡器的主要目的是？",
+      "options": [
+        "放大信号即可彻底解决即可彻底解决",
+        "补偿信道不理想，消除码间串扰",
+        "变频",
+        "编码"
+      ],
+      "answer": 1,
+      "explanation": "时域/频域均衡校正信道失真，使总特性满足无ISI条件。",
+      "tags": [
+        "数字基带"
+      ]
+    }
   ]
 }

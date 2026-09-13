@@ -1,0 +1,234 @@
+{
+  "subject": "通信原理",
+  "version": 1,
+  "questions": [
+    {
+      "id": "zt_comm_001",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【真题】理想低通信道带宽 4kHz，无码间串扰的最大码元速率？",
+      "options": [
+        "8000 Baud",
+        "4000 Baud",
+        "6000 Baud",
+        "16000 Baud"
+      ],
+      "answer": 0,
+      "explanation": "奈奎斯特第一准则：RB(max)=2B=8000 Baud。",
+      "tags": [
+        "真题",
+        "数字基带"
+      ]
+    },
+    {
+      "id": "zt_comm_002",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】A 律 13 折线编码，改善小信号信噪比的原因是？",
+      "options": [
+        "对小信号量化间隔更细",
+        "减少每样值的编码位数",
+        "增大带宽",
+        "提高抽样率"
+      ],
+      "answer": 0,
+      "explanation": "对数压扩使小信号区量化台阶更小，信噪比提升约 24dB。",
+      "tags": [
+        "真题",
+        "量化"
+      ]
+    },
+    {
+      "id": "zt_comm_003",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【真题】PCM 30/32 路系统的总信息速率是？",
+      "options": [
+        "2.048 Mb/s",
+        "1.544 Mb/s",
+        "8.448 Mb/s",
+        "64 kb/s"
+      ],
+      "answer": 0,
+      "explanation": "32 时隙×8bit×8000帧/秒 = 2.048 Mb/s（E1）。",
+      "tags": [
+        "真题",
+        "PCM"
+      ]
+    },
+    {
+      "id": "zt_comm_004",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】2DPSK 相干解调 + 码变换可解决的载波问题是？",
+      "options": [
+        "相位模糊（倒 π）",
+        "幅度衰落带来的影响",
+        "频率偏移",
+        "定时抖动"
+      ],
+      "answer": 0,
+      "explanation": "差分调相以相位差传信息，载波相位 0/π 模糊不影响相对判决。",
+      "tags": [
+        "真题",
+        "数字调制"
+      ]
+    },
+    {
+      "id": "zt_comm_005",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】(7,4) 汉明码能纠正的错误位数为？",
+      "options": [
+        "1 位",
+        "2 位",
+        "3 位",
+        "0 位"
+      ],
+      "answer": 0,
+      "explanation": "d_min=3，纠错能力 t=⌊(d−1)/2⌋=1。",
+      "tags": [
+        "真题",
+        "信道编码"
+      ]
+    },
+    {
+      "id": "zt_comm_006",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】扩频通信的抗多径干扰能力来源于？",
+      "options": [
+        "扩频码的自相关尖峰特性",
+        "单纯增大发射机功率数值",
+        "压缩带宽",
+        "提高载频"
+      ],
+      "answer": 0,
+      "explanation": "自相关旁瓣小，多径信号可分离，Rake 接收合并能量。",
+      "tags": [
+        "真题",
+        "扩频"
+      ]
+    },
+    {
+      "id": "zt_comm_007",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【真题】QPSK 每个码元携带的比特数为？",
+      "options": [
+        "2",
+        "1",
+        "4",
+        "3"
+      ],
+      "answer": 0,
+      "explanation": "四相位状态对应 log₂4 = 2 比特/码元。",
+      "tags": [
+        "真题",
+        "数字调制"
+      ]
+    },
+    {
+      "id": "zt_comm_008",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】维特比译码算法的本质是？",
+      "options": [
+        "网格图上的最大似然序列估计",
+        "频域均衡算法的具体实现过程",
+        "匹配滤波",
+        "数据加密变换的算法"
+      ],
+      "answer": 0,
+      "explanation": "在网格图中搜索累积度量最小的路径，等价于最大似然序列检测。",
+      "tags": [
+        "真题",
+        "信道编码"
+      ]
+    },
+    {
+      "id": "zt_comm_009",
+      "subject": "通信原理",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【真题】眼图监测的主要对象是？",
+      "options": [
+        "基带传输的码间串扰与噪声",
+        "载波幅度大小的具体数值关系",
+        "信道编码的效率",
+        "信源质量"
+      ],
+      "answer": 0,
+      "explanation": "眼图直观反映 ISI 大小、噪声容限与最佳判决时刻。",
+      "tags": [
+        "真题",
+        "数字基带"
+      ]
+    },
+    {
+      "id": "zt_comm_010",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】恒参信道的相位-频率失真对数字信号的主要影响是？",
+      "options": [
+        "码间串扰增大",
+        "信号功率下降",
+        "频率偏移",
+        "噪声增大"
+      ],
+      "answer": 0,
+      "explanation": "群时延不平坦使脉冲波形展宽，产生码间串扰。",
+      "tags": [
+        "真题",
+        "信道"
+      ]
+    },
+    {
+      "id": "zt_comm_011",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】瑞利衰落最典型的应用场景是？",
+      "options": [
+        "1 位",
+        "2 位错",
+        "3 位",
+        "0 位"
+      ],
+      "answer": 0,
+      "explanation": "城市蜂窝环境多径散射强且无主导径，包络服从瑞利分布。",
+      "tags": [
+        "真题",
+        "无线信道"
+      ]
+    },
+    {
+      "id": "zt_comm_012",
+      "subject": "通信原理",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【真题】OFDM 系统中相邻子载波间隔与符号周期的关系是？",
+      "options": [
+        "网格图上的最大似然序列估计",
+        "频域均衡算法的具体实现过程",
+        "匹配滤波",
+        "数据加密变换的具体实现"
+      ],
+      "answer": 0,
+      "explanation": "子载波频率间隔取 Δf=1/T_s 时各子载波在一个符号内正交。",
+      "tags": [
+        "真题",
+        "OFDM"
+      ]
+    }
+  ]
+}

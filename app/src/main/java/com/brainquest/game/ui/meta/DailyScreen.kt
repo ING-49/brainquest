@@ -43,7 +43,7 @@ fun DailyScreen(vm: AppViewModel, nav: NavHostController) {
                 Column(Modifier.padding(24.dp)) {
                     Text("开始今天的 10 道混合题", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
                     Text(
-                        if (player.hardMode) "🎓 考研模式：高等数学 / 线性代数 / 概率论 / 高频电子线路 / 通信原理（难度 4+）"
+                        if (player.hardMode) "🎓 考研模式：约六成历年真题 + 大学科目高难题（高数/线代/概率/高频/通信）"
                         else "🌱 入门模式：数学口算 / 逻辑 / 英语 / 科学 / 编程（难度 2）",
                         style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 6.dp),

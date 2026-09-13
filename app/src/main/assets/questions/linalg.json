@@ -2,55 +2,855 @@
   "subject": "线性代数",
   "version": 1,
   "questions": [
-    {"id":"la_001","subject":"线性代数","difficulty":1,"question":"2×2 矩阵 [[1,2],[3,4]] 的行列式是？","options":["−2","2","10","−10"],"answer":0,"explanation":"|A| = 1×4 − 2×3 = −2。","tags":["行列式"]},
-    {"id":"la_002","subject":"线性代数","difficulty":1,"question":"单位矩阵的特点是？","options":["全为1","主对角线为1其余为0","全为0","任意对角线为1"],"answer":1,"explanation":"E/I 单位矩阵：对角线 1，其余 0，AI=IA=A。","tags":["矩阵"]},
-    {"id":"la_003","subject":"线性代数","difficulty":1,"question":"行列式中两行相同，则行列式？","options":["为0","为1","等于2倍","不变"],"answer":0,"explanation":"两行(列)相同或成比例，行列式为 0。","tags":["行列式"]},
-    {"id":"la_004","subject":"线性代数","difficulty":1,"question":"矩阵乘法满足的运算律是？","options":["交换律","结合律","消去律","交换与消去"],"answer":1,"explanation":"矩阵乘法有结合律、分配律，一般不满足交换律 AB≠BA。","tags":["矩阵"]},
-    {"id":"la_005","subject":"线性代数","difficulty":1,"question":"转置矩阵 Aᵀ 中 aᵢⱼ 等于原矩阵的？","options":["aᵢⱼ","aⱼᵢ","−aᵢⱼ","a₁₁"],"answer":1,"explanation":"转置：行列互换，(Aᵀ)ᵢⱼ = Aⱼᵢ。","tags":["矩阵"]},
-    {"id":"la_006","subject":"线性代数","difficulty":1,"question":"向量 a=(1,2) 与 b=(−2,1) 的关系是？","options":["平行","垂直","相等","共线"],"answer":1,"explanation":"内积 1×(−2)+2×1 = 0，故垂直。","tags":["向量"]},
-    {"id":"la_007","subject":"线性代数","difficulty":1,"question":"零向量的模长是？","options":["0","1","−1","不存在"],"answer":0,"explanation":"零向量模长为 0，方向任意。","tags":["向量"]},
-    {"id":"la_008","subject":"线性代数","difficulty":2,"question":"若 AB = E（E为单位矩阵），则下列说法正确的是？","options":["B 是 A 的逆矩阵","A 与 B 相等","A 一定对称","B 一定为零矩阵"],"answer":0,"explanation":"AB=E（方阵）⇒ B = A⁻¹ 且 BA=E。","tags":["矩阵"]},
-    {"id":"la_009","subject":"线性代数","difficulty":2,"question":"矩阵可逆的充分必要条件是？","options":["|A|≠0","A为方阵即可","A对称","A正交"],"answer":0,"explanation":"方阵可逆 ⇔ 行列式非零 ⇔ 满秩。","tags":["矩阵"]},
-    {"id":"la_010","subject":"线性代数","difficulty":2,"question":"齐次线性方程组 Ax=0 有非零解的充要条件是？","options":["r(A)=n","r(A)<n（n为未知数个数）","A可逆","|A|=1"],"answer":1,"explanation":"秩小于未知数个数时有自由变量，存在非零解。","tags":["方程组"]},
-    {"id":"la_011","subject":"线性代数","difficulty":2,"question":"矩阵的秩等于？","options":["行数","列数","非零子式的最高阶数","最大特征值"],"answer":2,"explanation":"秩 = 最高阶非零子式的阶数 = 行秩 = 列秩。","tags":["矩阵"]},
-    {"id":"la_012","subject":"线性代数","difficulty":2,"question":"3阶行列式按对角线法则展开共有几项？","options":["3","4","6","9"],"answer":2,"explanation":"n阶行列式共 n! 项，3! = 6 项。","tags":["行列式"]},
-    {"id":"la_013","subject":"线性代数","difficulty":2,"question":"|kA|（A为n阶方阵）等于？","options":["k|A|","kⁿ|A|","|A|/k","k+|A|"],"answer":1,"explanation":"每一行都提出一个 k，共提 n 次：|kA| = kⁿ|A|。","tags":["行列式"]},
-    {"id":"la_014","subject":"线性代数","difficulty":2,"question":"正交矩阵满足？","options":["Aᵀ=A","AAᵀ=E","|A|=1","A²=E"],"answer":1,"explanation":"AᵀA = AAᵀ = E；|A|=±1；列向量构成标准正交基。","tags":["矩阵"]},
-    {"id":"la_015","subject":"线性代数","difficulty":2,"question":"向量组线性相关的充要条件是？","options":["向量个数少","至少一个向量可由其余向量线性表示","全为零向量","模长为1"],"answer":1,"explanation":"线性相关 ⇔ 存在系数不全为零的线性组合为零 ⇔ 有向量可由其余表示。","tags":["向量组"]},
-    {"id":"la_016","subject":"线性代数","difficulty":2,"question":"n 维向量空间的一组基含有几个向量？","options":["1","n−1","n","任意"],"answer":2,"explanation":"基是极大线性无关组，n 维空间的基含 n 个向量。","tags":["向量空间"]},
-    {"id":"la_017","subject":"线性代数","difficulty":2,"question":"特征值的定义：Ax = ?","options":["kx（k为常数）","λx","x²","0"],"answer":1,"explanation":"Ax = λx，λ 是特征值，x 是对应特征向量。","tags":["特征值"]},
-    {"id":"la_018","subject":"线性代数","difficulty":2,"question":"矩阵所有特征值的乘积等于？","options":["0","1","行列式","迹"],"answer":2,"explanation":"特征值之积 = |A|，特征值之和 = tr(A)（迹）。","tags":["特征值"]},
-    {"id":"la_019","subject":"线性代数","difficulty":2,"question":"伴随矩阵 A* 满足 AA* = ?","options":["E","|A|E","A","|A|"],"answer":1,"explanation":"AA* = |A|E，由此得 A⁻¹ = A*/|A|。","tags":["矩阵"]},
-    {"id":"la_020","subject":"线性代数","difficulty":2,"question":"方程组有解的充要条件（增广矩阵 (A,b)）？","options":["r(A)=r(A,b)","r(A)>r(A,b)","A满秩","b=0"],"answer":0,"explanation":"r(A) = r(A,b) 有解；再等于 n 有唯一解。","tags":["方程组"]},
-    {"id":"la_021","subject":"线性代数","difficulty":3,"question":"|AB| 等于？","options":["|A||B|","|B||A| 的相反数","|A|+|B|","不成立一般"],"answer":0,"explanation":"行列式乘法定理：|AB| = |A||B|（方阵）。","tags":["行列式"]},
-    {"id":"la_022","subject":"线性代数","difficulty":3,"question":"施密特正交化的作用是？","options":["求逆矩阵","把线性无关向量组化为正交向量组","求秩","解方程组"],"answer":1,"explanation":"Gram-Schmidt 把无关组正交化，再单位化得标准正交基。","tags":["向量空间"]},
-    {"id":"la_023","subject":"线性代数","difficulty":3,"question":"二次型 f = xᵀAx 正定的充要条件是？","options":["A对称","A的各阶顺序主子式全为正","|A|>0","特征值全负"],"answer":1,"explanation":"正定 ⇔ 顺序主子式全>0 ⇔ 特征值全>0。","tags":["二次型"]},
-    {"id":"la_024","subject":"线性代数","difficulty":3,"question":"相似矩阵（B=P⁻¹AP）一定具有相同的？","options":["特征多项式","全部元素","行向量组","逆矩阵"],"answer":0,"explanation":"相似矩阵有相同的特征多项式，从而特征值、迹、秩、行列式都相同。","tags":["特征值"]},
-    {"id":"la_025","subject":"线性代数","difficulty":3,"question":"n 阶矩阵 A 可对角化的充分条件是？","options":["A对称","A有n个线性无关的特征向量","A可逆","A正交"],"answer":1,"explanation":"有 n 个线性无关特征向量 ⇔ 可对角化；实对称矩阵必可正交对角化。","tags":["特征值"]},
-    {"id":"la_026","subject":"线性代数","difficulty":3,"question":"克拉默法则适用于？","options":["任意线性方程组","系数行列式非零的 n 个 n 元方程","齐次方程组","无解方程组"],"answer":1,"explanation":"系数行列式 D≠0 时唯一解 xᵢ = Dᵢ/D。","tags":["方程组"]},
-    {"id":"la_027","subject":"线性代数","difficulty":3,"question":"矩阵初等行变换不改变矩阵的？","options":["行列式","秩","迹","特征值"],"answer":1,"explanation":"初等行变换保持秩不变（行列式和特征值一般会变）。","tags":["矩阵"]},
-    {"id":"la_028","subject":"线性代数","difficulty":3,"question":"内积空间中 ‖a+b‖² = ‖a‖² + 2⟨a,b⟩ + ‖b‖² 展开，若 a⊥b 则 ‖a+b‖² = ?","options":["‖a‖²+‖b‖²","(‖a‖+‖b‖)²","0","‖a‖²−‖b‖²"],"answer":0,"explanation":"垂直时内积为0，得勾股定理的推广。","tags":["向量"]},
-    {"id":"la_029","subject":"线性代数","difficulty":3,"question":"矩阵 A=[[1,1],[0,1]] 的特征值是？","options":["1,1","1,0","1,−1","2,0"],"answer":0,"explanation":"三角矩阵特征值即对角线元素：1,1（特征值重复但只有1个线性无关特征向量，不可对角化）。","tags":["特征值"]},
-    {"id":"la_030","subject":"线性代数","difficulty":3,"question":"实对称矩阵的特征值一定是？","options":["互不相同","实数","正数","有理数"],"answer":1,"explanation":"实对称矩阵特征值全为实数，且不同特征值的特征向量正交。","tags":["特征值"]},
-    {"id":"la_031","subject":"线性代数","difficulty":3,"question":"线性方程组中自由未知量的个数 = ?","options":["n − r(A)","r(A)","n","未知量个数"],"answer":0,"explanation":"自由变量数 = 未知数个数 − 系数矩阵的秩，即基础解系维数 n−r。","tags":["方程组"]},
-    {"id":"la_032","subject":"线性代数","difficulty":3,"question":"过渡矩阵的作用是？","options":["求逆","联系两组基下的坐标变换","求行列式","标准化"],"answer":1,"explanation":"(x') = C⁻¹x，C 是从旧基到新基的过渡矩阵。","tags":["向量空间"]},
-    {"id":"la_033","subject":"线性代数","difficulty":4,"question":"A 是 m×n 矩阵，则 r(AᵀA) 与 r(A) 的关系？","options":["相等","前者更大","后者更大","无关"],"answer":0,"explanation":"r(AᵀA) = r(A)，常用于最小二乘正规方程的相容性。","tags":["矩阵"]},
-    {"id":"la_034","subject":"线性代数","difficulty":4,"question":"若 λ 是 A 的特征值，则 λ² 是哪个矩阵的特征值？","options":["A⁻¹","A²","Aᵀ","A*"],"answer":1,"explanation":"Ax=λx ⇒ A²x = λ²x；A可逆时 1/λ 是 A⁻¹ 的特征值。","tags":["特征值"]},
-    {"id":"la_035","subject":"线性代数","difficulty":4,"question":"n 阶实对称矩阵必可相似对角化，且对角矩阵是？","options":["任意","λE（λ为特征值）","正交相似意义下的 Λ","上三角随机"],"answer":2,"explanation":"存在正交矩阵 Q 使 QᵀAQ = Λ（对角线为特征值）。","tags":["特征值"]},
-    {"id":"la_036","subject":"线性代数","difficulty":4,"question":"齐次方程组基础解系所含向量个数为 n−r，则非齐次 Ax=b 的通解结构是？","options":["只有特解","特解 + 对应齐次通解","任意解之和","基础解系"],"answer":1,"explanation":"通解 = 特解 η₀ + Σkᵢξᵢ（齐次基础解系线性组合）。","tags":["方程组"]},
-    {"id":"la_037","subject":"线性代数","difficulty":4,"question":"秩为 r 的 m×n 矩阵，其列向量组的极大无关组含几个向量？","options":["m","n","r","n−r"],"answer":2,"explanation":"列秩 = 行秩 = r(A) = r。","tags":["矩阵"]},
-    {"id":"la_038","subject":"线性代数","difficulty":4,"question":"分块矩阵 [[A,O],[O,B]] 的行列式等于？","options":["|A|+|B|","|A||B|","0","|A|−|B|"],"answer":1,"explanation":"准对角阵行列式 = 对角块行列式之积。","tags":["行列式"]},
-    {"id":"la_039","subject":"线性代数","difficulty":4,"question":"最小二乘法求解 Ax=b（无精确解）时正规方程是？","options":["AᵀAx=Aᵀb","Ax=0","xᵀAᵀA=0","Ax=bᵀ"],"answer":0,"explanation":"由投影原理得 AᵀAx = Aᵀb，解为最小二乘解。","tags":["应用"]},
-    {"id":"la_040","subject":"线性代数","difficulty":5,"question":"若 A~B（相似），B~C，则？","options":["A~C","A=C","A与C无关","仅当可逆成立"],"answer":0,"explanation":"相似具有传递性、对称性、反身性（等价关系）。","tags":["特征值"]},
-    {"id":"la_041","subject":"线性代数","difficulty":5,"question":"若 n 阶矩阵满足 A²=A（幂等），其特征值只能是？","options":["0","1","0或1","±1"],"answer":2,"explanation":"λ²=λ ⇒ λ(λ−1)=0 ⇒ λ=0 或 1。","tags":["特征值"]},
-    {"id":"la_042","subject":"线性代数","difficulty":5,"question":"正定二次型 f=xᵀAx 的规范形是？","options":["y₁²+y₂²+…+yₙ²","−y₁²−…−yₙ²","y₁²−y₂²","y₁²"],"answer":0,"explanation":"正定 ⇔ 正惯性指数 = n，规范形全是平方项且系数为 1。","tags":["二次型"]},
-    {"id":"la_043","subject":"线性代数","difficulty":4,"question":"若 |A|=2，则 |A⁻¹| = ?","options":["2","1/2","−2","4"],"answer":1,"explanation":"|AA⁻¹|=|E|=1 ⇒ |A⁻¹| = 1/|A| = 1/2。","tags":["行列式"]},
-    {"id":"la_044","subject":"线性代数","difficulty":2,"question":"下列矩阵中可逆的是 A=[[1,2],[2,4]] 吗？","options":["可逆","不可逆","无法确定","仅当加入约束"],"answer":1,"explanation":"两行成比例，|A|=1×4−2×2=0，不可逆。","tags":["矩阵"]},
-    {"id":"la_045","subject":"线性代数","difficulty":1,"question":"矩阵加法要求两个矩阵？","options":["同型","同秩","同方阵","都可逆"],"answer":0,"explanation":"同型矩阵（行数列数相同）才能相加，对应元素相加。","tags":["矩阵"]},
-    {"id":"la_046","subject":"线性代数","difficulty":3,"question":"E 是 n 阶单位阵，交换 E 的两行得到的初等矩阵，其逆矩阵是？","options":["自身","−自身","转置即自身","不存在"],"answer":0,"explanation":"换法矩阵的逆是它自己（交换两次复原）。","tags":["矩阵"]},
-    {"id":"la_047","subject":"线性代数","difficulty":4,"question":"矩阵的迹 tr(A) 等于？","options":["行列式","主对角线元素之和","特征值之积","范数"],"answer":1,"explanation":"tr(A)=Σaᵢᵢ = 特征值之和。","tags":["矩阵"]},
-    {"id":"la_048","subject":"线性代数","difficulty":3,"question":"A为3阶矩阵，r(A)=2，则齐次方程组 Ax=0 的基础解系含？","options":["1个","2个","3个","0个"],"answer":0,"explanation":"基础解系维数 = n − r = 3 − 2 = 1。","tags":["方程组"]},
-    {"id":"la_049","subject":"线性代数","difficulty":2,"question":"向量组含零向量时一定？","options":["线性无关","线性相关","正交","满秩"],"answer":1,"explanation":"含零向量的向量组必线性相关（零向量系数取1即可）。","tags":["向量组"]},
-    {"id":"la_050","subject":"线性代数","difficulty":4,"question":"若 A 是正交矩阵，则下列错误的是？","options":["|A|=±1","A⁻¹=Aᵀ","A的行向量是单位向量且两两正交","|A|=1一定"],"answer":3,"explanation":"正交阵行列式可以是 +1（旋转）或 −1（反射），不一定为1。","tags":["矩阵"]}
+    {
+      "id": "la_001",
+      "subject": "线性代数",
+      "difficulty": 1,
+      "question": "2×2 矩阵 [[1,2],[3,4]] 的行列式是？",
+      "options": [
+        "−2",
+        "2",
+        "10",
+        "−10"
+      ],
+      "answer": 0,
+      "explanation": "|A| = 1×4 − 2×3 = −2。",
+      "tags": [
+        "行列式"
+      ]
+    },
+    {
+      "id": "la_002",
+      "subject": "线性代数",
+      "difficulty": 1,
+      "question": "单位矩阵的特点是？",
+      "options": [
+        "全为1",
+        "主对角线为1其余为0",
+        "全为0",
+        "任意位置的对角线元素为 1"
+      ],
+      "answer": 1,
+      "explanation": "E/I 单位矩阵：对角线 1，其余 0，AI=IA=A。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_003",
+      "subject": "线性代数",
+      "difficulty": 1,
+      "question": "行列式中两行相同，则行列式？",
+      "options": [
+        "为0",
+        "为1",
+        "等于2倍",
+        "不变"
+      ],
+      "answer": 0,
+      "explanation": "两行(列)相同或成比例，行列式为 0。",
+      "tags": [
+        "行列式"
+      ]
+    },
+    {
+      "id": "la_004",
+      "subject": "线性代数",
+      "difficulty": 1,
+      "question": "矩阵乘法满足的运算律是？",
+      "options": [
+        "交换律",
+        "结合律",
+        "消去律",
+        "交换与消去"
+      ],
+      "answer": 1,
+      "explanation": "矩阵乘法有结合律、分配律，一般不满足交换律 AB≠BA。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_005",
+      "subject": "线性代数",
+      "difficulty": 1,
+      "question": "转置矩阵 Aᵀ 中 aᵢⱼ 等于原矩阵的？",
+      "options": [
+        "aᵢⱼ",
+        "aⱼᵢ",
+        "−aᵢⱼ",
+        "a₁₁"
+      ],
+      "answer": 1,
+      "explanation": "转置：行列互换，(Aᵀ)ᵢⱼ = Aⱼᵢ。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_006",
+      "subject": "线性代数",
+      "difficulty": 1,
+      "question": "向量 a=(1,2) 与 b=(−2,1) 的关系是？",
+      "options": [
+        "平行",
+        "垂直",
+        "相等",
+        "共线"
+      ],
+      "answer": 1,
+      "explanation": "内积 1×(−2)+2×1 = 0，故垂直。",
+      "tags": [
+        "向量"
+      ]
+    },
+    {
+      "id": "la_007",
+      "subject": "线性代数",
+      "difficulty": 1,
+      "question": "零向量的模长是？",
+      "options": [
+        "0",
+        "1",
+        "−1",
+        "不存在"
+      ],
+      "answer": 0,
+      "explanation": "零向量模长为 0，方向任意。",
+      "tags": [
+        "向量"
+      ]
+    },
+    {
+      "id": "la_008",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "若 AB = E（E为单位矩阵），则下列说法正确的是？",
+      "options": [
+        "B 是 A 的逆矩阵",
+        "A 与 B 相等且互为对称",
+        "A 一定对称",
+        "B 一定为零矩阵"
+      ],
+      "answer": 0,
+      "explanation": "AB=E（方阵）⇒ B = A⁻¹ 且 BA=E。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_009",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "矩阵可逆的充分必要条件是？",
+      "options": [
+        "|A|≠0",
+        "A为方阵即可",
+        "A对称",
+        "A正交"
+      ],
+      "answer": 0,
+      "explanation": "方阵可逆 ⇔ 行列式非零 ⇔ 满秩。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_010",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "齐次线性方程组 Ax=0 有非零解的充要条件是？",
+      "options": [
+        "r(A)=n 且系数矩阵 A 一定可逆",
+        "r(A)<n（n为未知数个数）",
+        "A可逆",
+        "|A|=1"
+      ],
+      "answer": 1,
+      "explanation": "秩小于未知数个数时有自由变量，存在非零解。",
+      "tags": [
+        "方程组"
+      ]
+    },
+    {
+      "id": "la_011",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "矩阵的秩等于？",
+      "options": [
+        "行数",
+        "列数",
+        "非零子式的最高阶数",
+        "最大的特征值绝对值"
+      ],
+      "answer": 2,
+      "explanation": "秩 = 最高阶非零子式的阶数 = 行秩 = 列秩。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_012",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "3阶行列式按对角线法则展开共有几项？",
+      "options": [
+        "3",
+        "4",
+        "6",
+        "9"
+      ],
+      "answer": 2,
+      "explanation": "n阶行列式共 n! 项，3! = 6 项。",
+      "tags": [
+        "行列式"
+      ]
+    },
+    {
+      "id": "la_013",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "|kA|（A为n阶方阵）等于？",
+      "options": [
+        "k|A|",
+        "kⁿ|A|",
+        "|A|/k",
+        "k+|A|"
+      ],
+      "answer": 1,
+      "explanation": "每一行都提出一个 k，共提 n 次：|kA| = kⁿ|A|。",
+      "tags": [
+        "行列式"
+      ]
+    },
+    {
+      "id": "la_014",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "正交矩阵满足？",
+      "options": [
+        "Aᵀ=A",
+        "AAᵀ=E",
+        "|A|=1",
+        "A²=E"
+      ],
+      "answer": 1,
+      "explanation": "AᵀA = AAᵀ = E；|A|=±1；列向量构成标准正交基。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_015",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "向量组线性相关的充要条件是？",
+      "options": [
+        "向量组中所包含的向量个数一定比较少",
+        "至少一个向量可由其余向量线性表示",
+        "全为零向量",
+        "模长为1"
+      ],
+      "answer": 1,
+      "explanation": "线性相关 ⇔ 存在系数不全为零的线性组合为零 ⇔ 有向量可由其余表示。",
+      "tags": [
+        "向量组"
+      ]
+    },
+    {
+      "id": "la_016",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "n 维向量空间的一组基含有几个向量？",
+      "options": [
+        "1",
+        "n−1",
+        "n",
+        "任意"
+      ],
+      "answer": 2,
+      "explanation": "基是极大线性无关组，n 维空间的基含 n 个向量。",
+      "tags": [
+        "向量空间"
+      ]
+    },
+    {
+      "id": "la_017",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "特征值的定义：Ax = ?",
+      "options": [
+        "kx（k为常数）",
+        "λx",
+        "x²",
+        "0"
+      ],
+      "answer": 1,
+      "explanation": "Ax = λx，λ 是特征值，x 是对应特征向量。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_018",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "矩阵所有特征值的乘积等于？",
+      "options": [
+        "0",
+        "1",
+        "行列式",
+        "迹的数值"
+      ],
+      "answer": 2,
+      "explanation": "特征值之积 = |A|，特征值之和 = tr(A)（迹）。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_019",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "伴随矩阵 A* 满足 AA* = ?",
+      "options": [
+        "E",
+        "|A|E",
+        "A",
+        "|A| 的数值"
+      ],
+      "answer": 1,
+      "explanation": "AA* = |A|E，由此得 A⁻¹ = A*/|A|。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_020",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "方程组有解的充要条件（增广矩阵 (A,b)）？",
+      "options": [
+        "r(A)=r(A,b)",
+        "r(A)>r(A,b)",
+        "A满秩",
+        "b=0"
+      ],
+      "answer": 0,
+      "explanation": "r(A) = r(A,b) 有解；再等于 n 有唯一解。",
+      "tags": [
+        "方程组"
+      ]
+    },
+    {
+      "id": "la_021",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "|AB| 等于？",
+      "options": [
+        "|A||B|",
+        "|B||A| 的相反数",
+        "|A|+|B|",
+        "不成立一般"
+      ],
+      "answer": 0,
+      "explanation": "行列式乘法定理：|AB| = |A||B|（方阵）。",
+      "tags": [
+        "行列式"
+      ]
+    },
+    {
+      "id": "la_022",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "施密特正交化的作用是？",
+      "options": [
+        "求逆矩阵以及全部特征值的快速算法",
+        "把线性无关向量组化为正交向量组",
+        "求秩",
+        "解方程组"
+      ],
+      "answer": 1,
+      "explanation": "Gram-Schmidt 把无关组正交化，再单位化得标准正交基。",
+      "tags": [
+        "向量空间"
+      ]
+    },
+    {
+      "id": "la_023",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "二次型 f = xᵀAx 正定的充要条件是？",
+      "options": [
+        "A 是对称且行列式大于零的矩阵",
+        "A的各阶顺序主子式全为正",
+        "|A|>0",
+        "特征值全负"
+      ],
+      "answer": 1,
+      "explanation": "正定 ⇔ 顺序主子式全>0 ⇔ 特征值全>0。",
+      "tags": [
+        "二次型"
+      ]
+    },
+    {
+      "id": "la_024",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "相似矩阵（B=P⁻¹AP）一定具有相同的？",
+      "options": [
+        "特征多项式",
+        "全部的矩阵元素",
+        "行向量组",
+        "逆矩阵"
+      ],
+      "answer": 0,
+      "explanation": "相似矩阵有相同的特征多项式，从而特征值、迹、秩、行列式都相同。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_025",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "n 阶矩阵 A 可对角化的充分条件是？",
+      "options": [
+        "A 是实对称且可逆的正定矩阵",
+        "A有n个线性无关的特征向量",
+        "A可逆",
+        "A正交"
+      ],
+      "answer": 1,
+      "explanation": "有 n 个线性无关特征向量 ⇔ 可对角化；实对称矩阵必可正交对角化。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_026",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "克拉默法则适用于？",
+      "options": [
+        "任意线性方程组，无论其是否有解都适用",
+        "系数行列式非零的 n 个 n 元方程",
+        "齐次方程组",
+        "无解方程组"
+      ],
+      "answer": 1,
+      "explanation": "系数行列式 D≠0 时唯一解 xᵢ = Dᵢ/D。",
+      "tags": [
+        "方程组"
+      ]
+    },
+    {
+      "id": "la_027",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "矩阵初等行变换不改变矩阵的？",
+      "options": [
+        "行列式",
+        "秩",
+        "迹",
+        "特征值"
+      ],
+      "answer": 1,
+      "explanation": "初等行变换保持秩不变（行列式和特征值一般会变）。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_028",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "内积空间中 ‖a+b‖² = ‖a‖² + 2⟨a,b⟩ + ‖b‖² 展开，若 a⊥b 则 ‖a+b‖² = ?",
+      "options": [
+        "‖a‖²+‖b‖²",
+        "(‖a‖+‖b‖)²",
+        "0",
+        "‖a‖²−‖b‖²"
+      ],
+      "answer": 0,
+      "explanation": "垂直时内积为0，得勾股定理的推广。",
+      "tags": [
+        "向量"
+      ]
+    },
+    {
+      "id": "la_029",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "矩阵 A=[[1,1],[0,1]] 的特征值是？",
+      "options": [
+        "1,1",
+        "1,0",
+        "1,−1",
+        "2,0"
+      ],
+      "answer": 0,
+      "explanation": "三角矩阵特征值即对角线元素：1,1（特征值重复但只有1个线性无关特征向量，不可对角化）。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_030",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "实对称矩阵的特征值一定是？",
+      "options": [
+        "互不相同",
+        "实数",
+        "正数",
+        "有理数"
+      ],
+      "answer": 1,
+      "explanation": "实对称矩阵特征值全为实数，且不同特征值的特征向量正交。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_031",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "线性方程组中自由未知量的个数 = ?",
+      "options": [
+        "n − r(A)",
+        "r(A)",
+        "全部未知数的个数",
+        "未知量个数"
+      ],
+      "answer": 0,
+      "explanation": "自由变量数 = 未知数个数 − 系数矩阵的秩，即基础解系维数 n−r。",
+      "tags": [
+        "方程组"
+      ]
+    },
+    {
+      "id": "la_032",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "过渡矩阵的作用是？",
+      "options": [
+        "求逆",
+        "联系两组基下的坐标变换",
+        "求基变换所对应的行列式",
+        "标准化"
+      ],
+      "answer": 1,
+      "explanation": "(x') = C⁻¹x，C 是从旧基到新基的过渡矩阵。",
+      "tags": [
+        "向量空间"
+      ]
+    },
+    {
+      "id": "la_033",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "A 是 m×n 矩阵，则 r(AᵀA) 与 r(A) 的关系？",
+      "options": [
+        "相等",
+        "前者更大",
+        "后者更大",
+        "无关"
+      ],
+      "answer": 0,
+      "explanation": "r(AᵀA) = r(A)，常用于最小二乘正规方程的相容性。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_034",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "若 λ 是 A 的特征值，则 λ² 是哪个矩阵的特征值？",
+      "options": [
+        "A⁻¹",
+        "A²",
+        "Aᵀ",
+        "A*"
+      ],
+      "answer": 1,
+      "explanation": "Ax=λx ⇒ A²x = λ²x；A可逆时 1/λ 是 A⁻¹ 的特征值。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_035",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "n 阶实对称矩阵必可相似对角化，且对角矩阵是？",
+      "options": [
+        "任意",
+        "λE（λ 为全部特征值）",
+        "正交相似意义下的 Λ",
+        "上三角随机"
+      ],
+      "answer": 2,
+      "explanation": "存在正交矩阵 Q 使 QᵀAQ = Λ（对角线为特征值）。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_036",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "齐次方程组基础解系所含向量个数为 n−r，则非齐次 Ax=b 的通解结构是？",
+      "options": [
+        "只有唯一确定的特解分量",
+        "特解 + 对应齐次通解",
+        "任意解之和",
+        "基础解系"
+      ],
+      "answer": 1,
+      "explanation": "通解 = 特解 η₀ + Σkᵢξᵢ（齐次基础解系线性组合）。",
+      "tags": [
+        "方程组"
+      ]
+    },
+    {
+      "id": "la_037",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "秩为 r 的 m×n 矩阵，其列向量组的极大无关组含几个向量？",
+      "options": [
+        "m",
+        "n",
+        "r",
+        "n−r"
+      ],
+      "answer": 2,
+      "explanation": "列秩 = 行秩 = r(A) = r。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_038",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "分块矩阵 [[A,O],[O,B]] 的行列式等于？",
+      "options": [
+        "|A|+|B|",
+        "|A||B|",
+        "0",
+        "|A|−|B|"
+      ],
+      "answer": 1,
+      "explanation": "准对角阵行列式 = 对角块行列式之积。",
+      "tags": [
+        "行列式"
+      ]
+    },
+    {
+      "id": "la_039",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "最小二乘法求解 Ax=b（无精确解）时正规方程是？",
+      "options": [
+        "AᵀAx=Aᵀb",
+        "Ax=0",
+        "xᵀAᵀA=0",
+        "Ax=b 的转置方程"
+      ],
+      "answer": 0,
+      "explanation": "由投影原理得 AᵀAx = Aᵀb，解为最小二乘解。",
+      "tags": [
+        "应用"
+      ]
+    },
+    {
+      "id": "la_040",
+      "subject": "线性代数",
+      "difficulty": 5,
+      "question": "若 A~B（相似），B~C，则？",
+      "options": [
+        "A~C",
+        "A=C",
+        "A与C无关",
+        "仅当可逆成立"
+      ],
+      "answer": 0,
+      "explanation": "相似具有传递性、对称性、反身性（等价关系）。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_041",
+      "subject": "线性代数",
+      "difficulty": 5,
+      "question": "若 n 阶矩阵满足 A²=A（幂等），其特征值只能是？",
+      "options": [
+        "0",
+        "1",
+        "0或1",
+        "±1 之外的其他值"
+      ],
+      "answer": 2,
+      "explanation": "λ²=λ ⇒ λ(λ−1)=0 ⇒ λ=0 或 1。",
+      "tags": [
+        "特征值"
+      ]
+    },
+    {
+      "id": "la_042",
+      "subject": "线性代数",
+      "difficulty": 5,
+      "question": "正定二次型 f=xᵀAx 的规范形是？",
+      "options": [
+        "y₁²+y₂²+…+yₙ²",
+        "−y₁²−y₂²−…−yₙ² 的负规范形",
+        "y₁²−y₂²",
+        "y₁²"
+      ],
+      "answer": 0,
+      "explanation": "正定 ⇔ 正惯性指数 = n，规范形全是平方项且系数为 1。",
+      "tags": [
+        "二次型"
+      ]
+    },
+    {
+      "id": "la_043",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "若 |A|=2，则 |A⁻¹| = ?",
+      "options": [
+        "2 倍",
+        "1/2",
+        "−2",
+        "4"
+      ],
+      "answer": 1,
+      "explanation": "|AA⁻¹|=|E|=1 ⇒ |A⁻¹| = 1/|A| = 1/2。",
+      "tags": [
+        "行列式"
+      ]
+    },
+    {
+      "id": "la_044",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "下列矩阵中可逆的是 A=[[1,2],[2,4]] 吗？",
+      "options": [
+        "可逆",
+        "不可逆",
+        "无法确定",
+        "仅当加入约束"
+      ],
+      "answer": 1,
+      "explanation": "两行成比例，|A|=1×4−2×2=0，不可逆。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_045",
+      "subject": "线性代数",
+      "difficulty": 1,
+      "question": "矩阵加法要求两个矩阵？",
+      "options": [
+        "同型",
+        "同秩",
+        "同方阵",
+        "都可逆"
+      ],
+      "answer": 0,
+      "explanation": "同型矩阵（行数列数相同）才能相加，对应元素相加。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_046",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "E 是 n 阶单位阵，交换 E 的两行得到的初等矩阵，其逆矩阵是？",
+      "options": [
+        "自身",
+        "−自身",
+        "转置即自身",
+        "不存在"
+      ],
+      "answer": 0,
+      "explanation": "换法矩阵的逆是它自己（交换两次复原）。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_047",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "矩阵的迹 tr(A) 等于？",
+      "options": [
+        "行列式",
+        "主对角线元素之和",
+        "特征值之积",
+        "主对角线元素的范数"
+      ],
+      "answer": 1,
+      "explanation": "tr(A)=Σaᵢᵢ = 特征值之和。",
+      "tags": [
+        "矩阵"
+      ]
+    },
+    {
+      "id": "la_048",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "A为3阶矩阵，r(A)=2，则齐次方程组 Ax=0 的基础解系含？",
+      "options": [
+        "1个",
+        "2个",
+        "3个",
+        "0个"
+      ],
+      "answer": 0,
+      "explanation": "基础解系维数 = n − r = 3 − 2 = 1。",
+      "tags": [
+        "方程组"
+      ]
+    },
+    {
+      "id": "la_049",
+      "subject": "线性代数",
+      "difficulty": 2,
+      "question": "向量组含零向量时一定？",
+      "options": [
+        "线性无关",
+        "线性相关",
+        "正交",
+        "满秩"
+      ],
+      "answer": 1,
+      "explanation": "含零向量的向量组必线性相关（零向量系数取1即可）。",
+      "tags": [
+        "向量组"
+      ]
+    },
+    {
+      "id": "la_050",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "若 A 是正交矩阵，则下列错误的是？",
+      "options": [
+        "|A|=±1",
+        "A⁻¹=Aᵀ",
+        "A的行向量是单位向量且两两正交",
+        "|A|=1一定"
+      ],
+      "answer": 3,
+      "explanation": "正交阵行列式可以是 +1（旋转）或 −1（反射），不一定为1。",
+      "tags": [
+        "矩阵"
+      ]
+    }
   ]
 }

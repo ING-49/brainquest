@@ -1,0 +1,310 @@
+{
+  "subject": "高等数学",
+  "version": 1,
+  "questions": [
+    {
+      "id": "zt_math_001",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】lim(x→0) (3sinx + x²·cos(1/x)) / ((1+cosx)·ln(1+x)) = ?",
+      "options": [
+        "3/2",
+        "1/2",
+        "3",
+        "2/3"
+      ],
+      "answer": 0,
+      "explanation": "分母 (1+cosx)→2，ln(1+x)~x，3sinx/x→3，故极限 3/2；x²cos(1/x) 项为高阶无穷小。",
+      "tags": [
+        "真题",
+        "极限"
+      ]
+    },
+    {
+      "id": "zt_math_002",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】∫₋₁¹ (x + √(1−x²)) dx = ?",
+      "options": [
+        "π/2",
+        "面积为零",
+        "π",
+        "2"
+      ],
+      "answer": 0,
+      "explanation": "x 为奇函数积分为 0；√(1−x²) 为上半单位圆面积 π/2；两者相加 π/2。",
+      "tags": [
+        "真题",
+        "积分"
+      ]
+    },
+    {
+      "id": "zt_math_003",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】∫₀² √(4−x²) dx = ?",
+      "options": [
+        "π",
+        "π/2",
+        "2π",
+        "4"
+      ],
+      "answer": 0,
+      "explanation": "半径 2 的圆在第一象限部分：四分之一圆面积 = π·4/4 = π。",
+      "tags": [
+        "真题",
+        "积分"
+      ]
+    },
+    {
+      "id": "zt_math_004",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】心形线 r = a(1+cosθ)（a>0）的全长为？",
+      "options": [
+        "8a",
+        "4a",
+        "2πa",
+        "6a"
+      ],
+      "answer": 0,
+      "explanation": "s = 2∫₀^π √(r²+r′²)dθ = 2a∫₀^π √(2+2cosθ)dθ = 8a。",
+      "tags": [
+        "真题",
+        "积分应用"
+      ]
+    },
+    {
+      "id": "zt_math_005",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】微分方程 y″−3y′+2y=0 满足 y(0)=2, y′(0)=7 的特解是？",
+      "options": [
+        "y = −3e^x + 5e^{2x}",
+        "y = 3e^x + e^{2x} + C",
+        "y = 2e^{2x}",
+        "y = e^x + e^{2x}"
+      ],
+      "answer": 0,
+      "explanation": "特征根 1,2：y=C₁eˣ+C₂e²ˣ；C₁+C₂=2，C₁+2C₂=7 ⇒ C₁=−3, C₂=5。",
+      "tags": [
+        "真题",
+        "微分方程"
+      ]
+    },
+    {
+      "id": "zt_math_006",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】级数 ∑(−1)ⁿ⁻¹/n 的收敛性？",
+      "options": [
+        "条件收敛",
+        "绝对收敛",
+        "发散",
+        "收敛到 1"
+      ],
+      "answer": 0,
+      "explanation": "莱布尼茨判别收敛，取绝对值后为调和级数发散，故条件收敛。",
+      "tags": [
+        "真题",
+        "级数"
+      ]
+    },
+    {
+      "id": "zt_math_007",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】x→0⁺ 时与 √x 等价的无穷小是？",
+      "options": [
+        "e^{√x} − 1",
+        "ln(1+x) 的线性主部",
+        "1−cosx",
+        "x²"
+      ],
+      "answer": 0,
+      "explanation": "e^t−1~t，取 t=√x 得 e^{√x}−1~√x。",
+      "tags": [
+        "真题",
+        "极限"
+      ]
+    },
+    {
+      "id": "zt_math_008",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】曲线 y = (1+x)^{1/x} 的水平渐近线是？",
+      "options": [
+        "y = e",
+        "y = 1",
+        "y = 0",
+        "y = π"
+      ],
+      "answer": 0,
+      "explanation": "lim(x→∞)(1+x)^{1/x} = e，故水平渐近线 y=e。",
+      "tags": [
+        "真题",
+        "极限"
+      ]
+    },
+    {
+      "id": "zt_math_009",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】交换积分次序：∫₀¹ dy ∫_y^{√y} f(x,y) dx = ?",
+      "options": [
+        "∫₀¹ dx ∫₀^{x²} f(x,y) dy",
+        "∫₀¹ dx ∫_x^{√x} f(x,y) dy",
+        "∫₀¹ dx ∫₀^x f dy",
+        "∫₀¹ dx ∫_{x²}^x f dy"
+      ],
+      "answer": 0,
+      "explanation": "区域 0≤y≤1, y≤x≤√y 即 0≤x≤1, x²≤y≤x，交换后得 ∫₀¹dx∫₀^{x²}f dy。",
+      "tags": [
+        "真题",
+        "重积分"
+      ]
+    },
+    {
+      "id": "zt_math_010",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】f(x)=x² 在 [0,1] 上的平均值是？",
+      "options": [
+        "1/3",
+        "1/2",
+        "2/3",
+        "1"
+      ],
+      "answer": 0,
+      "explanation": "平均值 = ∫₀¹x²dx / (1−0) = 1/3。",
+      "tags": [
+        "真题",
+        "积分"
+      ]
+    },
+    {
+      "id": "zt_math_011",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】摆线 x=a(t−sint), y=a(1−cost) 一拱与 x 轴围成的面积为？",
+      "options": [
+        "3πa²",
+        "πa²",
+        "2πa²",
+        "4a²"
+      ],
+      "answer": 0,
+      "explanation": "S = ∫₀^{2π} a²(1−cost)²dt = a²·(2π+3π/... ) = 3πa²（标准结论）。",
+      "tags": [
+        "真题",
+        "积分应用"
+      ]
+    },
+    {
+      "id": "zt_math_012",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】曲线 y = x²e^{−x} 的拐点个数为？",
+      "options": [
+        "2",
+        "0",
+        "1",
+        "3"
+      ],
+      "answer": 0,
+      "explanation": "y″=e^{−x}(x²−4x+2)=0 有两根且两侧二阶导变号，故 2 个拐点。",
+      "tags": [
+        "真题",
+        "导数应用"
+      ]
+    },
+    {
+      "id": "zt_math_013",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】反常积分 ∫₀¹ x/√(1−x²) dx = ?",
+      "options": [
+        "1",
+        "1/2",
+        "发散",
+        "2"
+      ],
+      "answer": 0,
+      "explanation": "令 u=1−x²，∫₀¹du/(2√u) = [√u]₀¹ = 1。",
+      "tags": [
+        "真题",
+        "反常积分"
+      ]
+    },
+    {
+      "id": "zt_math_014",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】lim(n→∞) (1/n)·Σₖ₌₁ⁿ √(1+k/n) = ?",
+      "options": [
+        "(2/3)(2√2−1)",
+        "(2/3)(√2−1)",
+        "√2−1",
+        "(3/2)(2√2−1)"
+      ],
+      "answer": 0,
+      "explanation": "这是 ∫₀¹√(1+x)dx 的积分和：[2/3·(1+x)^{3/2}]₀¹ = (2/3)(2√2−1)。",
+      "tags": [
+        "真题",
+        "极限"
+      ]
+    },
+    {
+      "id": "zt_math_015",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】数列 x₁=√2, x_{n+1}=√(2+xₙ) 的极限是？",
+      "options": [
+        "2",
+        "√2",
+        "√3",
+        "1"
+      ],
+      "answer": 0,
+      "explanation": "单调有界必收敛；设极限为 a，由 a=√(2+a) 得 a²−a−2=0，取正根 a=2。",
+      "tags": [
+        "真题",
+        "极限"
+      ]
+    },
+    {
+      "id": "zt_math_016",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】f(x) 可导且 f(0)=0, f′(0)=2，则 lim(x→0) f(x)/x = ?",
+      "options": [
+        "2",
+        "0",
+        "1",
+        "∞"
+      ],
+      "answer": 0,
+      "explanation": "f(x)/x = (f(x)−f(0))/(x−0) → f′(0)=2，即导数定义。",
+      "tags": [
+        "真题",
+        "导数"
+      ]
+    }
+  ]
+}

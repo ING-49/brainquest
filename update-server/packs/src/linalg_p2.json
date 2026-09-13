@@ -2,45 +2,725 @@
   "subject": "线性代数",
   "version": 1,
   "questions": [
-    {"id":"la2_001","subject":"线性代数","difficulty":4,"question":"考研加餐：n 阶矩阵 A 满足 A²=E，则 r(A)+r(A−E) = ?","options":["n","n−1","n+1","2n"],"answer":0,"explanation":"(A+E)(A−E)=O ⇒ r(A+E)+r(A−E)≤n；又 r(A+E)+r(A−E)≥r((A+E)−(A−E))=r(2E)=n，故和恰为 n。","tags":["秩","考研"]},
-    {"id":"la2_002","subject":"线性代数","difficulty":4,"question":"考研加餐：A 为 n 阶实对称矩阵，则下列结论错误的是？","options":["特征值全为实数","不同特征值的特征向量正交","必可正交对角化","特征值互不相同"],"answer":3,"explanation":"实对称矩阵特征值是实数但不一定互不相同（可以有重根）。","tags":["特征值","考研"]},
-    {"id":"la2_003","subject":"线性代数","difficulty":4,"question":"考研加餐：若 A 的各行元素之和均为 0，则 Ax=0 必有非零解 x = ?","options":["(1,1,…,1)ᵀ","(1,0,…,0)ᵀ","(0,…,0,1)ᵀ","不存在"],"answer":0,"explanation":"每行和为 0 即 A(1,1,…,1)ᵀ=0，全 1 向量是零化向量。","tags":["方程组","考研"]},
-    {"id":"la2_004","subject":"线性代数","difficulty":4,"question":"考研加餐：分块矩阵 [[A,B],[O,C]] 可逆的充要条件是？","options":["A、C 都可逆","A 可逆","C 可逆","|A|=|C|"],"answer":0,"explanation":"准对角阵行列式 |A||C|≠0 ⟺ A、C 均可逆。","tags":["分块矩阵","考研"]},
-    {"id":"la2_005","subject":"线性代数","difficulty":4,"question":"考研加餐：A 相似于对角矩阵的充要条件是？","options":["A 有 n 个互异特征值","A 有 n 个线性无关的特征向量","A 是实对称","A 可逆"],"answer":1,"explanation":"可对角化 ⟺ 每个特征值对应线性无关特征向量个数等于其重数，合计 n 个。","tags":["特征值","考研"]},
-    {"id":"la2_006","subject":"线性代数","difficulty":3,"question":"考研加餐：r(A)=1 的 n 阶矩阵 A（n≥2）必满足？","options":["A²=A","A=αβᵀ（α,β 为列向量）","A 对称","|A|=1"],"answer":1,"explanation":"秩 1 矩阵可分解为列向量乘行向量 A=αβᵀ，且 A²=(βᵀα)A。","tags":["秩","考研"]},
-    {"id":"la2_007","subject":"线性代数","difficulty":4,"question":"考研加餐：若 |A|=0（n≥2 阶），则 A* 的秩为？","options":["n","1","0 或 1（r(A)=n−1 时为 1，更低为 0）","n−1"],"answer":2,"explanation":"r(A*) = n（r(A)=n 时），1（r(A)=n−1 时），0（r(A)≤n−2 时）。","tags":["伴随矩阵","考研"]},
-    {"id":"la2_008","subject":"线性代数","difficulty":3,"question":"考研加餐：正交变换在几何上的作用是？","options":["保持长度与夹角（刚体变换）","放大向量","投影","平移"],"answer":0,"explanation":"正交变换保持内积，从而保持长度与夹角。","tags":["矩阵","考研"]},
-    {"id":"la2_009","subject":"线性代数","difficulty":4,"question":"考研加餐：二次型 f=xᵀAx 经可逆线性变换 x=Cy 后，新矩阵 B = ?","options":["B=CᵀAC","B=CACᵀ","B=C⁻¹AC 一定","B=A"],"answer":0,"explanation":"合同变换：B=CᵀAC；A 与 B 合同（正惯性指数不变）。","tags":["二次型","考研"]},
-    {"id":"la2_010","subject":"线性代数","difficulty":3,"question":"考研加餐：两个矩阵等价（可互相初等变换得到）的充要条件是？","options":["同型且秩相等","都是方阵","行列式相等","都可逆"],"answer":0,"explanation":"A≅B ⟺ 同型且 r(A)=r(B)。","tags":["矩阵","考研"]},
-    {"id":"la2_011","subject":"线性代数","difficulty":4,"question":"考研加餐：若 A 是 m×n 实矩阵，则齐次方程 Ax=0 的解空间维数是？","options":["m","n","n−r(A)","r(A)"],"answer":2,"explanation":"解空间（零空间）维数 = n − r(A)。","tags":["方程组","考研"]},
-    {"id":"la2_012","subject":"线性代数","difficulty":4,"question":"考研加餐：A~B（相似）且 B 可对角化，则 A？","options":["不可对角化","也可对角化","一定对称","一定可逆"],"answer":1,"explanation":"相似关系传递：A~B~Λ ⇒ A=PΛP⁻¹ 也可对角化。","tags":["特征值","考研"]},
-    {"id":"la2_013","subject":"线性代数","difficulty":3,"question":"考研加餐：矩阵 [[1,2],[3,4]] 的逆矩阵是？","options":["[[−2,1],[3/2,−1/2]]","[[4,−3],[−2,1]]","不存在","[[1,−2],[−3,4]]"],"answer":0,"explanation":"|A|=−2，A⁻¹=A*/|A| = (1/−2)[[4,−2],[−3,1]] = [[−2,1],[3/2,−1/2]]。","tags":["逆矩阵","考研"]},
-    {"id":"la2_014","subject":"线性代数","difficulty":4,"question":"考研加餐：设 A 为 3 阶矩阵且 |2A|=8，则 |A| = ?","options":["1","2","4","8"],"answer":0,"explanation":"|2A|=2³|A|=8 ⇒ |A|=1。","tags":["行列式","考研"]},
-    {"id":"la2_015","subject":"线性代数","difficulty":4,"question":"考研加餐：实对称矩阵不同特征值对应的特征向量必？","options":["线性相关","正交","相等","平行"],"answer":1,"explanation":"实对称矩阵不同特征值的特征向量相互正交（可用于正交对角化）。","tags":["特征值","考研"]},
-    {"id":"la2_016","subject":"线性代数","difficulty":4,"question":"考研加餐：向量组 α₁,…,αₛ 的秩为 r ⟺ ?","options":["s=r","极大线性无关组含 r 个向量","全为零向量","线性相关"],"answer":1,"explanation":"秩 = 极大线性无关组所含向量个数。","tags":["向量组","考研"]},
-    {"id":"la2_017","subject":"线性代数","difficulty":4,"question":"考研加餐：若 A²=A（幂等），则 A 相似于？","options":["对角矩阵（特征值 0 或 1）","单位阵","零矩阵","不可对角化"],"answer":0,"explanation":"最小多项式 x(x−1) 无重根 → 可对角化，特征值 0/1。","tags":["特征值","考研"]},
-    {"id":"la2_018","subject":"线性代数","difficulty":3,"question":"考研加餐：n 个方程 n 个未知数的齐次线性方程组只有零解的充要条件？","options":["系数矩阵行列式≠0","r(A)<n","A 对称","A 可交换"],"answer":0,"explanation":"|A|≠0 ⟺ 只有零解。","tags":["方程组","考研"]},
-    {"id":"la2_019","subject":"线性代数","difficulty":4,"question":"考研加餐：若 λ 是可逆矩阵 A 的特征值，则 A*（伴随）的特征值是？","options":["λ","|A|/λ","1/λ","λ²"],"answer":1,"explanation":"A* = |A|A⁻¹，A⁻¹ 特征值为 1/λ，故 A* 特征值为 |A|/λ。","tags":["特征值","考研"]},
-    {"id":"la2_020","subject":"线性代数","difficulty":4,"question":"考研加餐：施密特正交化的目的是把线性无关向量组变成？","options":["正交向量组","相同向量组","标准基","对角阵"],"answer":0,"explanation":"先正交化再单位化，得到与原组等价的标准正交组。","tags":["向量空间","考研"]},
-    {"id":"la2_021","subject":"线性代数","difficulty":4,"question":"考研加餐：若 A、B 均为 n 阶可逆矩阵，则 (AB)⁻¹ = ?","options":["A⁻¹B⁻¹","B⁻¹A⁻¹","AB","BA"],"answer":1,"explanation":"(AB)(B⁻¹A⁻¹)=E，故 (AB)⁻¹=B⁻¹A⁻¹（顺序反转）。","tags":["逆矩阵","考研"]},
-    {"id":"la2_022","subject":"线性代数","difficulty":4,"question":"考研加餐：非齐次方程组 Ax=b 的两个解之差是？","options":["Ax=b 的解","对应齐次方程 Ax=0 的解","任意向量","零向量必有"],"answer":1,"explanation":"A(η₁−η₂)=b−b=0，解之差是齐次解。","tags":["方程组","考研"]},
-    {"id":"la2_023","subject":"线性代数","difficulty":5,"question":"考研加餐：A 是 n 阶正定矩阵的充要条件是？","options":["A 对称且特征值全为正","|A|>0","A 可逆","A 正交"],"answer":0,"explanation":"正定 ⟺ A 对称且各阶顺序主子式>0 ⟺ 对称且特征值全>0。","tags":["二次型","考研"]},
-    {"id":"la2_024","subject":"线性代数","difficulty":3,"question":"考研加餐：矩阵乘法 AB 有意义要求？","options":["A 的列数 = B 的行数","都是方阵","同型","都可逆"],"answer":0,"explanation":"A(m×n)×B(n×p) 才有意义。","tags":["矩阵","考研"]},
-    {"id":"la2_025","subject":"线性代数","difficulty":4,"question":"考研加餐：若 r(A)=r(A,b) < n（n 为未知数个数），非齐次方程组？","options":["无解","有无穷多解","唯一解","只有零解"],"answer":1,"explanation":"有解且自由变量 n−r>0 个 → 无穷多解。","tags":["方程组","考研"]},
-    {"id":"la2_026","subject":"线性代数","difficulty":5,"question":"考研加餐：n 阶矩阵 A 与 E 相似（即 A~E）的充要条件是？","options":["A=E","A 可逆","A 对称","|A|=1"],"answer":0,"explanation":"A~E ⟹ A=P⁻¹EP=E，反之显然，故 A~E ⟺ A=E。","tags":["相似","考研"]},
-    {"id":"la2_027","subject":"线性代数","difficulty":4,"question":"考研加餐：若 α,β 正交，‖α‖=1, ‖β‖=1，则 ‖α−β‖ = ?","options":["√2","2","1","0"],"answer":0,"explanation":"‖α−β‖²=‖α‖²+‖β‖²=2，模长 √2。","tags":["向量","考研"]},
-    {"id":"la2_028","subject":"线性代数","difficulty":4,"question":"考研加餐：线性方程组 Ax=b 有唯一解的充要条件？","options":["r(A)=r(A,b)=n","r(A)<n","A 可逆（不一定方阵时）","b=0"],"answer":0,"explanation":"秩相等且等于未知数个数 → 唯一解。","tags":["方程组","考研"]},
-    {"id":"la2_029","subject":"线性代数","difficulty":4,"question":"考研加餐：若 A 为实反对称矩阵（Aᵀ=−A），其特征值为？","options":["0 或纯虚数","全实数","全正","±1"],"answer":0,"explanation":"反对称矩阵特征值为 0 或纯虚数 ±λi。","tags":["特征值","考研"]},
-    {"id":"la2_030","subject":"线性代数","difficulty":3,"question":"考研加餐：初等矩阵的逆仍是？","options":["初等矩阵","零矩阵","对称阵","单位阵"],"answer":0,"explanation":"三种初等矩阵的逆都是同类型的初等矩阵。","tags":["矩阵","考研"]},
-    {"id":"la2_031","subject":"线性代数","difficulty":4,"question":"考研加餐：若 P 可逆，则 r(PA) 与 r(A) 的关系？","options":["相等","更大","更小","无关"],"answer":0,"explanation":"可逆矩阵左乘右乘不改变秩。","tags":["秩","考研"]},
-    {"id":"la2_032","subject":"线性代数","difficulty":4,"question":"考研加餐：二次型 f 的负惯性指数为 1 意味着？","options":["规范形中负平方项 1 个","不正定","不定（可能半负）","满秩"],"answer":0,"explanation":"惯性定理：负系数平方项个数在合同变换下不变。","tags":["二次型","考研"]},
-    {"id":"la2_033","subject":"线性代数","difficulty":3,"question":"考研加餐：A 为 2 阶矩阵且 r(A)=1，则 |A| = ?","options":["0","1","−1","2"],"answer":0,"explanation":"不满秩的方阵行列式为 0。","tags":["行列式","考研"]},
-    {"id":"la2_034","subject":"线性代数","difficulty":4,"question":"考研加餐：求 A⁻* 不必，问：A⁻¹ 的伴随 (A⁻¹)* 等于？","options":["A/|A|","A*","|A|A","Aᵀ"],"answer":0,"explanation":"(A⁻¹)* = |A⁻¹|(A⁻¹)⁻¹ = (1/|A|)·A = A/|A|。","tags":["伴随矩阵","考研"]},
-    {"id":"la2_035","subject":"线性代数","difficulty":4,"question":"考研加餐：基变换公式：若 (β₁,…,βₙ)=(α₁,…,αₙ)C，则坐标变换为？","options":["x=Cy","x′=C⁻¹x","y=Cx 一定","x=C⁻¹ 无关"],"answer":1,"explanation":"新坐标 x′=C⁻¹x（x 为旧坐标）。","tags":["向量空间","考研"]},
-    {"id":"la2_036","subject":"线性代数","difficulty":4,"question":"考研加餐：若 A 列满秩（m×n，r=n），则 AᵀA 是？","options":["可逆对称阵","零阵","反对称","奇异"],"answer":0,"explanation":"Ax=0 只有零解 → AᵀAx=0 只有零解 → AᵀA 可逆（且对称）。","tags":["矩阵","考研"]},
-    {"id":"la2_037","subject":"线性代数","difficulty":3,"question":"考研加餐：行简化阶梯形的非零首元（主元）个数等于？","options":["行数","列数","秩","未知数个数"],"answer":2,"explanation":"主元个数=非零行数=矩阵的秩。","tags":["矩阵","考研"]},
-    {"id":"la2_038","subject":"线性代数","difficulty":4,"question":"考研加餐：若 A 是 3 阶矩阵，特征值 1,2,3，则 |A+E| = ?","options":["6","24","12","8"],"answer":1,"explanation":"A 的特征值加 1 即 A+E 的特征值 2,3,4，乘积 24。","tags":["特征值","考研"]},
-    {"id":"la2_039","subject":"线性代数","difficulty":4,"question":"考研加餐：若 A~Λ=diag(1,2,3)，则 A²~ ?","options":["diag(1,4,9)","E","Λᵀ 不变即同 Λ","diag(2,4,6)"],"answer":0,"explanation":"A=PΛP⁻¹ ⇒ A²=PΛ²P⁻¹，Λ²=diag(1,4,9)。","tags":["相似","考研"]},
-    {"id":"la2_040","subject":"线性代数","difficulty":4,"question":"考研加餐：齐次方程组的基础解系必须满足？","options":["线性无关且都是解，任意解可由其线性表示","只有两个向量","正交","是单位向量"],"answer":0,"explanation":"基础解系 = 解空间的基：解向量组、线性无关、能表出所有解。","tags":["方程组","考研"]}
+    {
+      "id": "la2_001",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：n 阶矩阵 A 满足 A²=E，则 r(A)+r(A−E) = ?",
+      "options": [
+        "n",
+        "n−1",
+        "n+1",
+        "2n"
+      ],
+      "answer": 0,
+      "explanation": "(A+E)(A−E)=O ⇒ r(A+E)+r(A−E)≤n；又 r(A+E)+r(A−E)≥r((A+E)−(A−E))=r(2E)=n，故和恰为 n。",
+      "tags": [
+        "秩",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_002",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：A 为 n 阶实对称矩阵，则下列结论错误的是？",
+      "options": [
+        "特征值全为实数",
+        "不同特征值的特征向量正交",
+        "必可正交对角化",
+        "特征值互不相同"
+      ],
+      "answer": 3,
+      "explanation": "实对称矩阵特征值是实数但不一定互不相同（可以有重根）。",
+      "tags": [
+        "特征值",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_003",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 A 的各行元素之和均为 0，则 Ax=0 必有非零解 x = ?",
+      "options": [
+        "(1,1,…,1)ᵀ",
+        "(1,0,…,0)ᵀ",
+        "(0,…,0,1)ᵀ",
+        "不存在"
+      ],
+      "answer": 0,
+      "explanation": "每行和为 0 即 A(1,1,…,1)ᵀ=0，全 1 向量是零化向量。",
+      "tags": [
+        "方程组",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_004",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：分块矩阵 [[A,B],[O,C]] 可逆的充要条件是？",
+      "options": [
+        "A、C 都可逆",
+        "A 可逆",
+        "C 可逆",
+        "|A|=|C|"
+      ],
+      "answer": 0,
+      "explanation": "准对角阵行列式 |A||C|≠0 ⟺ A、C 均可逆。",
+      "tags": [
+        "分块矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_005",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：A 相似于对角矩阵的充要条件是？",
+      "options": [
+        "A 有 n 个互异特征值即可彻底解决",
+        "A 有 n 个线性无关的特征向量",
+        "A 是实对称",
+        "A 可逆"
+      ],
+      "answer": 1,
+      "explanation": "可对角化 ⟺ 每个特征值对应线性无关特征向量个数等于其重数，合计 n 个。",
+      "tags": [
+        "特征值",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_006",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "考研加餐：r(A)=1 的 n 阶矩阵 A（n≥2）必满足？",
+      "options": [
+        "A²=A",
+        "A=αβᵀ（α,β 为列向量）",
+        "A 对称",
+        "|A|=1即可彻底解决即可彻底解决"
+      ],
+      "answer": 1,
+      "explanation": "秩 1 矩阵可分解为列向量乘行向量 A=αβᵀ，且 A²=(βᵀα)A。",
+      "tags": [
+        "秩",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_007",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 |A|=0（n≥2 阶），则 A* 的秩为？",
+      "options": [
+        "n",
+        "1",
+        "0 或 1（r(A)=n−1 时为 1，更低为 0）",
+        "n−1，只要采用这种方法就能把问题彻底解决无需其他即可彻底解决"
+      ],
+      "answer": 2,
+      "explanation": "r(A*) = n（r(A)=n 时），1（r(A)=n−1 时），0（r(A)≤n−2 时）。",
+      "tags": [
+        "伴随矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_008",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "考研加餐：正交变换在几何上的作用是？",
+      "options": [
+        "保持长度与夹角（刚体变换）",
+        "放大向量即可彻底解决即可彻底解决",
+        "投影",
+        "平移"
+      ],
+      "answer": 0,
+      "explanation": "正交变换保持内积，从而保持长度与夹角。",
+      "tags": [
+        "矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_009",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：二次型 f=xᵀAx 经可逆线性变换 x=Cy 后，新矩阵 B = ?",
+      "options": [
+        "B=CᵀAC",
+        "B=CACᵀ",
+        "B=C⁻¹AC 一定",
+        "B=A"
+      ],
+      "answer": 0,
+      "explanation": "合同变换：B=CᵀAC；A 与 B 合同（正惯性指数不变）。",
+      "tags": [
+        "二次型",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_010",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "考研加餐：两个矩阵等价（可互相初等变换得到）的充要条件是？",
+      "options": [
+        "同型且秩相等",
+        "两个矩阵都是方阵",
+        "行列式相等",
+        "都可逆"
+      ],
+      "answer": 0,
+      "explanation": "A≅B ⟺ 同型且 r(A)=r(B)。",
+      "tags": [
+        "矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_011",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 A 是 m×n 实矩阵，则齐次方程 Ax=0 的解空间维数是？",
+      "options": [
+        "m",
+        "n",
+        "n−r(A)",
+        "r(A)即可彻底解决"
+      ],
+      "answer": 2,
+      "explanation": "解空间（零空间）维数 = n − r(A)。",
+      "tags": [
+        "方程组",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_012",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：A~B（相似）且 B 可对角化，则 A？",
+      "options": [
+        "不可对角化",
+        "也可对角化",
+        "一定对称",
+        "一定可逆"
+      ],
+      "answer": 1,
+      "explanation": "相似关系传递：A~B~Λ ⇒ A=PΛP⁻¹ 也可对角化。",
+      "tags": [
+        "特征值",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_013",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "考研加餐：矩阵 [[1,2],[3,4]] 的逆矩阵是？",
+      "options": [
+        "[[−2,1],[3/2,−1/2]]",
+        "[[4,−3],[−2,1]]即可彻底解决",
+        "不存在",
+        "[[1,−2],[−3,4]]"
+      ],
+      "answer": 0,
+      "explanation": "|A|=−2，A⁻¹=A*/|A| = (1/−2)[[4,−2],[−3,1]] = [[−2,1],[3/2,−1/2]]。",
+      "tags": [
+        "逆矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_014",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：设 A 为 3 阶矩阵且 |2A|=8，则 |A| = ?",
+      "options": [
+        "1",
+        "2",
+        "4",
+        "8"
+      ],
+      "answer": 0,
+      "explanation": "|2A|=2³|A|=8 ⇒ |A|=1。",
+      "tags": [
+        "行列式",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_015",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：实对称矩阵不同特征值对应的特征向量必？",
+      "options": [
+        "线性相关",
+        "正交",
+        "相等",
+        "平行"
+      ],
+      "answer": 1,
+      "explanation": "实对称矩阵不同特征值的特征向量相互正交（可用于正交对角化）。",
+      "tags": [
+        "特征值",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_016",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：向量组 α₁,…,αₛ 的秩为 r ⟺ ?",
+      "options": [
+        "s=r",
+        "极大线性无关组含 r 个向量",
+        "全为零向量即可彻底解决即可彻底解决",
+        "线性相关"
+      ],
+      "answer": 1,
+      "explanation": "秩 = 极大线性无关组所含向量个数。",
+      "tags": [
+        "向量组",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_017",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 A²=A（幂等），则 A 相似于？",
+      "options": [
+        "对角矩阵（特征值 0 或 1）",
+        "单位阵",
+        "零矩阵",
+        "不可对角化即可彻底解决即可彻底解决"
+      ],
+      "answer": 0,
+      "explanation": "最小多项式 x(x−1) 无重根 → 可对角化，特征值 0/1。",
+      "tags": [
+        "特征值",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_018",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "考研加餐：n 个方程 n 个未知数的齐次线性方程组只有零解的充要条件？",
+      "options": [
+        "系数矩阵行列式≠0",
+        "r(A)<n即可彻底解决",
+        "A 对称",
+        "A 可交换"
+      ],
+      "answer": 0,
+      "explanation": "|A|≠0 ⟺ 只有零解。",
+      "tags": [
+        "方程组",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_019",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 λ 是可逆矩阵 A 的特征值，则 A*（伴随）的特征值是？",
+      "options": [
+        "λ",
+        "|A|/λ",
+        "1/λ即可彻底解决",
+        "λ²"
+      ],
+      "answer": 1,
+      "explanation": "A* = |A|A⁻¹，A⁻¹ 特征值为 1/λ，故 A* 特征值为 |A|/λ。",
+      "tags": [
+        "特征值",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_020",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：施密特正交化的目的是把线性无关向量组变成？",
+      "options": [
+        "正交向量组",
+        "相同向量组",
+        "标准基",
+        "对角阵"
+      ],
+      "answer": 0,
+      "explanation": "先正交化再单位化，得到与原组等价的标准正交组。",
+      "tags": [
+        "向量空间",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_021",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 A、B 均为 n 阶可逆矩阵，则 (AB)⁻¹ = ?",
+      "options": [
+        "A⁻¹B⁻¹",
+        "B⁻¹A⁻¹",
+        "AB",
+        "BA"
+      ],
+      "answer": 1,
+      "explanation": "(AB)(B⁻¹A⁻¹)=E，故 (AB)⁻¹=B⁻¹A⁻¹（顺序反转）。",
+      "tags": [
+        "逆矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_022",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：非齐次方程组 Ax=b 的两个解之差是？",
+      "options": [
+        "Ax=b 的解即可彻底解决即可彻底解决",
+        "对应齐次方程 Ax=0 的解",
+        "任意向量",
+        "零向量必有"
+      ],
+      "answer": 1,
+      "explanation": "A(η₁−η₂)=b−b=0，解之差是齐次解。",
+      "tags": [
+        "方程组",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_023",
+      "subject": "线性代数",
+      "difficulty": 5,
+      "question": "考研加餐：A 是 n 阶正定矩阵的充要条件是？",
+      "options": [
+        "A 对称且特征值全为正",
+        "|A|>0即可彻底解决",
+        "A 可逆",
+        "A 正交"
+      ],
+      "answer": 0,
+      "explanation": "正定 ⟺ A 对称且各阶顺序主子式>0 ⟺ 对称且特征值全>0。",
+      "tags": [
+        "二次型",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_024",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "考研加餐：矩阵乘法 AB 有意义要求？",
+      "options": [
+        "A 的列数 = B 的行数",
+        "都是方阵即可彻底解决即可彻底解决",
+        "同型",
+        "都可逆"
+      ],
+      "answer": 0,
+      "explanation": "A(m×n)×B(n×p) 才有意义。",
+      "tags": [
+        "矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_025",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 r(A)=r(A,b) < n（n 为未知数个数），非齐次方程组？",
+      "options": [
+        "无解",
+        "有无穷多解",
+        "唯一解",
+        "只有零解即可彻底解决"
+      ],
+      "answer": 1,
+      "explanation": "有解且自由变量 n−r>0 个 → 无穷多解。",
+      "tags": [
+        "方程组",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_026",
+      "subject": "线性代数",
+      "difficulty": 5,
+      "question": "考研加餐：n 阶矩阵 A 与 E 相似（即 A~E）的充要条件是？",
+      "options": [
+        "A=E",
+        "A 可逆",
+        "A 对称",
+        "|A|=1"
+      ],
+      "answer": 0,
+      "explanation": "A~E ⟹ A=P⁻¹EP=E，反之显然，故 A~E ⟺ A=E。",
+      "tags": [
+        "相似",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_027",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 α,β 正交，‖α‖=1, ‖β‖=1，则 ‖α−β‖ = ?",
+      "options": [
+        "√2",
+        "2即可彻底解决",
+        "1",
+        "0"
+      ],
+      "answer": 0,
+      "explanation": "‖α−β‖²=‖α‖²+‖β‖²=2，模长 √2。",
+      "tags": [
+        "向量",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_028",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：线性方程组 Ax=b 有唯一解的充要条件？",
+      "options": [
+        "r(A)=r(A,b)=n",
+        "r(A)<n",
+        "A 可逆（不一定方阵时）即可彻底解决",
+        "b=0"
+      ],
+      "answer": 0,
+      "explanation": "秩相等且等于未知数个数 → 唯一解。",
+      "tags": [
+        "方程组",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_029",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 A 为实反对称矩阵（Aᵀ=−A），其特征值为？",
+      "options": [
+        "0 或纯虚数",
+        "全实数即可彻底解决",
+        "全正",
+        "±1"
+      ],
+      "answer": 0,
+      "explanation": "反对称矩阵特征值为 0 或纯虚数 ±λi。",
+      "tags": [
+        "特征值",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_030",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "考研加餐：初等矩阵的逆仍是？",
+      "options": [
+        "初等矩阵",
+        "全部元素为零的矩阵",
+        "对称阵",
+        "单位阵"
+      ],
+      "answer": 0,
+      "explanation": "三种初等矩阵的逆都是同类型的初等矩阵。",
+      "tags": [
+        "矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_031",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 P 可逆，则 r(PA) 与 r(A) 的关系？",
+      "options": [
+        "相等",
+        "更大",
+        "更小",
+        "无关"
+      ],
+      "answer": 0,
+      "explanation": "可逆矩阵左乘右乘不改变秩。",
+      "tags": [
+        "秩",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_032",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：二次型 f 的负惯性指数为 1 意味着？",
+      "options": [
+        "规范形中负平方项 1 个",
+        "不正定",
+        "不定（可能半负）即可彻底解决",
+        "满秩"
+      ],
+      "answer": 0,
+      "explanation": "惯性定理：负系数平方项个数在合同变换下不变。",
+      "tags": [
+        "二次型",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_033",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "考研加餐：A 为 2 阶矩阵且 r(A)=1，则 |A| = ?",
+      "options": [
+        "0",
+        "1",
+        "−1",
+        "2"
+      ],
+      "answer": 0,
+      "explanation": "不满秩的方阵行列式为 0。",
+      "tags": [
+        "行列式",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_034",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：求 A⁻* 不必，问：A⁻¹ 的伴随 (A⁻¹)* 等于？",
+      "options": [
+        "A/|A|",
+        "A*",
+        "|A|A即可彻底解决",
+        "Aᵀ"
+      ],
+      "answer": 0,
+      "explanation": "(A⁻¹)* = |A⁻¹|(A⁻¹)⁻¹ = (1/|A|)·A = A/|A|。",
+      "tags": [
+        "伴随矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_035",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：基变换公式：若 (β₁,…,βₙ)=(α₁,…,αₙ)C，则坐标变换为？",
+      "options": [
+        "x=Cy",
+        "x′=C⁻¹x",
+        "y=Cx 一定",
+        "x=C⁻¹ 无关"
+      ],
+      "answer": 1,
+      "explanation": "新坐标 x′=C⁻¹x（x 为旧坐标）。",
+      "tags": [
+        "向量空间",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_036",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 A 列满秩（m×n，r=n），则 AᵀA 是？",
+      "options": [
+        "可逆对称阵",
+        "零阵",
+        "反对称即可彻底解决",
+        "奇异"
+      ],
+      "answer": 0,
+      "explanation": "Ax=0 只有零解 → AᵀAx=0 只有零解 → AᵀA 可逆（且对称）。",
+      "tags": [
+        "矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_037",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "question": "考研加餐：行简化阶梯形的非零首元（主元）个数等于？",
+      "options": [
+        "行数",
+        "列数",
+        "秩",
+        "未知数个数"
+      ],
+      "answer": 2,
+      "explanation": "主元个数=非零行数=矩阵的秩。",
+      "tags": [
+        "矩阵",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_038",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 A 是 3 阶矩阵，特征值 1,2,3，则 |A+E| = ?",
+      "options": [
+        "6",
+        "24",
+        "12",
+        "8"
+      ],
+      "answer": 1,
+      "explanation": "A 的特征值加 1 即 A+E 的特征值 2,3,4，乘积 24。",
+      "tags": [
+        "特征值",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_039",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：若 A~Λ=diag(1,2,3)，则 A²~ ?",
+      "options": [
+        "diag(1,4,9)",
+        "E",
+        "Λᵀ 不变即同 Λ",
+        "diag(2,4,6)"
+      ],
+      "answer": 0,
+      "explanation": "A=PΛP⁻¹ ⇒ A²=PΛ²P⁻¹，Λ²=diag(1,4,9)。",
+      "tags": [
+        "相似",
+        "考研"
+      ]
+    },
+    {
+      "id": "la2_040",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "question": "考研加餐：齐次方程组的基础解系必须满足？",
+      "options": [
+        "线性无关且都是解，任意解可由其线性表示",
+        "只有两个向量，这就能解决问题即可彻底解决",
+        "正交",
+        "是单位向量"
+      ],
+      "answer": 0,
+      "explanation": "基础解系 = 解空间的基：解向量组、线性无关、能表出所有解。",
+      "tags": [
+        "方程组",
+        "考研"
+      ]
+    }
   ]
 }

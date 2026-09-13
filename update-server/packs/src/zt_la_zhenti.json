@@ -1,0 +1,196 @@
+{
+  "subject": "线性代数",
+  "version": 1,
+  "questions": [
+    {
+      "id": "zt_la_001",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】设 A 为 4 阶矩阵，r(A)=3，则 r(A*) = ?",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "0"
+      ],
+      "answer": 0,
+      "explanation": "r(A)=n−1=3 时，r(A*)=1（伴随矩阵秩的三分公式）。",
+      "tags": [
+        "真题",
+        "伴随矩阵"
+      ]
+    },
+    {
+      "id": "zt_la_002",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】A 的特征值为 1, −1，则 |A+E| = ?",
+      "options": [
+        "0",
+        "2",
+        "−2",
+        "1"
+      ],
+      "answer": 0,
+      "explanation": "A+E 的特征值为 2 和 0，行列式为特征值之积 = 0。",
+      "tags": [
+        "真题",
+        "特征值"
+      ]
+    },
+    {
+      "id": "zt_la_003",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】n 阶矩阵的行向量组线性无关是该矩阵可逆的？",
+      "options": [
+        "充要条件",
+        "必要不充分",
+        "充分不必要",
+        "既不充分也不必要"
+      ],
+      "answer": 0,
+      "explanation": "行向量组线性无关 ⟺ |A|≠0 ⟺ A 可逆。",
+      "tags": [
+        "真题",
+        "向量组"
+      ]
+    },
+    {
+      "id": "zt_la_004",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】A、B 为 n 阶矩阵且 A~B（相似），则 AB 与 BA？",
+      "options": [
+        "相似",
+        "相等",
+        "正交",
+        "合同"
+      ],
+      "answer": 0,
+      "explanation": "B=P⁻¹AP ⇒ BA = P⁻¹(AP)P = P⁻¹(AP)P，与 AB 相似（经典结论 AB~BA）。",
+      "tags": [
+        "真题",
+        "相似"
+      ]
+    },
+    {
+      "id": "zt_la_005",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】A₃ₓ₄ 矩阵 r(A)=2，齐次方程组 Ax=0 的基础解系含向量个数？",
+      "options": [
+        "2",
+        "3",
+        "1",
+        "4"
+      ],
+      "answer": 0,
+      "explanation": "基础解系维数 = n − r(A) = 4 − 2 = 2。",
+      "tags": [
+        "真题",
+        "方程组"
+      ]
+    },
+    {
+      "id": "zt_la_006",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】正交矩阵的行列式为？",
+      "options": [
+        "±1",
+        "1",
+        "−1",
+        "任意实数"
+      ],
+      "answer": 0,
+      "explanation": "|A|²=|AᵀA|=|E|=1 ⇒ |A|=±1。",
+      "tags": [
+        "真题",
+        "矩阵"
+      ]
+    },
+    {
+      "id": "zt_la_007",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】二次型 f=x²+4y²+4z²+2λxz 正定的充要条件是？",
+      "options": [
+        "0<λ<2",
+        "λ>2",
+        "λ<0",
+        "|λ|<2"
+      ],
+      "answer": 0,
+      "explanation": "顺序主子式：1>0，4>0，4−λ²>0 ⇒ 0<λ<2。",
+      "tags": [
+        "真题",
+        "二次型"
+      ]
+    },
+    {
+      "id": "zt_la_008",
+      "subject": "线性代数",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】n 维单位坐标向量组（标准基）的秩为？",
+      "options": [
+        "n",
+        "1",
+        "n−1",
+        "0"
+      ],
+      "answer": 0,
+      "explanation": "标准基线性无关，秩为 n。",
+      "tags": [
+        "真题",
+        "向量组"
+      ]
+    },
+    {
+      "id": "zt_la_009",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】设 A~B，则下列不成立的是？",
+      "options": [
+        "A 与 B 等价",
+        "|A|=|B|",
+        "A=B",
+        "tr(A)=tr(B)"
+      ],
+      "answer": 2,
+      "explanation": "相似只保证特征值/迹/行列式相同，A 与 B 未必相等。",
+      "tags": [
+        "真题",
+        "相似"
+      ]
+    },
+    {
+      "id": "zt_la_010",
+      "subject": "线性代数",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】若 A 列满秩，则方程组 Ax=0 的解情况？",
+      "options": [
+        "只有零解",
+        "有无穷多解",
+        "无解",
+        "任意解"
+      ],
+      "answer": 0,
+      "explanation": "r(A)=n（未知数个数）⇒ 只有零解。",
+      "tags": [
+        "真题",
+        "方程组"
+      ]
+    }
+  ]
+}

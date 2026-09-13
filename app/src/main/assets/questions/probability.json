@@ -2,55 +2,855 @@
   "subject": "概率论",
   "version": 1,
   "questions": [
-    {"id":"prob_001","subject":"概率论","difficulty":1,"question":"掷一枚均匀硬币，正面朝上的概率是？","options":["1/2","1/3","1/4","2/3"],"answer":0,"explanation":"等可能概型 P = 有利事件数/总事件数 = 1/2。","tags":["古典概型"]},
-    {"id":"prob_002","subject":"概率论","difficulty":1,"question":"必然事件的概率是？","options":["0","0.5","1","不确定"],"answer":2,"explanation":"Ω 的概率为 1，不可能事件概率为 0。","tags":["基础"]},
-    {"id":"prob_003","subject":"概率论","difficulty":1,"question":"掷一颗骰子，出现偶数点的概率是？","options":["1/6","1/3","1/2","2/3"],"answer":2,"explanation":"偶数{2,4,6}共3种，3/6 = 1/2。","tags":["古典概型"]},
-    {"id":"prob_004","subject":"概率论","difficulty":1,"question":"事件A与事件B互斥时，P(A∪B) = ?","options":["P(A)P(B)","P(A)+P(B)","P(A)+P(B)−P(AB)","P(A|B)"],"answer":1,"explanation":"互斥则 AB=∅，加法公式退化为相加。","tags":["加法公式"]},
-    {"id":"prob_005","subject":"概率论","difficulty":1,"question":"连续型随机变量的概率密度函数 f(x) 满足？","options":["f(x)≤1","f(x)≥0 且全域积分为1","f(x)可大于1的取值概率","f(x)总是对称"],"answer":1,"explanation":"密度非负且 ∫f=1；密度值可以大于1，概率是积分面积。","tags":["密度函数"]},
-    {"id":"prob_006","subject":"概率论","difficulty":1,"question":"P(A)=0.3，则 P(Ā) = ?","options":["0.3","0.7","1","0"],"answer":1,"explanation":"对立事件：P(Ā) = 1 − P(A) = 0.7。","tags":["基础"]},
-    {"id":"prob_007","subject":"概率论","difficulty":1,"question":"标准正态分布的参数是？","options":["μ=0, σ=1","μ=1, σ=0","μ=0, σ=2","μ=1, σ=2"],"answer":0,"explanation":"N(0,1)，密度关于 0 对称。","tags":["正态分布"]},
-    {"id":"prob_008","subject":"概率论","difficulty":2,"question":"独立事件 A、B 满足 P(A∩B) = ?","options":["P(A)+P(B)","P(A)P(B)","P(A)−P(B)","P(A|B)"],"answer":1,"explanation":"独立的定义：P(AB) = P(A)P(B)。","tags":["独立性"]},
-    {"id":"prob_009","subject":"概率论","difficulty":2,"question":"条件概率 P(A|B) = ?","options":["P(A)P(B)","P(AB)/P(B) (P(B)>0)","P(AB)/P(A)","P(A)+P(B)"],"answer":1,"explanation":"在 B 发生条件下 A 的概率：P(AB)/P(B)。","tags":["条件概率"]},
-    {"id":"prob_010","subject":"概率论","difficulty":2,"question":"泊松分布适合描述？","options":["测量误差","单位时间内随机事件发生次数","人的身高","产品长度"],"answer":1,"explanation":"泊松分布描述稀有/计数事件，如呼叫次数、事故数。","tags":["离散分布"]},
-    {"id":"prob_011","subject":"概率论","difficulty":2,"question":"二项分布 B(n,p) 的期望是？","options":["np","np(1−p)","p","n"],"answer":0,"explanation":"E=np，方差 D=np(1−p)。","tags":["数字特征"]},
-    {"id":"prob_012","subject":"概率论","difficulty":2,"question":"方差 D(X) 的定义是？","options":["E(X)","E(X²)−[E(X)]²","E(X²)","[E(X)]²"],"answer":1,"explanation":"D(X)=E[(X−EX)²]=E(X²)−E²(X)，常用后者计算。","tags":["数字特征"]},
-    {"id":"prob_013","subject":"概率论","difficulty":2,"question":"全概率公式 P(A) = ?","options":["P(A|B₁)","ΣP(Bᵢ)P(A|Bᵢ)（Bᵢ为完备事件组）","P(A)P(B)","P(B)P(A|B)"],"answer":1,"explanation":"按原因分解求复杂事件概率，配贝叶斯公式反推原因。","tags":["重要公式"]},
-    {"id":"prob_014","subject":"概率论","difficulty":2,"question":"均匀分布 U(0,2) 的密度函数在区间内是？","options":["1","1/2","2","1/4"],"answer":1,"explanation":"f(x)=1/(b−a)=1/2，x∈(0,2)。","tags":["连续分布"]},
-    {"id":"prob_015","subject":"概率论","difficulty":2,"question":"独立同分布中心极限定理表明，大量独立随机变量之和近似？","options":["均匀分布","泊松分布","正态分布","指数分布"],"answer":2,"explanation":"标准化后依分布收敛于 N(0,1)，这是正态分布广泛存在的原因。","tags":["极限定理"]},
-    {"id":"prob_016","subject":"概率论","difficulty":2,"question":"P(A)=0.5, P(B)=0.4, A与B独立，则 P(AB) = ?","options":["0.9","0.2","0.1","0.45"],"answer":1,"explanation":"独立：P(AB)=0.5×0.4=0.2。","tags":["独立性"]},
-    {"id":"prob_017","subject":"概率论","difficulty":2,"question":"指数分布 E(λ) 的期望是？","options":["λ","1/λ","λ²","1/λ²"],"answer":1,"explanation":"E=1/λ，D=1/λ²，具有无记忆性。","tags":["连续分布"]},
-    {"id":"prob_018","subject":"概率论","difficulty":2,"question":"从52张牌（不含大小王）中抽一张，是红桃的概率？","options":["1/2","1/4","1/13","1/52"],"answer":1,"explanation":"红桃13张，13/52=1/4。","tags":["古典概型"]},
-    {"id":"prob_019","subject":"概率论","difficulty":2,"question":"协方差 Cov(X,Y)=0 且 X,Y 有分布，能否说明独立？","options":["一定独立","不一定（仅不相关）","一定不独立","等价"],"answer":1,"explanation":"独立⇒不相关，但反之不然（如 X∼U(−1,1) 与 X²）。","tags":["数字特征"]},
-    {"id":"prob_020","subject":"概率论","difficulty":2,"question":"贝叶斯公式用于计算？","options":["先验概率","后验概率（结果发生时原因的概率）","联合概率","边缘概率"],"answer":1,"explanation":"P(Bᵢ|A) = P(Bᵢ)P(A|Bᵢ)/ΣP(Bⱼ)P(A|Bⱼ)，由果溯因。","tags":["重要公式"]},
-    {"id":"prob_021","subject":"概率论","difficulty":3,"question":"正态分布 N(μ,σ²) 中，P(|X−μ|<3σ) 约为？","options":["68%","95%","99.7%","50%"],"answer":2,"explanation":"3σ原则：68%-95%-99.7% 对应 1σ/2σ/3σ。","tags":["正态分布"]},
-    {"id":"prob_022","subject":"概率论","difficulty":3,"question":"几何分布描述的是？","options":["n次试验成功次数","首次成功所需的试验次数","单位时间事件数","等待时间总和"],"answer":1,"explanation":"P(X=k)=(1−p)^(k−1)p，期望 1/p。","tags":["离散分布"]},
-    {"id":"prob_023","subject":"概率论","difficulty":3,"question":"随机变量函数 Y=g(X) 的期望公式（连续型）？","options":["E(Y)=g(E(X)) 一定","E(Y)=∫g(x)f(x)dx","E(Y)=f(E(X))","E(Y)=∫f(x)dx"],"answer":1,"explanation":"期望的函数变换公式（LOTE）；g 线性时才有 E(g(X))=g(E(X))。","tags":["数字特征"]},
-    {"id":"prob_024","subject":"概率论","difficulty":3,"question":"大数定律的本质是？","options":["单次试验概率变大","频率依概率收敛于概率（均值稳定性）","样本必等于总体","方差趋于无穷"],"answer":1,"explanation":"大量重复下算术平均依概率收敛到期望，是频率估计概率的依据。","tags":["极限定理"]},
-    {"id":"prob_025","subject":"概率论","difficulty":3,"question":"χ² 分布、t 分布、F 分布统称为？","options":["正态族","三大抽样分布","离散分布","混合分布"],"answer":1,"explanation":"由正态总体构造的三大统计量分布，是假设推断的基础。","tags":["数理统计"]},
-    {"id":"prob_026","subject":"概率论","difficulty":3,"question":"袋中5白3黑，不放回连取2个都为白概率？","options":["5/8","5/14","25/64","3/14"],"answer":1,"explanation":"(5/8)×(4/7)=20/56=5/14。","tags":["古典概型"]},
-    {"id":"prob_027","subject":"概率论","difficulty":3,"question":"矩估计法的思想是？","options":["最大化似然","用样本矩估计总体矩","最小化残差","贝叶斯后验"],"answer":1,"explanation":"令样本矩=总体矩解出参数；极大似然则是最大化似然函数。","tags":["参数估计"]},
-    {"id":"prob_028","subject":"概率论","difficulty":3,"question":"P(A|B)+P(Ā|B) = ?","options":["0","1","P(A)","P(B)"],"answer":1,"explanation":"固定条件下 A 与 Ā 构成完备事件组。","tags":["条件概率"]},
-    {"id":"prob_029","subject":"概率论","difficulty":3,"question":"二维正态分布中 X 与 Y 不相关且联合正态，则？","options":["不一定独立","独立","相关","边缘不正态"],"answer":1,"explanation":"联合正态时，不相关 ⇔ 独立（特殊性质）。","tags":["多维分布"]},
-    {"id":"prob_030","subject":"概率论","difficulty":3,"question":"切比雪夫不等式给出的是？","options":["精确概率","概率上界（偏离期望k倍标准差内至少1−1/k²）","期望值","样本量"],"answer":1,"explanation":"P(|X−EX|≥kσ) ≤ 1/k²，对任意分布成立。","tags":["不等式"]},
-    {"id":"prob_031","subject":"概率论","difficulty":4,"question":"中心极限定理中，独立同分布方差存在时，(ΣXᵢ−nμ)/(√n σ) 近似服从？","options":["N(0,1)","N(nμ,nσ²)","t(n)","χ²(n)"],"answer":0,"explanation":"标准化后依分布收敛于标准正态。","tags":["极限定理"]},
-    {"id":"prob_032","subject":"概率论","difficulty":4,"question":"无偏估计的含义是？","options":["方差最小","估计量的期望等于被估参数","样本大","一致估计"],"answer":1,"explanation":"E(θ̂)=θ 为无偏；再叠加方差最小（有效）、样本趋于∞收敛（相合）。","tags":["参数估计"]},
-    {"id":"prob_033","subject":"概率论","difficulty":4,"question":"假设检验中的第一类错误是指？","options":["拒绝真实的H₀（弃真）","接受错误的H₀（取伪）","样本偏斜","计算错误"],"answer":0,"explanation":"第一类错误 α：弃真（H₀真却拒绝）；第二类错误 β：取伪。","tags":["假设检验"]},
-    {"id":"prob_034","subject":"概率论","difficulty":4,"question":"随机过程 E[X(t)X(s)] 描述的是？","options":["均值函数","自相关函数","方差函数","协方差阵"],"answer":1,"explanation":"二阶原点混合矩为自相关函数，平稳过程只与时差 τ=s−t 有关。","tags":["随机过程"]},
-    {"id":"prob_035","subject":"概率论","difficulty":4,"question":"马尔可夫链的核心性质是？","options":["无记忆性（未来只依赖现在状态）","平稳不变","独立增量","连续时间"],"answer":0,"explanation":"马氏性：转移概率只与当前状态有关，与历史无关。","tags":["随机过程"]},
-    {"id":"prob_036","subject":"概率论","difficulty":4,"question":"极大似然估计的步骤不包括？","options":["写出似然函数","取对数","求导令为0","求期望"],"answer":3,"explanation":"MLE：似然→对数化→求导→解方程（或数值优化）。","tags":["参数估计"]},
-    {"id":"prob_037","subject":"概率论","difficulty":4,"question":"泊松定理：当 n 大 p 小且 np=λ 适中时，B(n,p) 近似于？","options":["正态","泊松(λ)","均匀","指数"],"answer":1,"explanation":"n大p小时二项→泊松；np、n(1−p)都大时二项→正态。","tags":["近似"]},
-    {"id":"prob_038","subject":"概率论","difficulty":5,"question":"置信区间 95% 的含义是？","options":["参数落在此区间概率95%（频率解释）","95%数据在区间内","误差95%","检验功效95%"],"answer":0,"explanation":"频率学派解释：构造区间的方法在重复抽样下95%覆盖真值。","tags":["区间估计"]},
-    {"id":"prob_039","subject":"概率论","difficulty":5,"question":"平稳随机过程的各态历经性说明？","options":["时间平均=集合平均（以概率1）","过程恒定","方差为零","无相关性"],"answer":0,"explanation":"遍历性允许用一条样本轨道的时间平均估计统计平均。","tags":["随机过程"]},
-    {"id":"prob_040","subject":"概率论","difficulty":5,"question":"Brown 运动的增量服从？","options":["均匀分布","正态分布","泊松分布","二项分布"],"answer":1,"explanation":"维纳过程增量独立且服从正态 N(0,σ²Δt)。","tags":["随机过程"]},
-    {"id":"prob_041","subject":"概率论","difficulty":2,"question":"设 X~N(1,4)，则 P(X≤1) = ?","options":["0.5","0.95","0.05","1"],"answer":0,"explanation":"正态分布关于均值 μ=1 对称，P(X≤μ)=0.5。","tags":["正态分布"]},
-    {"id":"prob_042","subject":"概率论","difficulty":1,"question":"概率的取值范围是？","options":["[0,1]","(0,1)","[−1,1]","任意实数"],"answer":0,"explanation":"0 ≤ P(A) ≤ 1。","tags":["基础"]},
-    {"id":"prob_043","subject":"概率论","difficulty":3,"question":"甲乙独立射击，命中率0.7、0.8，两人同时命中概率？","options":["0.56","0.94","0.5","0.15"],"answer":0,"explanation":"独立：0.7×0.8=0.56；至少一人 0.94。","tags":["独立性"]},
-    {"id":"prob_044","subject":"概率论","difficulty":4,"question":"样本方差 S² = (1/(n−1))Σ(Xᵢ−X̄)² 中除以 n−1 是为了？","options":["计算简单","无偏性（E(S²)=σ²）","凑整","方差最小"],"answer":1,"explanation":"除 n−1 补偿自由度损失，使样本方差无偏。","tags":["数理统计"]},
-    {"id":"prob_045","subject":"概率论","difficulty":3,"question":"若 P(A)=0，则 A 与任意事件 B 的关系是？","options":["独立","互斥","相关","相等"],"answer":0,"explanation":"P(A)=0 ⇒ P(AB)=0=P(A)P(B)，故 A 与任何 B 独立。","tags":["独立性"]},
-    {"id":"prob_046","subject":"概率论","difficulty":2,"question":"掷两颗骰子，点数和为7的概率？","options":["1/6","1/9","7/36","1/12"],"answer":0,"explanation":"和为7有6种组合：(1,6)…(6,1)，6/36=1/6。","tags":["古典概型"]},
-    {"id":"prob_047","subject":"概率论","difficulty":3,"question":"Bernoulli 大数定律中频率稳定于概率的条件是？","options":["样本必须正态","n→∞ 时频率依概率收敛于 p","方差为0","必须独立同正态"],"answer":1,"explanation":"n 次独立重复试验，n 越大频率与 p 偏差大的概率越小。","tags":["极限定理"]},
-    {"id":"prob_048","subject":"概率论","difficulty":4,"question":"假设检验中 p 值的含义是？","options":["H₀为真的概率","在H₀成立下观察到当前或更极端结果的概率","犯错的概率","功效"],"answer":1,"explanation":"p 值小 → 数据与 H₀ 矛盾 → 拒绝 H₀；p 值不是 H₀ 的概率。","tags":["假设检验"]},
-    {"id":"prob_049","subject":"概率论","difficulty":1,"question":"互斥事件与独立事件的关系？","options":["互斥必独立","独立必互斥","一般互斥不独立（P>0时）","等价"],"answer":2,"explanation":"P(A)P(B)>0 时互斥⇒不独立；独立的事件可以同时发生。","tags":["基础"]},
-    {"id":"prob_050","subject":"概率论","difficulty":4,"question":"设 X,Y 独立同分布于 N(0,1)，则 X+Y ~ ?","options":["N(0,2)","N(0,1)","N(2,2)","χ²(2)"],"answer":0,"explanation":"独立正态可加：N(μ₁+μ₂, σ₁²+σ₂²)=N(0,2)；X²+Y² 才是 χ²(2)。","tags":["多维分布"]}
+    {
+      "id": "prob_001",
+      "subject": "概率论",
+      "difficulty": 1,
+      "question": "掷一枚均匀硬币，正面朝上的概率是？",
+      "options": [
+        "1/2",
+        "1/3",
+        "1/4",
+        "2/3"
+      ],
+      "answer": 0,
+      "explanation": "等可能概型 P = 有利事件数/总事件数 = 1/2。",
+      "tags": [
+        "古典概型"
+      ]
+    },
+    {
+      "id": "prob_002",
+      "subject": "概率论",
+      "difficulty": 1,
+      "question": "必然事件的概率是？",
+      "options": [
+        "0",
+        "0.5",
+        "1",
+        "不确定"
+      ],
+      "answer": 2,
+      "explanation": "Ω 的概率为 1，不可能事件概率为 0。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "prob_003",
+      "subject": "概率论",
+      "difficulty": 1,
+      "question": "掷一颗骰子，出现偶数点的概率是？",
+      "options": [
+        "1/6",
+        "1/3",
+        "1/2",
+        "2/3"
+      ],
+      "answer": 2,
+      "explanation": "偶数{2,4,6}共3种，3/6 = 1/2。",
+      "tags": [
+        "古典概型"
+      ]
+    },
+    {
+      "id": "prob_004",
+      "subject": "概率论",
+      "difficulty": 1,
+      "question": "事件A与事件B互斥时，P(A∪B) = ?",
+      "options": [
+        "P(A)P(B)",
+        "P(A)+P(B)",
+        "P(A)+P(B)−P(AB)",
+        "P(A|B)"
+      ],
+      "answer": 1,
+      "explanation": "互斥则 AB=∅，加法公式退化为相加。",
+      "tags": [
+        "加法公式"
+      ]
+    },
+    {
+      "id": "prob_005",
+      "subject": "概率论",
+      "difficulty": 1,
+      "question": "连续型随机变量的概率密度函数 f(x) 满足？",
+      "options": [
+        "f(x)≤1",
+        "f(x)≥0 且全域积分为1",
+        "f(x) 可以大于 1 表示取值的概率",
+        "f(x)总是对称"
+      ],
+      "answer": 1,
+      "explanation": "密度非负且 ∫f=1；密度值可以大于1，概率是积分面积。",
+      "tags": [
+        "密度函数"
+      ]
+    },
+    {
+      "id": "prob_006",
+      "subject": "概率论",
+      "difficulty": 1,
+      "question": "P(A)=0.3，则 P(Ā) = ?",
+      "options": [
+        "0.3",
+        "0.7",
+        "1",
+        "0"
+      ],
+      "answer": 1,
+      "explanation": "对立事件：P(Ā) = 1 − P(A) = 0.7。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "prob_007",
+      "subject": "概率论",
+      "difficulty": 1,
+      "question": "标准正态分布的参数是？",
+      "options": [
+        "μ=0, σ=1",
+        "μ=1, σ=0",
+        "μ=0, σ=2",
+        "μ=1, σ=2"
+      ],
+      "answer": 0,
+      "explanation": "N(0,1)，密度关于 0 对称。",
+      "tags": [
+        "正态分布"
+      ]
+    },
+    {
+      "id": "prob_008",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "独立事件 A、B 满足 P(A∩B) = ?",
+      "options": [
+        "P(A)+P(B)",
+        "P(A)P(B)",
+        "P(A)−P(B)",
+        "P(A|B)"
+      ],
+      "answer": 1,
+      "explanation": "独立的定义：P(AB) = P(A)P(B)。",
+      "tags": [
+        "独立性"
+      ]
+    },
+    {
+      "id": "prob_009",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "条件概率 P(A|B) = ?",
+      "options": [
+        "P(A) 与 P(B) 两个概率的乘积形式结果",
+        "P(AB)/P(B) (P(B)>0)",
+        "P(AB) 除以 P(A) 所得的商",
+        "P(A) 与 P(B) 的简单相加"
+      ],
+      "answer": 1,
+      "explanation": "在 B 发生条件下 A 的概率：P(AB)/P(B)。",
+      "tags": [
+        "条件概率"
+      ]
+    },
+    {
+      "id": "prob_010",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "泊松分布适合描述？",
+      "options": [
+        "测量误差大小的统计分布规律",
+        "单位时间内随机事件发生次数",
+        "人的身高数据分布",
+        "产品长度"
+      ],
+      "answer": 1,
+      "explanation": "泊松分布描述稀有/计数事件，如呼叫次数、事故数。",
+      "tags": [
+        "离散分布"
+      ]
+    },
+    {
+      "id": "prob_011",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "二项分布 B(n,p) 的期望是？",
+      "options": [
+        "np",
+        "np(1−p)",
+        "p",
+        "n"
+      ],
+      "answer": 0,
+      "explanation": "E=np，方差 D=np(1−p)。",
+      "tags": [
+        "数字特征"
+      ]
+    },
+    {
+      "id": "prob_012",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "方差 D(X) 的定义是？",
+      "options": [
+        "随机变量 X 的平均取值本身",
+        "E(X²)−[E(X)]²",
+        "平方的期望 E(X²)",
+        "期望的平方 [E(X)]²"
+      ],
+      "answer": 1,
+      "explanation": "D(X)=E[(X−EX)²]=E(X²)−E²(X)，常用后者计算。",
+      "tags": [
+        "数字特征"
+      ]
+    },
+    {
+      "id": "prob_013",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "全概率公式 P(A) = ?",
+      "options": [
+        "只包含一个条件事件的概率 P(A|B₁)即可彻底解决",
+        "ΣP(Bᵢ)P(A|Bᵢ)（完备事件组分解）",
+        "P(A) 与 P(B) 的乘积形式",
+        "仅当独立时才有的结果"
+      ],
+      "answer": 1,
+      "explanation": "按原因分解求复杂事件概率，配贝叶斯公式反推原因。",
+      "tags": [
+        "重要公式"
+      ]
+    },
+    {
+      "id": "prob_014",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "均匀分布 U(0,2) 的密度函数在区间内是？",
+      "options": [
+        "1",
+        "1/2",
+        "2",
+        "1/4"
+      ],
+      "answer": 1,
+      "explanation": "f(x)=1/(b−a)=1/2，x∈(0,2)。",
+      "tags": [
+        "连续分布"
+      ]
+    },
+    {
+      "id": "prob_015",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "独立同分布中心极限定理表明，大量独立随机变量之和近似？",
+      "options": [
+        "均匀分布",
+        "泊松分布",
+        "正态分布",
+        "指数分布"
+      ],
+      "answer": 2,
+      "explanation": "标准化后依分布收敛于 N(0,1)，这是正态分布广泛存在的原因。",
+      "tags": [
+        "极限定理"
+      ]
+    },
+    {
+      "id": "prob_016",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "P(A)=0.5, P(B)=0.4, A与B独立，则 P(AB) = ?",
+      "options": [
+        "0.9",
+        "0.2",
+        "0.1",
+        "0.45"
+      ],
+      "answer": 1,
+      "explanation": "独立：P(AB)=0.5×0.4=0.2。",
+      "tags": [
+        "独立性"
+      ]
+    },
+    {
+      "id": "prob_017",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "指数分布 E(λ) 的期望是？",
+      "options": [
+        "λ",
+        "1/λ",
+        "λ²",
+        "1/λ²"
+      ],
+      "answer": 1,
+      "explanation": "E=1/λ，D=1/λ²，具有无记忆性。",
+      "tags": [
+        "连续分布"
+      ]
+    },
+    {
+      "id": "prob_018",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "从52张牌（不含大小王）中抽一张，是红桃的概率？",
+      "options": [
+        "1/2",
+        "1/4",
+        "1/13",
+        "1/52"
+      ],
+      "answer": 1,
+      "explanation": "红桃13张，13/52=1/4。",
+      "tags": [
+        "古典概型"
+      ]
+    },
+    {
+      "id": "prob_019",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "协方差 Cov(X,Y)=0 且 X,Y 有分布，能否说明独立？",
+      "options": [
+        "两者一定相互独立成立",
+        "不一定（仅不相关）",
+        "一定不独立",
+        "等价关系"
+      ],
+      "answer": 1,
+      "explanation": "独立⇒不相关，但反之不然（如 X∼U(−1,1) 与 X²）。",
+      "tags": [
+        "数字特征"
+      ]
+    },
+    {
+      "id": "prob_020",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "贝叶斯公式用于计算？",
+      "options": [
+        "事件在发生之前的先验概率大小",
+        "后验概率（结果发生时原因的概率）",
+        "两个随机事件的联合概率分布",
+        "单个随机变量所对应的边缘概率分布"
+      ],
+      "answer": 1,
+      "explanation": "P(Bᵢ|A) = P(Bᵢ)P(A|Bᵢ)/ΣP(Bⱼ)P(A|Bⱼ)，由果溯因。",
+      "tags": [
+        "重要公式"
+      ]
+    },
+    {
+      "id": "prob_021",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "正态分布 N(μ,σ²) 中，P(|X−μ|<3σ) 约为？",
+      "options": [
+        "68%",
+        "约 95%",
+        "99.7%",
+        "50%"
+      ],
+      "answer": 2,
+      "explanation": "3σ原则：68%-95%-99.7% 对应 1σ/2σ/3σ。",
+      "tags": [
+        "正态分布"
+      ]
+    },
+    {
+      "id": "prob_022",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "几何分布描述的是？",
+      "options": [
+        "n 次试验中成功的总次数",
+        "首次成功所需的试验次数",
+        "单位时间事件数",
+        "等待时间总和"
+      ],
+      "answer": 1,
+      "explanation": "P(X=k)=(1−p)^(k−1)p，期望 1/p。",
+      "tags": [
+        "离散分布"
+      ]
+    },
+    {
+      "id": "prob_023",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "随机变量函数 Y=g(X) 的期望公式（连续型）？",
+      "options": [
+        "E(Y)=g(E(X)) 一定即可彻底解决",
+        "E(Y)=∫g(x)f(x)dx",
+        "E(Y)=f(E(X))",
+        "E(Y)=∫f(x)dx"
+      ],
+      "answer": 1,
+      "explanation": "期望的函数变换公式（LOTE）；g 线性时才有 E(g(X))=g(E(X))。",
+      "tags": [
+        "数字特征"
+      ]
+    },
+    {
+      "id": "prob_024",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "大数定律的本质是？",
+      "options": [
+        "单次试验概率变大即可彻底解决即可彻底解决",
+        "频率依概率收敛于概率（均值稳定性）",
+        "样本必等于总体",
+        "方差趋于无穷"
+      ],
+      "answer": 1,
+      "explanation": "大量重复下算术平均依概率收敛到期望，是频率估计概率的依据。",
+      "tags": [
+        "极限定理"
+      ]
+    },
+    {
+      "id": "prob_025",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "χ² 分布、t 分布、F 分布统称为？",
+      "options": [
+        "正态族",
+        "三大抽样分布",
+        "离散分布即可彻底解决",
+        "混合分布"
+      ],
+      "answer": 1,
+      "explanation": "由正态总体构造的三大统计量分布，是假设推断的基础。",
+      "tags": [
+        "数理统计"
+      ]
+    },
+    {
+      "id": "prob_026",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "袋中5白3黑，不放回连取2个都为白概率？",
+      "options": [
+        "5/8",
+        "5/14",
+        "25/64",
+        "3/14"
+      ],
+      "answer": 1,
+      "explanation": "(5/8)×(4/7)=20/56=5/14。",
+      "tags": [
+        "古典概型"
+      ]
+    },
+    {
+      "id": "prob_027",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "矩估计法的思想是？",
+      "options": [
+        "最大化似然即可彻底解决",
+        "用样本矩估计总体矩",
+        "最小化残差",
+        "贝叶斯后验"
+      ],
+      "answer": 1,
+      "explanation": "令样本矩=总体矩解出参数；极大似然则是最大化似然函数。",
+      "tags": [
+        "参数估计"
+      ]
+    },
+    {
+      "id": "prob_028",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "P(A|B)+P(Ā|B) = ?",
+      "options": [
+        "0",
+        "1",
+        "P(A)",
+        "P(B)"
+      ],
+      "answer": 1,
+      "explanation": "固定条件下 A 与 Ā 构成完备事件组。",
+      "tags": [
+        "条件概率"
+      ]
+    },
+    {
+      "id": "prob_029",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "二维正态分布中 X 与 Y 不相关且联合正态，则？",
+      "options": [
+        "不一定独立",
+        "独立",
+        "相关",
+        "边缘不正态"
+      ],
+      "answer": 1,
+      "explanation": "联合正态时，不相关 ⇔ 独立（特殊性质）。",
+      "tags": [
+        "多维分布"
+      ]
+    },
+    {
+      "id": "prob_030",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "切比雪夫不等式给出的是？",
+      "options": [
+        "精确概率，只要采用它就能把问题彻底解决掉即可彻底解决",
+        "概率上界（偏离期望k倍标准差内至少1−1/k²）",
+        "期望值",
+        "样本量"
+      ],
+      "answer": 1,
+      "explanation": "P(|X−EX|≥kσ) ≤ 1/k²，对任意分布成立。",
+      "tags": [
+        "不等式"
+      ]
+    },
+    {
+      "id": "prob_031",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "中心极限定理中，独立同分布方差存在时，(ΣXᵢ−nμ)/(√n σ) 近似服从？",
+      "options": [
+        "N(0,1)",
+        "N(nμ,nσ²)",
+        "t(n)",
+        "χ²(n)"
+      ],
+      "answer": 0,
+      "explanation": "标准化后依分布收敛于标准正态。",
+      "tags": [
+        "极限定理"
+      ]
+    },
+    {
+      "id": "prob_032",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "无偏估计的含义是？",
+      "options": [
+        "方差最小即可彻底解决即可彻底解决",
+        "估计量的期望等于被估参数",
+        "样本大",
+        "一致估计"
+      ],
+      "answer": 1,
+      "explanation": "E(θ̂)=θ 为无偏；再叠加方差最小（有效）、样本趋于∞收敛（相合）。",
+      "tags": [
+        "参数估计"
+      ]
+    },
+    {
+      "id": "prob_033",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "假设检验中的第一类错误是指？",
+      "options": [
+        "拒绝真实的H₀（弃真）",
+        "接受错误的H₀（取伪）",
+        "样本偏斜",
+        "计算错误"
+      ],
+      "answer": 0,
+      "explanation": "第一类错误 α：弃真（H₀真却拒绝）；第二类错误 β：取伪。",
+      "tags": [
+        "假设检验"
+      ]
+    },
+    {
+      "id": "prob_034",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "随机过程 E[X(t)X(s)] 描述的是？",
+      "options": [
+        "均值函数即可彻底解决",
+        "自相关函数",
+        "方差函数",
+        "协方差阵"
+      ],
+      "answer": 1,
+      "explanation": "二阶原点混合矩为自相关函数，平稳过程只与时差 τ=s−t 有关。",
+      "tags": [
+        "随机过程"
+      ]
+    },
+    {
+      "id": "prob_035",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "马尔可夫链的核心性质是？",
+      "options": [
+        "无记忆性（未来只依赖现在状态）",
+        "平稳不变，这就能解决问题即可彻底解决",
+        "独立增量",
+        "连续时间"
+      ],
+      "answer": 0,
+      "explanation": "马氏性：转移概率只与当前状态有关，与历史无关。",
+      "tags": [
+        "随机过程"
+      ]
+    },
+    {
+      "id": "prob_036",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "极大似然估计的步骤不包括？",
+      "options": [
+        "写出似然函数",
+        "取对数",
+        "求导令为0",
+        "求期望"
+      ],
+      "answer": 3,
+      "explanation": "MLE：似然→对数化→求导→解方程（或数值优化）。",
+      "tags": [
+        "参数估计"
+      ]
+    },
+    {
+      "id": "prob_037",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "泊松定理：当 n 大 p 小且 np=λ 适中时，B(n,p) 近似于？",
+      "options": [
+        "标准正态分布",
+        "泊松(λ)",
+        "均匀",
+        "指数"
+      ],
+      "answer": 1,
+      "explanation": "n大p小时二项→泊松；np、n(1−p)都大时二项→正态。",
+      "tags": [
+        "近似"
+      ]
+    },
+    {
+      "id": "prob_038",
+      "subject": "概率论",
+      "difficulty": 5,
+      "question": "置信区间 95% 的含义是？",
+      "options": [
+        "参数落在此区间概率95%（频率解释）",
+        "95%数据在区间内即可彻底解决即可彻底解决",
+        "误差95%",
+        "检验功效95%"
+      ],
+      "answer": 0,
+      "explanation": "频率学派解释：构造区间的方法在重复抽样下95%覆盖真值。",
+      "tags": [
+        "区间估计"
+      ]
+    },
+    {
+      "id": "prob_039",
+      "subject": "概率论",
+      "difficulty": 5,
+      "question": "平稳随机过程的各态历经性说明？",
+      "options": [
+        "时间平均=集合平均（以概率1）",
+        "过程恒定，这就能解决问题即可彻底解决",
+        "方差为零",
+        "无相关性"
+      ],
+      "answer": 0,
+      "explanation": "遍历性允许用一条样本轨道的时间平均估计统计平均。",
+      "tags": [
+        "随机过程"
+      ]
+    },
+    {
+      "id": "prob_040",
+      "subject": "概率论",
+      "difficulty": 5,
+      "question": "Brown 运动的增量服从？",
+      "options": [
+        "均匀分布",
+        "正态分布",
+        "泊松分布",
+        "二项分布"
+      ],
+      "answer": 1,
+      "explanation": "维纳过程增量独立且服从正态 N(0,σ²Δt)。",
+      "tags": [
+        "随机过程"
+      ]
+    },
+    {
+      "id": "prob_041",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "设 X~N(1,4)，则 P(X≤1) = ?",
+      "options": [
+        "0.5",
+        "0.95",
+        "0.05",
+        "1"
+      ],
+      "answer": 0,
+      "explanation": "正态分布关于均值 μ=1 对称，P(X≤μ)=0.5。",
+      "tags": [
+        "正态分布"
+      ]
+    },
+    {
+      "id": "prob_042",
+      "subject": "概率论",
+      "difficulty": 1,
+      "question": "概率的取值范围是？",
+      "options": [
+        "[0,1]",
+        "(0,1)",
+        "[−1,1]",
+        "任意实数"
+      ],
+      "answer": 0,
+      "explanation": "0 ≤ P(A) ≤ 1。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "prob_043",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "甲乙独立射击，命中率0.7、0.8，两人同时命中概率？",
+      "options": [
+        "0.56",
+        "0.94",
+        "0.5",
+        "0.15"
+      ],
+      "answer": 0,
+      "explanation": "独立：0.7×0.8=0.56；至少一人 0.94。",
+      "tags": [
+        "独立性"
+      ]
+    },
+    {
+      "id": "prob_044",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "样本方差 S² = (1/(n−1))Σ(Xᵢ−X̄)² 中除以 n−1 是为了？",
+      "options": [
+        "计算简单即可彻底解决即可彻底解决",
+        "无偏性（E(S²)=σ²）",
+        "凑整",
+        "方差最小"
+      ],
+      "answer": 1,
+      "explanation": "除 n−1 补偿自由度损失，使样本方差无偏。",
+      "tags": [
+        "数理统计"
+      ]
+    },
+    {
+      "id": "prob_045",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "若 P(A)=0，则 A 与任意事件 B 的关系是？",
+      "options": [
+        "独立",
+        "互斥",
+        "相关",
+        "相等"
+      ],
+      "answer": 0,
+      "explanation": "P(A)=0 ⇒ P(AB)=0=P(A)P(B)，故 A 与任何 B 独立。",
+      "tags": [
+        "独立性"
+      ]
+    },
+    {
+      "id": "prob_046",
+      "subject": "概率论",
+      "difficulty": 2,
+      "question": "掷两颗骰子，点数和为7的概率？",
+      "options": [
+        "1/6",
+        "1/9",
+        "7/36",
+        "1/12"
+      ],
+      "answer": 0,
+      "explanation": "和为7有6种组合：(1,6)…(6,1)，6/36=1/6。",
+      "tags": [
+        "古典概型"
+      ]
+    },
+    {
+      "id": "prob_047",
+      "subject": "概率论",
+      "difficulty": 3,
+      "question": "Bernoulli 大数定律中频率稳定于概率的条件是？",
+      "options": [
+        "样本必须正态",
+        "n→∞ 时频率依概率收敛于 p",
+        "方差为0",
+        "必须独立同正态即可彻底解决即可彻底解决"
+      ],
+      "answer": 1,
+      "explanation": "n 次独立重复试验，n 越大频率与 p 偏差大的概率越小。",
+      "tags": [
+        "极限定理"
+      ]
+    },
+    {
+      "id": "prob_048",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "假设检验中 p 值的含义是？",
+      "options": [
+        "H₀为真的概率，这就能解决问题即可彻底解决",
+        "在H₀成立下观察到当前或更极端结果的概率",
+        "犯错的概率",
+        "功效"
+      ],
+      "answer": 1,
+      "explanation": "p 值小 → 数据与 H₀ 矛盾 → 拒绝 H₀；p 值不是 H₀ 的概率。",
+      "tags": [
+        "假设检验"
+      ]
+    },
+    {
+      "id": "prob_049",
+      "subject": "概率论",
+      "difficulty": 1,
+      "question": "互斥事件与独立事件的关系？",
+      "options": [
+        "互斥必独立即可彻底解决即可彻底解决",
+        "独立必互斥",
+        "一般互斥不独立（P>0时）",
+        "等价"
+      ],
+      "answer": 2,
+      "explanation": "P(A)P(B)>0 时互斥⇒不独立；独立的事件可以同时发生。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "prob_050",
+      "subject": "概率论",
+      "difficulty": 4,
+      "question": "设 X,Y 独立同分布于 N(0,1)，则 X+Y ~ ?",
+      "options": [
+        "N(0,2)",
+        "N(0,1)",
+        "N(2,2)",
+        "χ²(2)"
+      ],
+      "answer": 0,
+      "explanation": "独立正态可加：N(μ₁+μ₂, σ₁²+σ₂²)=N(0,2)；X²+Y² 才是 χ²(2)。",
+      "tags": [
+        "多维分布"
+      ]
+    }
   ]
 }

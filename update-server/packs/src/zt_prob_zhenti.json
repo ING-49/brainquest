@@ -1,0 +1,158 @@
+{
+  "subject": "概率论",
+  "version": 1,
+  "questions": [
+    {
+      "id": "zt_prob_001",
+      "subject": "概率论",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】袋中有 5 白 3 黑，不放回取两次每次一个，第二次取到白球的概率？",
+      "options": [
+        "5/8",
+        "5/14",
+        "1/2",
+        "3/8"
+      ],
+      "answer": 0,
+      "explanation": "全概率公式：(5/8)(4/7)+(3/8)(5/7)=20/56+15/56=35/56=5/8。",
+      "tags": [
+        "真题",
+        "全概率"
+      ]
+    },
+    {
+      "id": "zt_prob_002",
+      "subject": "概率论",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】X~N(μ,σ²)，则 P(X≤μ) = ?",
+      "options": [
+        "1/2",
+        "0.68",
+        "0.95",
+        "由 σ 决定"
+      ],
+      "answer": 0,
+      "explanation": "正态分布关于 μ 对称，P(X≤μ)=0.5。",
+      "tags": [
+        "真题",
+        "正态分布"
+      ]
+    },
+    {
+      "id": "zt_prob_003",
+      "subject": "概率论",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】t 分布与 F 分布的关系：若 T~t(n)，则 T² ~ ?",
+      "options": [
+        "F(1,n)",
+        "χ²(n)",
+        "t²(n)",
+        "F(n,1)"
+      ],
+      "answer": 0,
+      "explanation": "t²=F(1,n)：分子是标准正态的平方即 χ²(1)/1。",
+      "tags": [
+        "真题",
+        "抽样分布"
+      ]
+    },
+    {
+      "id": "zt_prob_004",
+      "subject": "概率论",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】两台机器生产的零件废品率分别为 0.01、0.02，产量比 3:2，随机取一件是废品的概率？",
+      "options": [
+        "0.014",
+        "0.015",
+        "0.02",
+        "0.01"
+      ],
+      "answer": 0,
+      "explanation": "全概率：0.6×0.01+0.4×0.02=0.006+0.008=0.014。",
+      "tags": [
+        "真题",
+        "全概率"
+      ]
+    },
+    {
+      "id": "zt_prob_005",
+      "subject": "概率论",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】X 服从参数 λ=2 的指数分布，则 E(X) = ?",
+      "options": [
+        "1/2",
+        "2",
+        "1/4",
+        "4"
+      ],
+      "answer": 0,
+      "explanation": "指数分布 E(X)=1/λ=1/2。",
+      "tags": [
+        "真题",
+        "数字特征"
+      ]
+    },
+    {
+      "id": "zt_prob_006",
+      "subject": "概率论",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】D(X)=4, D(Y)=9, X 与 Y 独立，则 D(2X−Y) = ?",
+      "options": [
+        "25",
+        "−1",
+        "17",
+        "1"
+      ],
+      "answer": 0,
+      "explanation": "独立时 D(2X−Y)=4D(X)+D(Y)=16+9=25。",
+      "tags": [
+        "真题",
+        "数字特征"
+      ]
+    },
+    {
+      "id": "zt_prob_007",
+      "subject": "概率论",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】X~U(0,2)，则 P(X²<1) = ?",
+      "options": [
+        "1/2",
+        "1/4",
+        "1",
+        "3/4"
+      ],
+      "answer": 0,
+      "explanation": "P(X<1)=区间长度(1−0)/2=1/2。",
+      "tags": [
+        "真题",
+        "连续分布"
+      ]
+    },
+    {
+      "id": "zt_prob_008",
+      "subject": "概率论",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】X,Y 独立同分布于 N(0,1)，则 X+Y 与 X−Y 的关系是？",
+      "options": [
+        "不相关",
+        "线性相关",
+        "相同",
+        "独立"
+      ],
+      "answer": 0,
+      "explanation": "Cov(X+Y, X−Y)=DX−DY=0，正态下不相关即独立。",
+      "tags": [
+        "真题",
+        "多维分布"
+      ]
+    }
+  ]
+}

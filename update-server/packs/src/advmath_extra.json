@@ -2,20 +2,275 @@
   "subject": "高等数学",
   "version": 1,
   "questions": [
-    {"id":"advx_001","subject":"高等数学","difficulty":3,"question":"热更加餐：lim(x→0) (e^x − 1)/x = ?","options":["0","1","e","∞"],"answer":1,"explanation":"e^x − 1 ~ x（等价无穷小），极限为 1。本题为热更新内容包加餐题。","tags":["极限","热更"]},
-    {"id":"advx_002","subject":"高等数学","difficulty":3,"question":"热更加餐：lim(x→∞) x·sin(1/x) = ?","options":["0","1","∞","不存在"],"answer":1,"explanation":"令 t=1/x→0，x·sin(1/x) = sin t/t → 1。","tags":["极限","热更"]},
-    {"id":"advx_003","subject":"高等数学","difficulty":3,"question":"热更加餐：y = x·ln x 的导数是？","options":["ln x","1/x","ln x + 1","x"],"answer":2,"explanation":"乘积法则：(x)′lnx + x·(1/x) = ln x + 1。","tags":["导数","热更"]},
-    {"id":"advx_004","subject":"高等数学","difficulty":4,"question":"热更加餐：∫ ln x dx = ?","options":["x ln x + C","x ln x − x + C","ln x / x + C","x²/2·ln x + C"],"answer":1,"explanation":"分部积分：u=lnx, dv=dx → xlnx − ∫x·(1/x)dx = xlnx − x + C。","tags":["积分","热更"]},
-    {"id":"advx_005","subject":"高等数学","difficulty":4,"question":"热更加餐：∫₀¹ x·eˣ dx = ?","options":["1","e−1","2e−1","e"],"answer":1,"explanation":"分部积分：[x·eˣ−eˣ]₀¹ = (e−e)−(0−1) = 1。","tags":["积分","热更"]},
-    {"id":"advx_006","subject":"高等数学","difficulty":3,"question":"热更加餐：函数 y=|x−1| 在 x=1 处？","options":["可导","连续但不可导","不连续","取极大值"],"answer":1,"explanation":"左右导数 −1 与 1 不等，尖点连续不可导。","tags":["导数","热更"]},
-    {"id":"advx_007","subject":"高等数学","difficulty":4,"question":"热更加餐：级数 ∑ xⁿ/n 的收敛域是？","options":["(−1,1)","[−1,1)","(−1,1]","[−1,1]"],"answer":1,"explanation":"R=1；x=1 时调和级数发散，x=−1 时交错收敛 → [−1,1)。","tags":["级数","热更"]},
-    {"id":"advx_008","subject":"高等数学","difficulty":3,"question":"热更加餐：隐函数 xy=1 在 x=1 处的 y′ = ?","options":["1","−1","0","2"],"answer":1,"explanation":"y=1/x，y′=−1/x²=−1（x=1）。","tags":["导数","热更"]},
-    {"id":"advx_009","subject":"高等数学","difficulty":4,"question":"热更加餐：二重积分 ∫₀¹∫₀¹ 1 dxdy = ?","options":["1","1/2","2","1/4"],"answer":0,"explanation":"被积函数为 1，等于单位正方形面积 1。","tags":["重积分","热更"]},
-    {"id":"advx_010","subject":"高等数学","difficulty":4,"question":"热更加餐：曲线 y=x² 在 x=1 处的切线方程是？","options":["y=2x−1","y=2x","y=x","y=2x+1"],"answer":0,"explanation":"y′=2x=2，切线 y−1=2(x−1) → y=2x−1。","tags":["导数应用","热更"]},
-    {"id":"advx_011","subject":"高等数学","difficulty":5,"question":"热更加餐：微分方程 y″=0 的通解是？","options":["y=C₁x+C₂","y=Ceˣ","y=C₁cosx+C₂sinx","y=C"],"answer":0,"explanation":"积分两次得线性函数。","tags":["微分方程","热更"]},
-    {"id":"advx_012","subject":"高等数学","difficulty":3,"question":"热更加餐：lim(x→0) tan x / x = ?","options":["0","1","∞","−1"],"answer":1,"explanation":"tanx ~ x，极限为 1。","tags":["极限","热更"]},
-    {"id":"advx_013","subject":"高等数学","difficulty":4,"question":"热更加餐：f(x)=x³ 在 [0,2] 上的平均值（积分平均）是？","options":["1","2","4","3"],"answer":1,"explanation":"平均值 = (1/2)∫₀²x³dx = (1/2)(16/4) = 2。","tags":["积分应用","热更"]},
-    {"id":"advx_014","subject":"高等数学","difficulty":3,"question":"热更加餐：sin 2x 的导数是？","options":["cos2x","2cos2x","−2cos2x","2sinx"],"answer":1,"explanation":"链式法则：2·cos2x。","tags":["导数","热更"]},
-    {"id":"advx_015","subject":"高等数学","difficulty":4,"question":"热更加餐：∫₀^(π/2) sin²x dx = ?","options":["π/2","π/4","1","π"],"answer":1,"explanation":"sin²x=(1−cos2x)/2，积分 = π/4。","tags":["积分","热更"]}
+    {
+      "id": "advx_001",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "question": "热更加餐：lim(x→0) (e^x − 1)/x = ?",
+      "options": [
+        "0",
+        "1",
+        "e",
+        "∞"
+      ],
+      "answer": 1,
+      "explanation": "e^x − 1 ~ x（等价无穷小），极限为 1。本题为热更新内容包加餐题。",
+      "tags": [
+        "极限",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_002",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "question": "热更加餐：lim(x→∞) x·sin(1/x) = ?",
+      "options": [
+        "0",
+        "1",
+        "∞",
+        "不存在"
+      ],
+      "answer": 1,
+      "explanation": "令 t=1/x→0，x·sin(1/x) = sin t/t → 1。",
+      "tags": [
+        "极限",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_003",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "question": "热更加餐：y = x·ln x 的导数是？",
+      "options": [
+        "ln x即可彻底解决",
+        "1/x",
+        "ln x + 1",
+        "x"
+      ],
+      "answer": 2,
+      "explanation": "乘积法则：(x)′lnx + x·(1/x) = ln x + 1。",
+      "tags": [
+        "导数",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_004",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "question": "热更加餐：∫ ln x dx = ?",
+      "options": [
+        "x ln x + C",
+        "x ln x − x + C",
+        "ln x / x + C",
+        "x²/2·ln x + C即可彻底解决"
+      ],
+      "answer": 1,
+      "explanation": "分部积分：u=lnx, dv=dx → xlnx − ∫x·(1/x)dx = xlnx − x + C。",
+      "tags": [
+        "积分",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_005",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "question": "热更加餐：∫₀¹ x·eˣ dx = ?",
+      "options": [
+        "1",
+        "e−1",
+        "2e−1",
+        "e"
+      ],
+      "answer": 1,
+      "explanation": "分部积分：[x·eˣ−eˣ]₀¹ = (e−e)−(0−1) = 1。",
+      "tags": [
+        "积分",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_006",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "question": "热更加餐：函数 y=|x−1| 在 x=1 处？",
+      "options": [
+        "函数处处可导",
+        "连续但不可导",
+        "不连续",
+        "取极大值"
+      ],
+      "answer": 1,
+      "explanation": "左右导数 −1 与 1 不等，尖点连续不可导。",
+      "tags": [
+        "导数",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_007",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "question": "热更加餐：级数 ∑ xⁿ/n 的收敛域是？",
+      "options": [
+        "(−1,1)",
+        "[−1,1)",
+        "(−1,1]",
+        "[−1,1]"
+      ],
+      "answer": 1,
+      "explanation": "R=1；x=1 时调和级数发散，x=−1 时交错收敛 → [−1,1)。",
+      "tags": [
+        "级数",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_008",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "question": "热更加餐：隐函数 xy=1 在 x=1 处的 y′ = ?",
+      "options": [
+        "1即可彻底解决",
+        "−1",
+        "0",
+        "2"
+      ],
+      "answer": 1,
+      "explanation": "y=1/x，y′=−1/x²=−1（x=1）。",
+      "tags": [
+        "导数",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_009",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "question": "热更加餐：二重积分 ∫₀¹∫₀¹ 1 dxdy = ?",
+      "options": [
+        "1",
+        "1/2",
+        "2",
+        "1/4"
+      ],
+      "answer": 0,
+      "explanation": "被积函数为 1，等于单位正方形面积 1。",
+      "tags": [
+        "重积分",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_010",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "question": "热更加餐：曲线 y=x² 在 x=1 处的切线方程是？",
+      "options": [
+        "y=2x−1",
+        "y=2x",
+        "y=x",
+        "y=2x+1"
+      ],
+      "answer": 0,
+      "explanation": "y′=2x=2，切线 y−1=2(x−1) → y=2x−1。",
+      "tags": [
+        "导数应用",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_011",
+      "subject": "高等数学",
+      "difficulty": 5,
+      "question": "热更加餐：微分方程 y″=0 的通解是？",
+      "options": [
+        "y=C₁x+C₂",
+        "y=Ceˣ",
+        "y=C₁cosx+C₂sinx",
+        "y=C"
+      ],
+      "answer": 0,
+      "explanation": "积分两次得线性函数。",
+      "tags": [
+        "微分方程",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_012",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "question": "热更加餐：lim(x→0) tan x / x = ?",
+      "options": [
+        "0",
+        "1",
+        "∞",
+        "−1"
+      ],
+      "answer": 1,
+      "explanation": "tanx ~ x，极限为 1。",
+      "tags": [
+        "极限",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_013",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "question": "热更加餐：f(x)=x³ 在 [0,2] 上的平均值（积分平均）是？",
+      "options": [
+        "1",
+        "2",
+        "4",
+        "3"
+      ],
+      "answer": 1,
+      "explanation": "平均值 = (1/2)∫₀²x³dx = (1/2)(16/4) = 2。",
+      "tags": [
+        "积分应用",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_014",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "question": "热更加餐：sin 2x 的导数是？",
+      "options": [
+        "cos2x",
+        "2cos2x",
+        "−2cos2x",
+        "2sinx"
+      ],
+      "answer": 1,
+      "explanation": "链式法则：2·cos2x。",
+      "tags": [
+        "导数",
+        "热更"
+      ]
+    },
+    {
+      "id": "advx_015",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "question": "热更加餐：∫₀^(π/2) sin²x dx = ?",
+      "options": [
+        "π/2",
+        "π/4",
+        "1",
+        "π"
+      ],
+      "answer": 1,
+      "explanation": "sin²x=(1−cos2x)/2，积分 = π/4。",
+      "tags": [
+        "积分",
+        "热更"
+      ]
+    }
   ]
 }

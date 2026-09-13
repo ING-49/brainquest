@@ -65,7 +65,7 @@ class QuestionBank(private val context: Context) {
         return curatedFor(subject).size
     }
 
-    /** 取一道题：数学生成，其余从题库随机（按难度，找不到就放宽到最近难度） */
+    /** 取一道题：数学生成，其余从题库随机（按难度，找不到就放宽到最近难度）。题库题出题时随机打乱选项防背位置 */
     fun pick(subject: String, difficulty: Int, rng: kotlin.random.Random = kotlin.random.Random.Default): Question? {
         if (subject == Subjects.MATH || subject == Subjects.LOGIC) {
             return MathGenerator.generate(subject, difficulty, rng)
@@ -73,10 +73,17 @@ class QuestionBank(private val context: Context) {
         val pool = curatedFor(subject)
         if (pool.isEmpty()) return null
         val exact = pool.filter { it.difficulty == difficulty }
-        if (exact.isNotEmpty()) return exact.random(rng)
-        // 放宽：按难度距离排序取最近的
-        val nearest = pool.minByOrNull { kotlin.math.abs(it.difficulty - difficulty) * 100 + rng.nextInt(100) }
-        return nearest
+        val base = if (exact.isNotEmpty()) exact.random(rng)
+        else pool.minByOrNull { kotlin.math.abs(it.difficulty - difficulty) * 100 + rng.nextInt(100) }
+        return base?.let(::shuffleOptions)
+    }
+
+    /** 打乱选项顺序并重映射答案下标（判断题/选项不足时跳过） */
+    private fun shuffleOptions(q: Question, rng: kotlin.random.Random = kotlin.random.Random.Default): Question {
+        if (q.type != "single" || q.options.size < 2) return q
+        val correct = q.options[q.answer]
+        val shuffled = q.options.shuffled(rng)
+        return q.copy(options = shuffled, answer = shuffled.indexOf(correct))
     }
 
     fun pickMany(subject: String, difficulty: Int, count: Int, exclude: Set<String> = emptySet()): List<Question> {
@@ -86,36 +93,46 @@ class QuestionBank(private val context: Context) {
         var pool = curatedFor(subject).filter { it.id !in exclude }
         if (pool.size < count) pool = curatedFor(subject)
         if (pool.isEmpty()) return emptyList()
-        return pool.shuffled().take(count)
+        return pool.shuffled().take(count).map(::shuffleOptions)
     }
 
     /**
      * 每日挑战组卷：
      * - 入门模式（hardMode=false）：基础科目（数学口算/逻辑/英语/科学/编程），难度 2，简单入门
-     * - 考研模式（hardMode=true） ：大学科目（高数/线代/概率/高频/通信），难度 4（就近回落 3~5），考研向
+     * - 考研模式（hardMode=true） ：约 6 成历年真题 + 4 成大学科目高难题（高数/线代/概率/高频/通信）
      */
-    fun pickDaily(count: Int, hardMode: Boolean): List<Question> {
-        val subjects = if (hardMode) {
-            listOf(
-                Subjects.ADV_MATH, Subjects.LIN_ALG, Subjects.PROBABILITY,
-                Subjects.RF_CIRCUITS, Subjects.COMMUNICATION,
-            )
-        } else {
-            listOf(
-                Subjects.MATH, Subjects.LOGIC, Subjects.ENGLISH,
-                Subjects.SCIENCE, Subjects.CODING,
-            )
+    fun pickDaily(count: Int, hardMode: Boolean, rng: kotlin.random.Random = kotlin.random.Random.Default): List<Question> {
+        if (!hardMode) {
+            val subjects = listOf(Subjects.MATH, Subjects.LOGIC, Subjects.ENGLISH, Subjects.SCIENCE, Subjects.CODING)
+            val result = mutableListOf<Question>()
+            val shuffled = subjects.shuffled(rng)
+            var i = 0
+            while (result.size < count && i < count * 4) {
+                val subject = shuffled[result.size % shuffled.size]
+                val q = pick(subject, 2, rng)
+                if (q != null && result.none { it.id == q.id && it.question == q.question }) result.add(q)
+                i++
+            }
+            return result
         }
-        val level = if (hardMode) 4 else 2
+        // 考研模式：真题池优先（约六成），不足部分用大学科目难度 4 补足
+        val uniSubjects = listOf(
+            Subjects.ADV_MATH, Subjects.LIN_ALG, Subjects.PROBABILITY,
+            Subjects.RF_CIRCUITS, Subjects.COMMUNICATION,
+        )
+        val zhentiPool = Subjects.all.flatMap { curatedFor(it) }
+            .filter { "真题" in it.tags }
+            .distinctBy { it.id }
+            .shuffled(rng)
         val result = mutableListOf<Question>()
-        val shuffled = subjects.shuffled()
+        zhentiPool.take(minOf(count * 6 / 10, zhentiPool.size)).forEach { result.add(it) }
         var i = 0
         while (result.size < count && i < count * 4) {
-            val subject = shuffled[result.size % shuffled.size]
-            val q = pick(subject, level)
+            val subject = uniSubjects[result.size % uniSubjects.size]
+            val q = pick(subject, 4, rng)
             if (q != null && result.none { it.id == q.id && it.question == q.question }) result.add(q)
             i++
         }
-        return result
+        return result.shuffled(rng)
     }
 }

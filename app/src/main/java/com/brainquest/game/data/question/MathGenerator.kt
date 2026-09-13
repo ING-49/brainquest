@@ -74,7 +74,7 @@ object MathGenerator {
             }
             2 -> { // 等比
                 val a = rng.nextInt(1, 4); val r = rng.nextInt(2, 4)
-                val s = List(4) { a * (1 shl (it * r)) }; Triple(s, a * (1 shl (4 * r)), "等比数列，公比 $r")
+                val s = List(4) { a * (1 shl (it * r)) }; Triple(s, a * (1 shl (4 * r)), "等比数列，公比 ${1 shl r}")
             }
             3 -> { // 隔项等差
                 val a = rng.nextInt(2, 15); val p = rng.nextInt(2, 5); val q = rng.nextInt(1, 4)
