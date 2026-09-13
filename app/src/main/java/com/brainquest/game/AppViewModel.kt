@@ -38,6 +38,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val events = _events.asSharedFlow()
 
     init {
+        com.brainquest.game.data.GenRulesConfig.load(getApplication())
         bank.reload()
         viewModelScope.launch {
             _player.value = store.load()
@@ -235,5 +236,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- 内容包（热更新后） ----------
 
-    fun setContentVersions(versions: Map<String, Int>) = commit { it.copy(contentVersions = versions) }
+    fun setContentVersions(versions: Map<String, Int>) {
+        commit { it.copy(contentVersions = versions) }
+        com.brainquest.game.data.GenRulesConfig.load(getApplication())  // 出题参数热更
+        bank.reload()
+    }
 }

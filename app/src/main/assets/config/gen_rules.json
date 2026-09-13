@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "fillChance": 33,
+  "fillMaxDifficulty": 3,
+  "baseDamage": 24,
+  "perLevelDamage": 4,
+  "comboDamage": 6,
+  "fillTimeBonus": 10
+}

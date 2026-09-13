@@ -1,6 +1,11 @@
 package com.brainquest.game.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -93,14 +98,40 @@ fun XpBar(xp: Int, modifier: Modifier = Modifier) {
 
 /** 圆形 emoji 头像 */
 @Composable
-fun AvatarBadge(emoji: String, size: Int = 56) {
+fun AvatarBadge(avatar: String, size: Int = 56) {
     Box(
         modifier = Modifier
             .size(size.dp)
             .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(emoji, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        when {
+            avatar.startsWith("kawaii_") ->
+                com.brainquest.game.ui.components.KawaiiAvatar(
+                    variant = avatar.removePrefix("kawaii_").toIntOrNull() ?: 0,
+                    size = size.dp,
+                )
+            avatar.startsWith("custom://") -> {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val bmp = remember(avatar) {
+                    runCatching {
+                        val f = java.io.File(ctx.filesDir, "avatars/" + avatar.removePrefix("custom://"))
+                        android.graphics.BitmapFactory.decodeFile(f.absolutePath)
+                    }.getOrNull()
+                }
+                if (bmp != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = "头像",
+                        modifier = Modifier.size(size.dp).clip(CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    )
+                } else {
+                    Text("🙂", style = MaterialTheme.typography.headlineMedium)
+                }
+            }
+            else -> Text(avatar, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        }
     }
 }
 

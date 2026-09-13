@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.brainquest.game.data.GenRulesConfig
 import com.brainquest.game.data.question.Question
 import com.brainquest.game.data.question.QuestionBank
 import com.brainquest.game.data.question.Subjects
@@ -116,7 +117,7 @@ class BattleState(
             correctCount++
             combo++
             if (combo > maxCombo) maxCombo = combo
-            val dmg = 24 + level * 4 + combo * 6
+            val dmg = with(GenRulesConfig.current) { baseDamage + level * perLevelDamage + combo * comboDamage }
             enemyHp = (enemyHp - dmg).coerceAtLeast(0)
             dmg
         } else {
@@ -141,7 +142,7 @@ class BattleState(
 
     /** 每题时限：填空题多给 10 秒 */
     fun timeLimitFor(q: Question?): Int =
-        if (q?.type == "fill") timeLimitSec + 10 else timeLimitSec
+        if (q?.type == "fill") timeLimitSec + GenRulesConfig.current.fillTimeBonus else timeLimitSec
 
     private fun normalizeNum(s: String): String =
         s.trim().replace("，", "").replace(",", "").removeSuffix("。").let {

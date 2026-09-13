@@ -1,5 +1,6 @@
 package com.brainquest.game.data.question
 
+import com.brainquest.game.data.GenRulesConfig
 import kotlin.random.Random
 
 /** 数学口算与逻辑推理程序化生成器：题目无限、难度 1~5 自适应 */
@@ -20,7 +21,8 @@ object MathGenerator {
             else -> level5(rng)
         }
         val qText = if (text.endsWith("？") || text.endsWith("?")) text else "$text = ?"
-        if (rng.nextInt(3) == 0 && d <= 3) {  // 低难度口算 1/3 概率出填空题
+        val rules = GenRulesConfig.current
+        if (rng.nextInt(100) < rules.fillChance && d <= rules.fillMaxDifficulty) {  // 填空题概率可热更
             return Question(
                 id = "gen_mf_${System.nanoTime()}_${rng.nextInt(9999)}",
                 subject = Subjects.MATH,

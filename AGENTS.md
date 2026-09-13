@@ -62,4 +62,6 @@ adb exec-out screencap -p > screen.png
 9. **遗留的系统安装器 "App installed." 界面不关**：新 ACTION_VIEW 安装意图会被路由到旧安装器任务（logcat 可见 onActivityRestartAttempt: InstallSuccess），确认弹窗弹不出来 → 先点 Done 清掉旧界面
 10. **ToneGenerator** 没有 TONE_PROP_KEY/TONE_PROP_PIP，可用 TONE_PROP_ACK/BEEP/BEEP2/NACK
 11. **python-bsdiff4 Windows 版**补丁应用端有 32 位 long 溢出缺陷（哨兵 seek 被截断）→ 本项目自研 BQDELTA1（delta.py），不要换回 bsdiff4
-12. **CI（GitHub Actions ubuntu runner）**：Android SDK 预装（build-tools 34.0.0 可用）；需 `pip install numpy`；aapt2 无 .exe 后缀（release.py 已做跨平台）
+12. **更新后自动回游戏**：Android 后台启动限制（BAL）会拦截 Receiver 拉起 Activity → 先尝试拉起、失败发通知兜底；POST_NOTIFICATIONS 需运行时授权
+13. **`adb shell input text` 不支持中文**（会 NPE）；自动化测试用英文数字输入
+14. **CI（GitHub Actions ubuntu runner）**：Android SDK 预装（build-tools 34.0.0 可用）；需 `pip install numpy`；aapt2 无 .exe 后缀（release.py 已做跨平台）

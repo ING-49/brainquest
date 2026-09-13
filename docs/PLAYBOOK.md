@@ -81,6 +81,12 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - [ ] 真机/模拟器实际走一次「检查更新 → 增量更新」
 - [ ] git commit + push
 
+## 五之二、出题规则热更（gen_rules.json）
+`assets/config/gen_rules.json` 可由热更包同名文件覆盖（`filesDir/content/packs/gen_rules.json`），改手感无需发版：
+- `fillChance`：填空题出现概率（%）；`fillMaxDifficulty`：填空题最高难度
+- `baseDamage / perLevelDamage / comboDamage`：战斗伤害公式参数；`fillTimeBonus`：填空题加时（秒）
+发布方式：把 gen_rules.json（version+1）放进内容包 → `release.py --packs-only` → publish → App 内更新内容包即生效
+
 ## 六、踩坑详表（现象 → 根因 → 解法）
 
 | # | 现象 | 根因 | 解法 |
@@ -102,6 +108,9 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 15 | 安装确认弹窗弹不出来 | 上一次"App installed."界面未关，新意图被路由到旧安装器任务 | 先点 Done 关掉旧界面；logcat 可见 onActivityRestartAttempt |
 | 16 | App 内 GitHub 检查更新超时（模拟器） | 模拟器流量不走宿主机代理，直连不了 GitHub | 跑 tools/dev_relay.py，App 填 10.0.2.2:8000 |
 | 17 | UI 自动化点击频繁落空 | 应用冷启动慢/页面未就绪即点击 | 循环等待目标文本出现后再点；导航避免用返回键连按（会退出应用） |
+| 18 | 更新装完停在安装器界面 | Android 后台启动限制（BAL）：安装器在前台时 Receiver 无法直接拉起 Activity | Receiver 先尝试拉起，失败则发"更新完成"通知（点通知回游戏）；另需 POST_NOTIFICATIONS 权限 |
+| 19 | `adb shell input text` 报 NullPointerException | 该命令不支持中文字符 | 中文输入用真机键盘；自动化测试用英文/数字输入 |
+| 20 | 跨签名的补丁补丁无法安装 | 合成 APK 与已装 APK 签名不一致时系统拒绝 | release.py 已加签名比对守卫：签名迁移版本自动跳过差分只发全量 |
 
 ## 七、后续可做事项
 

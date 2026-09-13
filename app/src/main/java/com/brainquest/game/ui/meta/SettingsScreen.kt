@@ -1,6 +1,9 @@
 package com.brainquest.game.ui.meta
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +16,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -38,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     val context = LocalContext.current
@@ -50,6 +55,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     var progress by remember { mutableStateOf<Float?>(null) }
     var busy by remember { mutableStateOf(false) }
     var pendingApk by remember { mutableStateOf<java.io.File?>(null) }
+    var showDevUrl by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -57,7 +63,38 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
     ) {
-        PageHeader("⚙️ 设置与更新", onBack = { nav.popBackStack() }, subtitle = "当前版本 ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .weight(1f)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = { showDevUrl = true },
+                    ),
+            ) {
+                PageHeader(
+                    "⚙️ 设置与更新",
+                    onBack = { nav.popBackStack() },
+                    subtitle = "当前版本 ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                )
+            }
+        }
+
+        if (showDevUrl) {
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                singleLine = true,
+                label = { Text("开发者：更新服务器地址") },
+            )
+            OutlinedButton(onClick = { vm.setSettings(url = url); showDevUrl = false }, modifier = Modifier.padding(bottom = 8.dp)) {
+                Text("保存地址")
+            }
+        }
 
         // 通用设置
         SettingRow("🔊 音效", player.soundOn) { vm.setSettings(sound = it) }
@@ -67,18 +104,6 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             subtitle = "开：每日挑战出大学科目高难题（高数/线代/概率/高频/通信，考研向）\n关：每日挑战出基础入门题（数学口算/逻辑/英语/科学/编程）",
             checked = player.hardMode,
         ) { vm.setSettings(hard = it) }
-
-        Text("更新服务器地址", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-        OutlinedTextField(
-            value = url,
-            onValueChange = { url = it },
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            singleLine = true,
-            placeholder = { Text("http://10.0.2.2:8000（模拟器访问本机）") },
-        )
-        OutlinedButton(onClick = { vm.setSettings(url = url) }, modifier = Modifier.padding(bottom = 8.dp)) {
-            Text("保存地址")
-        }
 
         // 更新中心
         Card(
@@ -94,7 +119,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                     modifier = Modifier.padding(vertical = 4.dp),
                 )
                 Text(
-                    "内容热更新：题库/词对包直接下载生效\nAPK 更新：支持 bsdiff 增量补丁与全量安装",
+                    "有新版本时在这里更新：只下载很小的补丁，进度不丢失",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 6.dp),
@@ -232,7 +257,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
         }
 
         Text(
-            "💡 演示流程：电脑上进入 update-server 目录运行 python -m http.server 8000，然后点「检查更新」。",
+            "💡 更新只下载很小的补丁，金币、错题本等进度全部保留，安装完成后会自动回到游戏。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 12.dp),

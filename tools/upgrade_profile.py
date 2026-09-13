@@ -1,22 +1,15 @@
-package com.brainquest.game.ui.meta
+"""ProfileScreen：改名 + 头像选择面板（Q版 8 款 + 相册上传 + 经典 emoji）"""
+src = open('app/src/main/java/com/brainquest/game/ui/meta/ProfileScreen.kt', encoding='utf-8').read()
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.activity.compose.rememberLauncherForActivityResult
+old = '''import androidx.compose.foundation.clickable'''
+new = '''import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size'''
+assert old in src
+src = src.replace(old, new, 1)
+old = '''import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue'''
+new = '''import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
@@ -36,35 +29,25 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
-import com.brainquest.game.AppViewModel
-import com.brainquest.game.ui.Routes
-import com.brainquest.game.data.levelForXp
-import com.brainquest.game.ui.AvatarBadge
-import com.brainquest.game.ui.StatChip
-import com.brainquest.game.ui.XpBar
+import androidx.compose.ui.layout.ContentScale'''
+assert old in src
+src = src.replace(old, new, 1)
 
-@Composable
-fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
-    val player by vm.player.collectAsState()
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
-    ) {
-        var showAvatarPicker by remember { mutableStateOf(false) }
+old = '''        ElevatedCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AvatarBadge(player.avatar, 64)
+                    Column(Modifier.padding(start = 14.dp).weight(1f)) {
+                        Text(player.nickname, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Lv.${levelForXp(player.xp)} · 累计经验 ${player.xp}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    StatChip("🪙", "金币", "${player.coins}")
+                }'''
+new = '''        var showAvatarPicker by remember { mutableStateOf(false) }
         var showRename by remember { mutableStateOf(false) }
-        val ctx = androidx.compose.ui.platform.LocalContext.current
         val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) {
+                val ctx = getApplication<android.app.Application>()
                 val name = "avatar_${System.currentTimeMillis()}.jpg"
                 val dst = java.io.File(ctx.filesDir, "avatars/$name")
                 dst.parentFile?.mkdirs()
@@ -90,22 +73,15 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
                         Text("Lv.${levelForXp(player.xp)} · 累计经验 ${player.xp} · 点击头像换装，点击昵称改名", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     StatChip("🪙", "金币", "${player.coins}")
-                }
-                XpBar(player.xp, Modifier.padding(top = 10.dp))
-            }
-        }
+                }'''
+assert old in src
+src = src.replace(old, new, 1)
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            StatChip("🎯", "答对", "${player.totalCorrect}", Modifier.weight(1f))
-            StatChip("💥", "答错", "${player.totalWrong}", Modifier.weight(1f))
-            StatChip("📈", "正确率", "${(player.accuracy * 100).toInt()}%", Modifier.weight(1f))
-            StatChip("⭐", "星星", "${player.totalStars}", Modifier.weight(1f))
-        }
-
-        MenuCard("🏅 成就墙", "已解锁 ${player.achievements.size} 个成就") { nav.navigate(Routes.ACHIEVEMENTS) }
-        MenuCard("📖 错题本", "${player.wrongBook.count { !it.mastered }} 道待复习") { nav.navigate(Routes.WRONGBOOK) }
-        MenuCard("🛒 商店", "道具 · 主题 · 头像") { nav.navigate(Routes.SHOP) }
-        MenuCard("⚙️ 设置与更新", "音效 · 震动 · 热更新 · APK升级") { nav.navigate(Routes.SETTINGS) }
+# 头像选择对话框 + 改名对话框（追加在 Composable 末尾 return 前——放在最后）
+old = '''        MenuCard("⚙️ 设置与更新", "音效 · 震动 · 热更新 · APK升级") { nav.navigate(Routes.SETTINGS) }
+    }
+}'''
+new = '''        MenuCard("⚙️ 设置与更新", "音效 · 震动 · 热更新 · APK升级") { nav.navigate(Routes.SETTINGS) }
 
         if (showAvatarPicker) {
             val kawaii = listOf(
@@ -113,9 +89,8 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
                 "kawaii_4", "kawaii_5", "kawaii_6", "kawaii_7",
             )
             val classic = listOf("🧑‍🎓", "🐻", "🐱", "🦊", "🐼", "🦁", "🐸", "🐵", "🦉", "🤖", "👻", "🧙")
-            val ctx2 = androidx.compose.ui.platform.LocalContext.current
             val customFiles = remember {
-                java.io.File(ctx2.filesDir, "avatars")
+                java.io.File(getApplication<android.app.Application>().filesDir, "avatars")
                     .listFiles { f -> f.extension == "jpg" }?.map { "custom://${it.name}" } ?: emptyList()
             }
             AlertDialog(
@@ -157,11 +132,11 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
                             ) {
                                 items(customFiles) { id ->
                                     val sel = player.avatar == id
-                                    val ctxF = androidx.compose.ui.platform.LocalContext.current
+                                    val ctx = getApplication<android.app.Application>()
                                     val bmp = remember(id) {
                                         runCatching {
                                             android.graphics.BitmapFactory.decodeFile(
-                                                java.io.File(ctxF.filesDir, "avatars/" + id.removePrefix("custom://")).absolutePath,
+                                                java.io.File(ctx.filesDir, "avatars/" + id.removePrefix("custom://")).absolutePath,
                                             )
                                         }.getOrNull()
                                     }
@@ -243,20 +218,8 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
             )
         }
     }
-}
-
-@Composable
-private fun MenuCard(title: String, subtitle: String, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
+}'''
+assert old in src
+src = src.replace(old, new, 1)
+open('app/src/main/java/com/brainquest/game/ui/meta/ProfileScreen.kt', 'w', encoding='utf-8').write(src)
+print('ProfileScreen 头像/改名 OK')
