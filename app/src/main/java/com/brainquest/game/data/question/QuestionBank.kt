@@ -78,6 +78,32 @@ class QuestionBank(private val context: Context) {
         return base?.let(::shuffleOptions)
     }
 
+    /**
+     * 取一道"未用过"的题：题库题按 id 排除；生成题按题干文本去重重试。
+     * 池子耗尽返回 null（调用方回退普通抽题）。
+     */
+    fun pickExcluding(
+        subject: String,
+        difficulty: Int,
+        excludeIds: Set<String>,
+        excludeTexts: Set<String>,
+        rng: kotlin.random.Random = kotlin.random.Random.Default,
+    ): Question? {
+        if (subject == Subjects.MATH || subject == Subjects.LOGIC) {
+            repeat(8) {
+                val q = MathGenerator.generate(subject, difficulty, rng)
+                if (q.question !in excludeTexts) return q
+            }
+            return null
+        }
+        val pool = curatedFor(subject).filter { it.id !in excludeIds }
+        if (pool.isEmpty()) return null
+        val exact = pool.filter { it.difficulty == difficulty }
+        val base = if (exact.isNotEmpty()) exact.random(rng)
+        else pool.minByOrNull { kotlin.math.abs(it.difficulty - difficulty) * 100 + rng.nextInt(100) }
+        return base?.let(::shuffleOptions)
+    }
+
     /** 打乱选项顺序并重映射答案下标（判断题/选项不足时跳过） */
     private fun shuffleOptions(q: Question, rng: kotlin.random.Random = kotlin.random.Random.Default): Question {
         if (q.type != "single" || q.options.size < 2) return q

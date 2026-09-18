@@ -56,6 +56,9 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     var busy by remember { mutableStateOf(false) }
     var pendingApk by remember { mutableStateOf<java.io.File?>(null) }
     var showDevUrl by remember { mutableStateOf(false) }
+    val notifPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { }
 
     Column(
         Modifier
@@ -196,6 +199,13 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     Button(
                         onClick = {
+                            if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                                androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context, android.Manifest.permission.POST_NOTIFICATIONS,
+                                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                            ) {
+                                notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                            }
                             busy = true
                             progress = 0f
                             scope.launch(Dispatchers.IO) {

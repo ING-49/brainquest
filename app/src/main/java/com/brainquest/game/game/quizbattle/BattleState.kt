@@ -25,6 +25,12 @@ class BattleState(
     private val bank: QuestionBank,
     private val rng: Random = Random.Default,
 ) {
+    // 已出题跟踪（去重）与错题重出队列
+    private val usedIds = mutableSetOf<String>()
+    private val usedTexts = mutableSetOf<String>()
+    private val reAskedIds = mutableSetOf<String>()   // 重出过的题不再重出
+    private var reAskPending: Question? = null        // 答错的题，低概率再出一次
+
     val isBoss: Boolean = level >= 8
     val enemy: Enemy
 
@@ -97,6 +103,7 @@ class BattleState(
         }
         enemyHp = enemy.maxHp
         nextQuestion()
+        question?.let { usedIds.add(it.id); usedTexts.add(it.question) }
     }
 
     val enemyHpMax: Int get() = enemy.maxHp
@@ -105,7 +112,18 @@ class BattleState(
     fun nextQuestion() {
         questionIndex++
         eliminated.clear()
-        question = bank.pick(subject, questionDifficulty)
+        // 小概率插入刚才答错的题（最多重出一次）
+        val pending = reAskPending
+        if (pending != null && rng.nextInt(100) < 20) {
+            reAskPending = null
+            question = pending
+            return
+        }
+        // 正常出题：排除已用
+        var q = bank.pickExcluding(subject, questionDifficulty, usedIds, usedTexts, rng)
+        if (q == null) q = bank.pick(subject, questionDifficulty)  // 池子耗尽才允许重复
+        question = q
+        q?.let { usedIds.add(it.id); usedTexts.add(it.question) }
     }
 
     /** 答题结算，返回伤害事件（正数=对敌伤害，负数=自身受伤） */
@@ -125,6 +143,11 @@ class BattleState(
             mistakes++
             val atk = enemyAttack()
             playerHp = (playerHp - atk).coerceAtLeast(0)
+            // 答错的题 25% 概率安排重出一次（已重出过的不重复安排）
+            if (reAskPending == null && q.id !in reAskedIds && rng.nextInt(100) < 25) {
+                reAskPending = q
+                reAskedIds.add(q.id)
+            }
             -atk
         }
     }
