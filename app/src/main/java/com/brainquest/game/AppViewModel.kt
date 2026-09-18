@@ -236,6 +236,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- 内容包（热更新后） ----------
 
+    fun recordPkResult(win: Boolean, draw: Boolean = false) = commit {
+        if (draw) it
+        else if (win) it.copy(pkWins = it.pkWins + 1)
+        else it.copy(pkLosses = it.pkLosses + 1)
+    }
+
     fun setContentVersions(versions: Map<String, Int>) {
         commit { it.copy(contentVersions = versions) }
         com.brainquest.game.data.GenRulesConfig.load(getApplication())  // 出题参数热更

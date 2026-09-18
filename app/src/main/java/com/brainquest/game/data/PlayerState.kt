@@ -45,6 +45,8 @@ data class PlayerState(
     val soundOn: Boolean = true,
     val hapticsOn: Boolean = true,
     val hardMode: Boolean = false, // 🎓 大学考研模式：开启后每日挑战出大学科目高难题
+    val pkWins: Int = 0,           // ⚔️ 联机对战胜利场次
+    val pkLosses: Int = 0,         // 联机对战失败场次
 ) {
     val totalAnswered: Int get() = totalCorrect + totalWrong
     val accuracy: Float get() = if (totalAnswered == 0) 0f else totalCorrect.toFloat() / totalAnswered

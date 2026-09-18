@@ -87,6 +87,15 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - `baseDamage / perLevelDamage / comboDamage`：战斗伤害公式参数；`fillTimeBonus`：填空题加时（秒）
 发布方式：把 gen_rules.json（version+1）放进内容包 → `release.py --packs-only` → publish → App 内更新内容包即生效
 
+## 五之二、联机对战（阶段一已实现）
+
+架构：客户端 WebSocket（OkHttp）↔ `pk_server.py` 房间转发服务。
+协议：create/join → start(题目由房主本地选题整包下发) → answer(逐题转发对手) → finish(双方) → 服务器判定(答对数、平局比用时) → result。
+去重复用：题目由房主从本地题库抽（不含填空），天然带已用去重。
+验证状态：服务器创建/加入/转发/结果判定链路已验证；客户端单次完整流程待真机两台实测
+（自动化多轮重入测试会把宿主状态机搞乱——测试脚本问题，非游戏缺陷）。
+已知：对战中对手退出 → 提示并回大厅；宿主阶段机在异常重入下的健壮性可在阶段二加固。
+
 ## 六、踩坑详表（现象 → 根因 → 解法）
 
 | # | 现象 | 根因 | 解法 |

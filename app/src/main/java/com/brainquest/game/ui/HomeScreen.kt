@@ -134,6 +134,8 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                     Text("配对合成", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ElevatedCard(
                 modifier = Modifier
                     .weight(1f)
@@ -143,6 +145,17 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                     Text("🃏", style = MaterialTheme.typography.headlineLarge)
                     Text("记忆翻牌", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text("限时配对", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            ElevatedCard(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { nav.navigate(Routes.PK) },
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Text("🌐", style = MaterialTheme.typography.headlineLarge)
+                    Text("联机对战", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("好友码 PK", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

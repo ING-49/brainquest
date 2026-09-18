@@ -56,6 +56,7 @@ object Routes {
     const val ACHIEVEMENTS = "achievements"
     const val SETTINGS = "settings"
     const val PAPERS = "papers"
+    const val PK = "pk"
 
     fun levels(subjectKey: String) = "levels/$subjectKey"
     fun battle(subjectKey: String, level: Int) = "battle/$subjectKey/$level"
@@ -130,6 +131,7 @@ fun AppRoot(vm: AppViewModel) {
             composable(Routes.ACHIEVEMENTS) { AchievementsScreen(vm, nav) }
             composable(Routes.SETTINGS) { SettingsScreen(vm, nav) }
             composable(Routes.PAPERS) { com.brainquest.game.ui.meta.PapersScreen(vm, nav) }
+            composable(Routes.PK) { com.brainquest.game.game.pk.PkBattleScreen(vm, nav) }
         }
     }
 }

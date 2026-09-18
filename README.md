@@ -107,6 +107,14 @@ Android 高版本限制 DexClassLoader 代码级热更，本项目采用业内�
 3. 首次启动若 Windows 弹防火墙提示，点「允许访问」；若被拦截，管理员 PowerShell 执行：
    `netsh advfirewall firewall add rule name="BrainQuest Update" dir=in action=allow protocol=TCP localport=8000`
 
+### 场景 2½：联机对战（好友码 PK）
+1. 电脑双击 `启动对战服务器.bat`（WebSocket 服务，端口 8765）
+2. 两台设备（模拟器 ws://10.0.2.2:8765 / 真机填电脑局域网地址）进 App「大厅 → 联机对战」
+3. 一方「创建房间」得 6 位房间码，另一方输入房间码加入 → 自动开始 10 题同答
+4. 答对多且快者胜；战绩记录在「我的」页
+服务端代码 `update-server/pk_server.py`（约 150 行，标准 WebSocket），日后可部署到
+LeanCloud 免费额度 / VPS 实现随时随地对战（客户端改服务器地址即可）。阶段二规划：随机匹配 + ELO 排行榜。
+
 ### 场景 3：GitHub Releases 托管（当前默认，推荐）
 无需任何自己运行的服务。发版流程：
 1. 改代码后把 `app/build.gradle.kts` 的 versionCode/versionName 升级
