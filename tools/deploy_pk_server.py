@@ -56,7 +56,8 @@ User=root
 WantedBy=multi-user.target
 '''
 run('echo \'%s\' > /etc/systemd/system/pk-server.service' % unit.replace("'", "'\\''"), 'unit file')
-run('systemctl daemon-reload && systemctl enable --now pk-server', 'enable+start')
+# restart 而非 enable --now：服务已在运行时 --now 不会重启，会一直跑旧代码
+run('systemctl daemon-reload && systemctl enable pk-server && systemctl restart pk-server', 'enable+restart')
 
 # 4. 验证
 import time

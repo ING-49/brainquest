@@ -162,6 +162,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 21 | 发版 APK 体积虚高（16.9MB 应为 3.8MB） | zipflinger 增量打包在旧包基础上改写，被删条目留死空间 | 发版前 `gradlew clean assembleDebug`（或删 APK 重打） |
 | 22 | 混淆后联机/更新失效风险 | R8 裁剪 serializer/WebSocket 类 | proguard-rules.pro 加 kotlinx.serialization + Java-WebSocket + Question 模型 keep 规则（已配） |
 | 23 | 联机页输地址时 App 崩溃 | 地址输到一半（如 `ws://10.0.2.2:28`）防抖重连触发，OkHttp `Request.Builder().url()` 对残缺 URL 抛 IllegalArgumentException，协程内未捕获 | `PkClient.connect()` 加 `validPkUrl()` 前置校验 + try/catch 兜底，无效地址发 Error 事件不发连接 |
+| 24 | 部署新 pk_server 后新功能没生效 | systemd `enable --now` 对**已运行**的服务不会重启，线上跑的还是旧代码 | 部署脚本改 `enable + restart`；手动更新用 `systemctl restart pk-server` |
 ## 七、后续可做事项
 
 - [x] release 正式签名（keystore.properties + signingConfig；正式签名历史 APK 均在 apks/ 供补丁链使用）
