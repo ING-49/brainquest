@@ -74,7 +74,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var totalTime by remember { mutableLongStateOf(0L) }
     var qStartAt by remember { mutableLongStateOf(0L) }
     var timeLeftMs by remember { mutableLongStateOf(QUESTION_TIME_MS) }
-    var result by remember { mutableStateOf<Triple<String, Int, Int>?>(null) } // (outcome, myC, peerC)
+    var result by remember { mutableStateOf<PkEvent.Result?>(null) }
 
     val pkEvents = remember { kotlinx.coroutines.flow.MutableSharedFlow<PkEvent>(extraBufferCapacity = 32) }
     val client = remember { PkClient { pkEvents.tryEmit(it) } }
@@ -114,6 +114,9 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                         }
                     }
                     questions = qs
+                    phase = "battle"   // 房主不走 Start 事件，这里直接进对战
+                    qIndex = 0; myCorrect = 0; peerCorrect = 0; totalTime = 0
+                    status = "对战开始！"
                     android.util.Log.i("PkDebug", "选题完成 ${qs.size} 题，发送 start")
                     client.sendStart(qs)
                     android.util.Log.i("PkDebug", "start 已发送")
@@ -132,7 +135,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 status = "对手已完成 ${event.correct} 题，等待你完成…"
             }
             is PkEvent.Result -> {
-                result = Triple(event.outcome, event.myCorrect, event.peerCorrect)
+                result = event
                 phase = "result"
                 vm.recordPkResult(event.outcome == "win", event.outcome == "draw")
                 Sfx.play(context, player.soundOn, SfxType.WIN)
@@ -292,7 +295,9 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
             "result" -> {
-                val (outcome, myC, peerC) = result!!
+                val outcome = result!!.outcome
+                val myC = result!!.myCorrect
+                val peerC = result!!.peerCorrect
                 Column(
                     Modifier.fillMaxWidth().padding(top = 40.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -301,7 +306,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     Text(if (outcome == "win") "🏆 胜利！" else if (outcome == "lose") "💀 惜败" else "🤝 平局",
                         style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
                     Text("我 $myC 题 ｜ 对手 $peerC 题", style = MaterialTheme.typography.titleMedium)
-                    Text("用时 ${(result!!.second)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("我的用时 ${result!!.myTimeMs / 1000} 秒", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Button(onClick = { client.close(); phase = "lobby" }, modifier = Modifier.fillMaxWidth()) {
                         Text("再来一局")
                     }
