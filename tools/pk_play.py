@@ -88,14 +88,13 @@ for n in range(10):
                 tap_m(m)
     qtexts = [t for t in re.findall(r'text="([^"]{4,60})"', xml) if "？" in t]
     seen.append(qtexts[0][:34] if qtexts else f"Q{n+1}")
-    time.sleep(2.2)
+    time.sleep(2.2)  # 答后 0.75s 自动进下一题，等待推进
     x2 = dump()
-    if not (tap_text(x2, "下一题 →") or tap_text(x2, "完成（提交成绩）")):
-        # 可能双方都完成了 → 结果页
+    if "胜利" in x2 or "惜败" in x2 or "平局" in x2:
+        # 双方完成 → 结果页
         shot("pk_result")
         print("战斗结束")
         break
-    time.sleep(1.5)
 
 print("本局题目:")
 for t in seen:

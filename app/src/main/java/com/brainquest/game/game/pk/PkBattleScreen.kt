@@ -17,6 +17,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -96,6 +98,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var onlineRooms by remember { mutableIntStateOf(0) }
     var matchSubject by remember { mutableStateOf<String?>(null) } // 房主出题科目，null = 混合
     var lanUrl by remember { mutableStateOf("") }              // 局域网手动直连地址
+    var showServerEdit by remember { mutableStateOf(false) }   // 长按在线行弹出的服务器地址编辑框
 
     var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
     var qIndex by remember { mutableIntStateOf(0) }
@@ -334,6 +337,14 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         }
     }
 
+    // 答完停留 0.75s 自动进下一题（最后一题自动交卷），无需手动点击
+    LaunchedEffect(answered, qIndex, phase) {
+        if (phase == "battle" && answered) {
+            delay(750)
+            nextOrFinish()
+        }
+    }
+
     // ---------- 界面 ----------
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         PageHeader("⚔️ 联机对战", onBack = {
@@ -363,11 +374,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("🌐 远程对战（服务器中转 · 随时随地）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                OutlinedTextField(
-                                    value = serverUrl, onValueChange = { serverUrl = it },
-                                    label = { Text("对战服务器") },
-                                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                                )
+                                // 服务器地址默认公网且不显示；长按在线行可改（调试/自建用）
                                 Text(
                                     when {
                                         onlinePlayers < 0 -> "… 正在连接服务器获取在线人数"
@@ -376,6 +383,9 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     },
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth().pointerInput(Unit) {
+                                        detectTapGestures(onLongPress = { showServerEdit = true })
+                                    },
                                 )
                                 if (!matching) {
                                     Button(onClick = {
@@ -428,6 +438,28 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     }) { Text("🏠 创建房间") }
                                 }
                             }
+                        }
+                        if (showServerEdit) {
+                            AlertDialog(
+                                onDismissRequest = { showServerEdit = false },
+                                confirmButton = {
+                                    Button(onClick = {
+                                        showServerEdit = false
+                                        vm.setSettings(pkServer = serverUrl)
+                                    }) { Text("保存") }
+                                },
+                                dismissButton = {
+                                    OutlinedButton(onClick = { showServerEdit = false }) { Text("取消") }
+                                },
+                                title = { Text("对战服务器地址") },
+                                text = {
+                                    OutlinedTextField(
+                                        value = serverUrl, onValueChange = { serverUrl = it },
+                                        label = { Text("ws://主机:端口") },
+                                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                                    )
+                                },
+                            )
                         }
                     } else {
                         // ---- 局域网：创建（本机做服务器）+ 搜索 + 手动直连 ----
@@ -604,13 +636,15 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 val q = questions.getOrNull(qIndex)
                 key(qIndex) {
                     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                        // 双方进度
+                        // 双方进度 x/10（对手实时更新）
                         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("🧑 ${player.nickname}: $myCorrect", style = MaterialTheme.typography.labelLarge)
+                            Text("🧑 我 ${if (answered) qIndex + 1 else qIndex}/${questions.size}",
+                                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             Text("第 ${qIndex + 1}/${questions.size} 题 · ⏳ ${timeLeftMs / 1000}s",
                                 color = if (timeLeftMs < 5000) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelLarge)
-                            Text("对手: $peerCorrect", style = MaterialTheme.typography.labelLarge)
+                            Text("对手 ${peerAnswered.coerceAtMost(questions.size)}/${questions.size}",
+                                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
                         LinearProgressIndicator(
                             progress = { (timeLeftMs.toFloat() / QUESTION_TIME_MS).coerceIn(0f, 1f) },
@@ -643,11 +677,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                         modifier = Modifier.padding(12.dp))
                                 }
                             }
-                        } else {
-                            Button(onClick = { nextOrFinish() }, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (qIndex + 1 >= questions.size) "完成（提交成绩）" else "下一题 →")
-                            }
-                        }
+                        }  // 答完显示对错与正确答案，0.75s 后自动进下一题
                     }
                 }
             }
