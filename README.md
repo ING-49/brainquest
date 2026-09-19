@@ -9,6 +9,15 @@
 
 ## 一、游戏内容
 
+### 界面速览
+| 大厅 | 每日挑战 | 联机对战 |
+|---|---|---|
+| ![大厅](docs/screens/home.png) | ![每日挑战](docs/screens/daily.png) | ![联机匹配](docs/screens/pk_matched.png) |
+| **战斗结算** | **真题试卷** | **联机结算** |
+| ![战斗](docs/screens/battle.png) | ![真题试卷](docs/screens/papers.png) | ![联机结算](docs/screens/pk_result.png) |
+
+### 三个小游戏
+
 ### 三个小游戏
 | 游戏 | 玩法 | 学习点 |
 |---|---|---|

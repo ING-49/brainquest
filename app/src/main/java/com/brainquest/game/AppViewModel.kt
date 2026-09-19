@@ -100,13 +100,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setAvatar(emoji: String) = commit { it.copy(avatar = emoji) }
 
-    fun setSettings(url: String? = null, sound: Boolean? = null, haptics: Boolean? = null, hard: Boolean? = null, pkServer: String? = null) = commit {
+    fun setSettings(url: String? = null, sound: Boolean? = null, haptics: Boolean? = null, hard: Boolean? = null, pkServer: String? = null, lastGoodSource: String? = null) = commit {
         it.copy(
             updateServerUrl = url ?: it.updateServerUrl,
             soundOn = sound ?: it.soundOn,
             hapticsOn = haptics ?: it.hapticsOn,
             hardMode = hard ?: it.hardMode,
             pkServerUrl = pkServer ?: it.pkServerUrl,
+            lastGoodSource = lastGoodSource ?: it.lastGoodSource,
         )
     }
 

@@ -8,7 +8,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -85,6 +91,11 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var discovered by remember { mutableStateOf<Map<String, com.brainquest.game.net.PkDiscovery.Beacon>>(emptyMap()) }
     var searching by remember { mutableStateOf(false) }
     var peerVersion by remember { mutableStateOf("") }
+    var peerName by remember { mutableStateOf("") }
+    var myReady by remember { mutableStateOf(false) }
+    var peerReady by remember { mutableStateOf(false) }
+    var countdown by remember { mutableIntStateOf(0) }
+    var peerAnswered by remember { mutableIntStateOf(0) }  // 对手已作答题数（含未判分提交）
     val myIps = remember { com.brainquest.game.net.PkDiscovery.localIps() }
 
     LaunchedEffect(searching) {
@@ -115,9 +126,11 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 phase = "waiting"
             }
             is PkEvent.PeerJoined -> {
-                status = "对手 ${event.peer}（${event.version}）已加入！"
-                peerVersion = event.version
+                peerName = event.peer
+                status = "匹配成功！"
+                phase = "matched"   // 匹配成功动画 + 双方确认
                 runCatching {
+                    // 房主此刻就锁定题目（双方确认后才下发）
                     val qs = buildList {
                         val used = mutableSetOf<String>()
                         var guard = 0
@@ -131,22 +144,22 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                         }
                     }
                     questions = qs
-                    phase = "battle"
-                    qIndex = 0; myCorrect = 0; peerCorrect = 0; totalTime = 0
-                    status = "对战开始！"
-                    // 房主把题目发给对手：内嵌服务器 → broadcastStart；远程 → sendStart
-                    embedded?.setQuestions(qs); embedded?.broadcastStart()
-                        ?: client.sendStart(qs)
+                    embedded?.setQuestions(qs)
                     PkDiscovery.stopBeacon()
                 }.onFailure { status = "发题失败：${it.message}" }
             }
             is PkEvent.Start -> {
                 questions = event.questions
-                phase = "battle"
-                qIndex = 0; myCorrect = 0; peerCorrect = 0; totalTime = 0
-                status = "对战开始！"
+                qIndex = 0; myCorrect = 0; peerCorrect = 0; peerAnswered = 0; totalTime = 0
+                myReady = false; peerReady = false
+                countdown = 3       // 进入 3·2·1 倒计时
+                phase = "countdown"
+            }
+            is PkEvent.PeerReady -> {
+                peerReady = true
             }
             is PkEvent.PeerAnswer -> {
+                peerAnswered = event.idx + 1
                 if (event.correct) peerCorrect++
             }
             is PkEvent.PeerFinish -> {
@@ -180,8 +193,36 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         }
     }
 
+    // 双方都点了准备 → 房主发题（内嵌广播/远程 sendStart），双方进倒计时
+    LaunchedEffect(myReady, peerReady) {
+        if (phase == "matched" && myReady && peerReady) {
+            delay(600)  // 让"匹配成功"动画呼吸一下
+            if (embedded != null) {
+                embedded!!.broadcastStart()
+            } else {
+                client.sendStart(questions)
+            }
+            phase = "countdown"; countdown = 3   // 双方都进倒计时（guest 经 Start 事件）
+        }
+    }
+    LaunchedEffect(phase) {
+        if (phase == "countdown") {
+            while (countdown > 0) {
+                delay(1000)
+                countdown--
+            }
+            phase = "battle"
+        }
+    }
+
     fun beginQuestion() {
         qStartAt = System.currentTimeMillis()
+    }
+
+    fun sendReady() {
+        myReady = true
+        val readyMsg = buildJsonObject { put("t", "ready") }
+        if (embedded != null) embedded!!.relayHostMessage(readyMsg) else client.rawSend(readyMsg.toString())
     }
 
     fun submit(idx: Int) {
@@ -207,7 +248,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
             }
             if (embedded != null) embedded!!.hostFinish(myCorrect, totalTime)
             else client.sendFinish(myCorrect, totalTime)
-            status = "已完成，等待对手…"
+            phase = "mydone"
         } else {
             qIndex++
         }
@@ -309,6 +350,72 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     )
                 }
             }
+            "matched" -> {
+                // 匹配成功动画 + 双方确认
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
+                    val scale = transition.animateFloat(
+                        initialValue = 0.92f, targetValue = 1.08f,
+                        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                            androidx.compose.animation.core.tween(600),
+                            androidx.compose.animation.core.RepeatMode.Reverse,
+                        ), label = "pulse",
+                    ).value
+                    Text("🎉", style = MaterialTheme.typography.displayLarge,
+                        modifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale))
+                    Text("匹配成功！", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("$peerName VS ${player.nickname}", style = MaterialTheme.typography.titleLarge)
+                    Button(onClick = { sendReady() }, enabled = !myReady, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (myReady) "已准备，等待对方…" else "✋ 准备就绪")
+                    }
+                    if (myReady && peerReady) Text("双方已就绪！", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                    LinearProgressIndicator(
+                        progress = { listOf(myReady, peerReady).count { it } / 2f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            "countdown" -> {
+                Column(
+                    Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text("$countdown", style = MaterialTheme.typography.displayLarge, fontSize = 96.sp,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("准备开始！", style = MaterialTheme.typography.titleLarge)
+                }
+            }
+            "mydone" -> {
+                // 我方完成页：我的成绩 + 对手实时进度
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 30.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("✅ 你已完成", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("答对 $myCorrect / ${questions.size} 题 · 用时 ${totalTime / 1000} 秒",
+                        style = MaterialTheme.typography.titleMedium)
+                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("对手进度：$peerAnswered/${questions.size} 题（答对 $peerCorrect）",
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            LinearProgressIndicator(
+                                progress = { peerAnswered.toFloat() / questions.size },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(status, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
             "waiting" -> {
                 Column(
                     Modifier.fillMaxWidth().padding(top = 24.dp),
@@ -320,10 +427,6 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     if (roomCode.isNotBlank()) {
                         Text("房间码 $roomCode", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     }
-                    Text("我的版本 ${BuildConfig.VERSION_NAME} · 对手版本 ${peerVersion.ifBlank { "?" }}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (peerVersion.isNotBlank() && peerVersion != BuildConfig.VERSION_NAME)
-                            Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant)
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("📡 本机对战地址（朋友端『手动连接』输入）：",
                             style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 6.dp))
@@ -363,7 +466,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     modifier = Modifier.padding(vertical = 8.dp))
                                 if (answered) {
                                     Text(
-                                        if (chosen == q?.answer) "✅ 答对了，等对手…" else "❌ 正确答案：${'A' + (q?.answer ?: 0)}. ${q?.options?.getOrNull(q.answer) ?: ""}",
+                                        if (chosen == q?.answer) "✅ 正确" else "❌ 正确答案：${'A' + (q?.answer ?: 0)}. ${q?.options?.getOrNull(q.answer) ?: ""}",
                                         fontWeight = FontWeight.Bold,
                                         color = if (chosen == q?.answer) Color(0xFF2E7D32) else Color(0xFFC62828),
                                     )

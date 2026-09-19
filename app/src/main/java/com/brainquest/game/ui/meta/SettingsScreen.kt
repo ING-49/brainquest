@@ -138,12 +138,19 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                                 val defaultBase = "https://github.com/ING-49/brainquest/releases/latest/download"
                                 // 用户自定义了地址 → 只用自定义；否则 多源回退（直连→镜像）
                                 val bases = if (player.updateServerUrl != defaultBase) listOf(player.updateServerUrl)
-                                else listOf(
-                                    defaultBase,
-                                    "$defaultBase".let { "https://gh-proxy.com/$it" },
-                                    "$defaultBase".let { "https://ghfast.top/$it" },
-                                )
+                                else {
+                                    // 上次成功的源排最前（利于国内更新），其余兜底
+                                    val all = listOf(
+                                        defaultBase,
+                                        "$defaultBase".let { "https://gh-proxy.com/$it" },
+                                        "$defaultBase".let { "https://ghfast.top/$it" },
+                                    )
+                                    if (player.lastGoodSource in all)
+                                        listOf(player.lastGoodSource) + all.filter { it != player.lastGoodSource }
+                                    else all
+                                }
                                 val (fetched, base) = updater.fetchManifestMulti(bases)
+                                vm.setSettings(lastGoodSource = base)
                                 manifest = fetched
                                 android.util.Log.i("UpdateDemo", "更新源: $base")
                                 val srcLabel = when {

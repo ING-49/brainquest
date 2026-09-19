@@ -102,7 +102,7 @@ async def handler(ws):
                                     "version": room["versions"].get(ws, "?")})
                 print(f"[room] {code} joined by {msg.get('name')}")
 
-            elif code and t in ("start", "question", "answer"):
+            elif code and t in ("start", "question", "answer", "ready"):
                 peer = peer_of(code, ws)
                 if peer:
                     out = dict(msg)

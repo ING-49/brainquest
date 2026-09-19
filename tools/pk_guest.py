@@ -47,7 +47,8 @@ async def main():
                 msg = json.loads(await asyncio.wait_for(ws.recv(), timeout=150))
                 t = msg.get("t")
                 if t == "joined":
-                    print(f"[guest] 已加入房间 {msg['code']}，对手: {msg['peer']}")
+                    print(f"[guest] 已加入房间 {msg['code']}，对手: {msg['peer']}，发送准备")
+                    await ws.send(json.dumps({"t": "ready"}))
                 elif t == "start":
                     questions = msg["questions"]  # 触发 answer_flow
                 elif t == "peer_finish":
@@ -56,6 +57,9 @@ async def main():
                     result_seen = msg
                     print(f"[guest] 结果: {msg['outcome']}  我 {msg['my']['correct']} 题 / "
                           f"对手 {msg['peer']['correct']} 题")
+                    break
+                elif t == "error":
+                    print(f"[guest] 错误: {msg.get('msg')}")
                     break
                 elif t == "peer_left":
                     print("[guest] 对手离开，结束")

@@ -23,6 +23,7 @@ sealed class PkEvent {
     data class Joined(val code: String, val peer: String) : PkEvent()
     data class PeerJoined(val peer: String, val version: String = "?") : PkEvent()
     data class Start(val questions: List<com.brainquest.game.data.question.Question>) : PkEvent()
+    data object PeerReady : PkEvent()
     data class PeerAnswer(val idx: Int, val correct: Boolean) : PkEvent()
     data class PeerFinish(val correct: Int, val timeMs: Long) : PkEvent()
     data class Result(val outcome: String, val myCorrect: Int, val myTimeMs: Long, val peerCorrect: Int, val peerTimeMs: Long) : PkEvent()
@@ -85,6 +86,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
                 )
                 onEvent(PkEvent.Start(qs))
             }
+            "peer_ready" -> onEvent(PkEvent.PeerReady)
             "peer_answer" -> onEvent(PkEvent.PeerAnswer(obj["idx"]!!.jsonPrimitive.content.toInt(), obj["correct"]!!.jsonPrimitive.content.toBoolean()))
             "peer_finish" -> onEvent(PkEvent.PeerFinish(obj["correct"]!!.jsonPrimitive.content.toInt(), obj["timeMs"]!!.jsonPrimitive.content.toLong()))
             "result" -> onEvent(PkEvent.Result(

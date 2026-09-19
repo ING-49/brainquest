@@ -78,6 +78,10 @@ class EmbeddedPkServer(
                 onEvent(PkEvent.PeerJoined(guestName))
             }
             "start" -> { /* 房主本地处理，不走网络 */ }
+            "ready" -> {
+                // 加入方已准备 → 通知房主界面
+                onEvent(PkEvent.PeerReady)
+            }
             "answer" -> {
                 // 加入方的作答 → 通知房主界面（更新对手进度）
                 val idx = obj["idx"]?.jsonPrimitive?.content?.toInt() ?: 0
