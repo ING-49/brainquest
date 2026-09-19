@@ -30,6 +30,8 @@ sealed class PkEvent {
     data object PeerLeft : PkEvent()
     data class Error(val msg: String) : PkEvent()
     data class Connected(val hostMode: Boolean) : PkEvent()  // WebSocket 已连上
+    data class Online(val players: Int, val waiting: Int, val rooms: Int) : PkEvent()  // 在线统计广播
+    data object Disconnected : PkEvent()                 // 连接断开（失败或关闭）
 }
 
 /** OkHttp WebSocket 联机客户端：连接 → 创建/加入 → 消息收发 */
@@ -44,34 +46,58 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    fun connect(url: String, name: String, mode: String, code: String = "", version: String = "") {
-        val httpUrl = url.replace("ws://", "http://").replace("wss://", "https://").trimEnd('/')
-        val request = Request.Builder().url("$httpUrl/?name=$name").build()
-        hostMode = mode == "create"
-        ws = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
-                onEvent(PkEvent.Connected(hostMode))
-                val msg = buildJsonObject {
-                    put("t", mode)
-                    put("name", name)
-                    put("version", version)
-                    if (mode == "join") put("code", code)
+    /** 地址是否形如 ws://主机[:端口]（防输入中途连接崩溃） */
+    private fun validPkUrl(url: String): Boolean {
+        val t = url.trim()
+        if (!t.startsWith("ws://") && !t.startsWith("wss://")) return false
+        val host = t.substringAfter("://").substringBefore("/").substringBefore(":")
+        return host.isNotBlank()
+    }
+
+    /** @return 是否成功发起连接（地址无效时返回 false 并发 Error 事件） */
+    fun connect(url: String, name: String, mode: String, code: String = "", version: String = ""): Boolean {
+        if (!validPkUrl(url)) {
+            onEvent(PkEvent.Error("服务器地址需形如 ws://主机:端口"))
+            onEvent(PkEvent.Disconnected)
+            return false
+        }
+        ws?.close(1000, "reconnect")  // 保证任意时刻只有一条连接
+        return try {
+            val httpUrl = url.trim().replace("ws://", "http://").replace("wss://", "https://").trimEnd('/')
+            val request = Request.Builder().url("$httpUrl/?name=$name").build()
+            hostMode = mode == "create"
+            ws = client.newWebSocket(request, object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
+                    onEvent(PkEvent.Connected(hostMode))
+                    val msg = buildJsonObject {
+                        put("t", mode)
+                        put("name", name)
+                        put("version", version)
+                        if (mode == "join") put("code", code)
+                    }
+                    webSocket.send(msg.toString())
                 }
-                webSocket.send(msg.toString())
-            }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                parse(text)
-            }
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    parse(text)
+                }
 
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-                onEvent(PkEvent.Error("连接失败：${t.message}"))
-            }
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                    onEvent(PkEvent.Error("连接失败：${t.message}"))
+                    onEvent(PkEvent.Disconnected)
+                }
 
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                onEvent(PkEvent.Error("连接已关闭：$reason"))
-            }
-        })
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    onEvent(PkEvent.Error("连接已关闭：$reason"))
+                    onEvent(PkEvent.Disconnected)
+                }
+            })
+            true
+        } catch (e: Exception) {
+            onEvent(PkEvent.Error("地址无效或无法连接：${e.message}"))
+            onEvent(PkEvent.Disconnected)
+            false
+        }
     }
 
     private fun parse(text: String) {
@@ -97,6 +123,11 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
                 peerTimeMs = obj["peer"]!!.jsonObject["timeMs"]!!.jsonPrimitive.content.toLong(),
             ))
             "peer_left" -> onEvent(PkEvent.PeerLeft)
+            "online" -> onEvent(PkEvent.Online(
+                players = obj["players"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                waiting = obj["waiting"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                rooms = obj["rooms"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+            ))
             "error" -> onEvent(PkEvent.Error(obj["msg"]!!.jsonPrimitive.content))
         }
     }
@@ -123,6 +154,23 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
         send(buildJsonObject {
             put("t", "finish"); put("correct", correct); put("timeMs", timeMs)
         }.toString())
+    }
+
+    /** 取消快速匹配 */
+    fun sendCancelMatch() {
+        send(buildJsonObject { put("t", "cancel_match") }.toString())
+    }
+
+    /** 发起快速匹配（连接已建立时用；未连接时直接 connect(mode="quick_match")） */
+    fun sendQuickMatch(name: String, version: String) {
+        send(buildJsonObject {
+            put("t", "quick_match"); put("name", name); put("version", version)
+        }.toString())
+    }
+
+    /** 查询在线人数（服务器同时也会主动广播） */
+    fun sendOnlineQuery() {
+        send(buildJsonObject { put("t", "online") }.toString())
     }
 
     private fun send(text: String) {

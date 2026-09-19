@@ -45,6 +45,8 @@ adb exec-out screencap -p > screen.png
 | `tools/update_demo.py` | 更新流程 UI 自动化（检查更新→热更→增量安装） |
 | `tools/dev_relay.py` | 开发中继：模拟器 → 本机 → GitHub Releases |
 | `tools/publish_github.py` | 发布 update-server 产物到 GitHub Releases（latest 地址自校验） |
+| `tools/pk_guest.py` | 联机机器人对手：`--quick` 快速匹配（可当房主）/ 房间码模式；PK_URL 环境变量 |
+| `tools/pk_server_smoke.py` | PK 服务器冒烟测试（在线人数/版本隔离/配对/整局/取消，7 项断言） |
 | `update-server/release.py` | 一键：打内容包 + BQDELTA1 差分 + manifest + 合成自校验 |
 | `update-server/delta.py` | 自研差分编码器（滚动哈希块匹配，numpy 加速） |
 | `启动更新服务器.bat` | 本地静态服务器（自动显示局域网 IP，供真机同 Wi-Fi 更新） |

@@ -1,7 +1,15 @@
-"""一键部署 pk_server.py 到阿里云服务器（SSH）"""
+"""一键部署 pk_server.py 到阿里云服务器（SSH）。
+
+密码不再写在脚本里：从环境变量 PK_SSH_PASS 读取，缺省时交互输入。
+用法：PK_SSH_PASS=xxxx python tools/deploy_pk_server.py
+"""
+import getpass
+import os
+
 import paramiko
 
-HOST, USER, PWD = '8.148.192.129', 'root', 'Llubuntu94%'
+HOST, USER = '8.148.192.129', 'root'
+PWD = os.environ.get('PK_SSH_PASS') or getpass.getpass(f'{HOST} 的 {USER} 密码: ')
 
 c = paramiko.SSHClient()
 c.set_missing_host_key_policy(paramiko.AutoAddPolicy())

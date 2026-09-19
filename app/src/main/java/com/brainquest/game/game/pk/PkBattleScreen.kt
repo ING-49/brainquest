@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -15,12 +17,16 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -62,6 +68,8 @@ import kotlinx.coroutines.delay
 
 private const val QUESTION_TIME_MS = 15_000L
 private const val PK_QUESTION_COUNT = 10
+private const val DEFAULT_PK_SERVER = "ws://8.148.192.129:8765"      // 公网对战服务器
+private const val LEGACY_EMULATOR_SERVER = "ws://10.0.2.2:8765"      // 旧默认（模拟器本机），升级时迁移
 
 /** 联机对战：好友码房间制（阶段一），10 题同答，答对多且快者胜 */
 @Composable
@@ -71,11 +79,23 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
 
     // 阶段：lobby → waiting → battle → result
     var phase by remember { mutableStateOf("lobby") }
-    var serverUrl by remember { mutableStateOf(player.pkServerUrl) }
+    // 旧默认是模拟器地址，升级后迁移到公网对战服务器
+    var serverUrl by remember {
+        mutableStateOf(if (player.pkServerUrl == LEGACY_EMULATOR_SERVER) DEFAULT_PK_SERVER else player.pkServerUrl)
+    }
     var roomCode by remember { mutableStateOf("") }
     var joinCode by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var hostMode by remember { mutableStateOf(false) }
+    var pkTab by remember { mutableStateOf("remote") }         // lobby 页签：remote / lan
+    var remoteConnected by remember { mutableStateOf(false) }  // 与远程服务器的空闲长连接
+    var connectedUrl by remember { mutableStateOf("") }        // 空闲连接对应的服务器地址
+    var matching by remember { mutableStateOf(false) }         // 快速匹配中
+    var onlinePlayers by remember { mutableIntStateOf(-1) }    // -1 = 尚未获取
+    var onlineWaiting by remember { mutableIntStateOf(0) }
+    var onlineRooms by remember { mutableIntStateOf(0) }
+    var matchSubject by remember { mutableStateOf<String?>(null) } // 房主出题科目，null = 混合
+    var lanUrl by remember { mutableStateOf("") }              // 局域网手动直连地址
 
     var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
     var qIndex by remember { mutableIntStateOf(0) }
@@ -110,15 +130,44 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     val pkEvents = remember { kotlinx.coroutines.flow.MutableSharedFlow<PkEvent>(extraBufferCapacity = 32) }
     val client = remember { PkClient { pkEvents.tryEmit(it) } }
 
+    // 远程页签：维持空闲长连接以显示在线人数（地址变更防抖后自动重连）；切到局域网页签时断开
+    LaunchedEffect(pkTab, phase, serverUrl) {
+        if (phase != "lobby") return@LaunchedEffect
+        if (pkTab == "remote") {
+            delay(1500)  // 地址输入防抖：输完再连
+            if (phase != "lobby") return@LaunchedEffect
+            if (!remoteConnected || connectedUrl != serverUrl) {
+                if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)) {
+                    connectedUrl = serverUrl
+                }
+            }
+            while (true) {
+                delay(15_000)
+                if (remoteConnected && connectedUrl == serverUrl) client.sendOnlineQuery()
+            }
+        } else {
+            client.close()
+            remoteConnected = false
+            onlinePlayers = -1
+            if (status == "已连接") status = ""
+        }
+    }
+
     LaunchedEffect(Unit) {
         pkEvents.collect { event ->
         when (event) {
             is PkEvent.Connected -> {
-                status = if (event.hostMode) "已连接，房间创建中…" else "已连接，加入中…"
+                remoteConnected = true
+                status = when {
+                    matching -> "已连接，正在匹配对手…"
+                    event.hostMode -> "已连接，房间创建中…"
+                    else -> "已连接"
+                }
             }
             is PkEvent.Created -> {
                 roomCode = event.code
                 hostMode = true
+                matching = false
                 status = "房间已创建，等待对手加入…"
                 phase = "waiting"
             }
@@ -126,6 +175,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 roomCode = event.code
                 joinedAsGuest = true
                 peerName = event.peer
+                matching = false
                 status = "已加入房间，等待双方准备…"
                 phase = "matched"
             }
@@ -138,8 +188,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     val qs = buildList {
                         val used = mutableSetOf<String>()
                         var guard = 0
-                        while (size < PK_QUESTION_COUNT && guard < 60) {
-                            val subject = Subjects.all[guard % Subjects.all.size]
+                        while (size < PK_QUESTION_COUNT && guard < 150) {
+                            val subject = matchSubject ?: Subjects.all[guard % Subjects.all.size]
                             val q = vm.bank.pick(subject, 2 + guard % 3)
                             if (q != null && q.type != "fill" && q.id !in used) {
                                 add(q); used.add(q.id)
@@ -180,8 +230,20 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 status = "对手离开了房间"
                 if (phase == "battle") { phase = "lobby"; client.close() }
             }
+            is PkEvent.Online -> {
+                onlinePlayers = event.players
+                onlineWaiting = event.waiting
+                onlineRooms = event.rooms
+            }
+            is PkEvent.Disconnected -> {
+                remoteConnected = false
+                if (matching) matching = false
+            }
             is PkEvent.Error -> {
-                status = event.msg
+                // 大厅里后台空闲连接的失败不打扰用户（地址没输完/网络抖动），战斗与匹配中的错误仍显示
+                if (!(event.msg.startsWith("连接") && phase == "lobby" && !matching)) {
+                    status = event.msg
+                }
                 android.util.Log.w("PkDebug", "服务器消息: ${event.msg}")
             }
         }
@@ -276,79 +338,160 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         PageHeader("⚔️ 联机对战", onBack = {
             client.close(); phase = "lobby"; nav.popBackStack()
-        }, subtitle = "好友码房间制 · 10 题同答 · 答对多且快者胜")
+        }, subtitle = "远程匹配 / 好友房间 / 局域网热点 · 10 题同答")
 
         when (phase) {
             "lobby" -> {
-                Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth().padding(top = 8.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // 战绩 + 模式页签
                     Card(Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text("当前战绩：${player.pkWins} 胜 ${player.pkLosses} 负", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Button(onClick = {
-                                // 本机做服务器：内嵌 WebSocket + UDP 信标
-                                val code = (0..999999).random().toString().padStart(6, '0')
-                                val srv = com.brainquest.game.net.EmbeddedPkServer(8765, player.nickname, BuildConfig.VERSION_NAME) { pkEvents.tryEmit(it) }
-                                srv.roomCode = code
-                                embedded = srv
-                                srv.start()
-                                com.brainquest.game.net.PkDiscovery.startBeacon(code, player.nickname, 8765)
-                                roomCode = code
-                                status = "房间已创建，等待对手加入…"
-                                phase = "waiting"
-                            }, modifier = Modifier.fillMaxWidth()) { Text("🏠 创建房间（本机做服务器 · 热点可离线）") }
-                            OutlinedButton(onClick = { searching = !searching }, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (searching) "收起搜索" else "🔍 搜索附近的房间")
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(selected = pkTab == "remote", onClick = { pkTab = "remote" },
+                                    label = { Text("🌐 远程对战") }, modifier = Modifier.weight(1f))
+                                FilterChip(selected = pkTab == "lan", onClick = { pkTab = "lan" },
+                                    label = { Text("🏠 局域网") }, modifier = Modifier.weight(1f))
                             }
-                            if (searching) {
-                                if (discovered.isEmpty()) {
-                                    Text("正在搜索同一网络下的房间…（若搜不到可手动输 IP）",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+
+                    if (pkTab == "remote") {
+                        // ---- 远程：在线人数 + 快速匹配 + 好友房间 ----
+                        Card(Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("🌐 远程对战（服务器中转 · 随时随地）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                OutlinedTextField(
+                                    value = serverUrl, onValueChange = { serverUrl = it },
+                                    label = { Text("对战服务器") },
+                                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                                )
+                                Text(
+                                    when {
+                                        onlinePlayers < 0 -> "… 正在连接服务器获取在线人数"
+                                        onlinePlayers <= 1 -> "🟢 在线 $onlinePlayers 人 · 房间 $onlineRooms（现在只有你，喊朋友来吧）"
+                                        else -> "🟢 在线 $onlinePlayers 人 · 等待匹配 $onlineWaiting 人 · 房间 $onlineRooms"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                if (!matching) {
+                                    Button(onClick = {
+                                        matching = true
+                                        vm.setSettings(pkServer = serverUrl)
+                                        if (remoteConnected && connectedUrl == serverUrl) {
+                                            client.sendQuickMatch(player.nickname, BuildConfig.VERSION_NAME)
+                                        } else if (client.connect(serverUrl, player.nickname, "quick_match", version = BuildConfig.VERSION_NAME)) {
+                                            connectedUrl = serverUrl
+                                        }
+                                    }, modifier = Modifier.fillMaxWidth()) { Text("⚡ 快速匹配（同版本随机对手）") }
+                                } else {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                        Text(
+                                            if (onlineWaiting > 0) "匹配中…（服务器等待 $onlineWaiting 人）" else "匹配中…",
+                                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                                        )
+                                        Spacer(Modifier.weight(1f))
+                                        OutlinedButton(onClick = {
+                                            client.sendCancelMatch()
+                                            matching = false
+                                            status = "已取消匹配"
+                                        }) { Text("取消") }
+                                    }
                                 }
-                                discovered.values.forEach { b ->
-                                    Card(onClick = {
-                                        client.connect("ws://${b.ip}:${b.tcpPort}", player.nickname, "join", b.room, BuildConfig.VERSION_NAME)
-                                        PkDiscovery.stopListening()
-                                    }, modifier = Modifier.fillMaxWidth()) {
-                                        Column(Modifier.padding(10.dp)) {
-                                            Text("🎮 ${b.name} 的房间 ${b.room}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                                            Text("${b.ip}:${b.tcpPort}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                HorizontalDivider()
+                                Text("对战科目（房主出题用）", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    FilterChip(selected = matchSubject == null, onClick = { matchSubject = null }, label = { Text("🎲 混合") })
+                                    Subjects.all.forEach { s ->
+                                        FilterChip(selected = matchSubject == s, onClick = { matchSubject = s }, label = { Text("${Subjects.emoji(s)} $s") })
+                                    }
+                                }
+                                HorizontalDivider()
+                                Text("👥 好友房间（把房间码告诉朋友）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                OutlinedTextField(
+                                    value = joinCode, onValueChange = { joinCode = it.take(6) },
+                                    label = { Text("房间码") },
+                                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(onClick = {
+                                        vm.setSettings(pkServer = serverUrl)
+                                        client.connect(serverUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME)
+                                    }, enabled = serverUrl.isNotBlank()) { Text("🚪 加入房间") }
+                                    OutlinedButton(onClick = {
+                                        vm.setSettings(pkServer = serverUrl)
+                                        client.connect(serverUrl, player.nickname, "create", version = BuildConfig.VERSION_NAME)
+                                    }) { Text("🏠 创建房间") }
+                                }
+                            }
+                        }
+                    } else {
+                        // ---- 局域网：创建（本机做服务器）+ 搜索 + 手动直连 ----
+                        Card(Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = {
+                                    // 本机做服务器：内嵌 WebSocket + UDP 信标
+                                    val code = (0..999999).random().toString().padStart(6, '0')
+                                    val srv = com.brainquest.game.net.EmbeddedPkServer(8765, player.nickname, BuildConfig.VERSION_NAME) { pkEvents.tryEmit(it) }
+                                    srv.roomCode = code
+                                    embedded = srv
+                                    srv.start()
+                                    com.brainquest.game.net.PkDiscovery.startBeacon(code, player.nickname, 8765)
+                                    roomCode = code
+                                    status = "房间已创建，等待对手加入…"
+                                    phase = "waiting"
+                                }, modifier = Modifier.fillMaxWidth()) { Text("🏠 创建房间（本机做服务器 · 热点可离线）") }
+                                OutlinedButton(onClick = { searching = !searching }, modifier = Modifier.fillMaxWidth()) {
+                                    Text(if (searching) "收起搜索" else "🔍 搜索附近的房间")
+                                }
+                                if (searching) {
+                                    if (discovered.isEmpty()) {
+                                        Text("正在搜索同一网络下的房间…（若搜不到可手动输 IP）",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    discovered.values.forEach { b ->
+                                        Card(onClick = {
+                                            client.connect("ws://${b.ip}:${b.tcpPort}", player.nickname, "join", b.room, BuildConfig.VERSION_NAME)
+                                            PkDiscovery.stopListening()
+                                        }, modifier = Modifier.fillMaxWidth()) {
+                                            Column(Modifier.padding(10.dp)) {
+                                                Text("🎮 ${b.name} 的房间 ${b.room}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                                                Text("${b.ip}:${b.tcpPort}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                    Card(Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("⌨️ 手动连接（远程服务器 / 搜索失败兜底）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            OutlinedTextField(
-                                value = serverUrl, onValueChange = { serverUrl = it },
-                                label = { Text("对战服务器 / 房主IP") },
-                                modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            )
-                            OutlinedTextField(
-                                value = joinCode, onValueChange = { joinCode = it.take(6) },
-                                label = { Text("房间码（连房主本机服务器时可不填）") },
-                                modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Card(Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("⌨️ 手动连接（输入房主 IP · 搜索失败兜底）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                OutlinedTextField(
+                                    value = lanUrl, onValueChange = { lanUrl = it },
+                                    label = { Text("房主IP（如 ws://192.168.1.5:8765）") },
+                                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                                )
+                                OutlinedTextField(
+                                    value = joinCode, onValueChange = { joinCode = it.take(6) },
+                                    label = { Text("房间码（连房主本机服务器时可不填）") },
+                                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                                )
                                 Button(onClick = {
-                                    vm.setSettings(pkServer = serverUrl)
-                                    client.connect(serverUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME)
-                                }, enabled = serverUrl.isNotBlank()) { Text("🚪 加入") }
-                                OutlinedButton(onClick = {
-                                    vm.setSettings(pkServer = serverUrl)
-                                    client.connect(serverUrl, player.nickname, "create", version = BuildConfig.VERSION_NAME)
-                                }) { Text("在远程服务器上创建") }
+                                    client.connect(lanUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME)
+                                }, enabled = lanUrl.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("🚪 直连加入") }
                             }
                         }
                     }
                     if (status.isNotBlank()) Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        "💡 热点玩法：房主开手机热点并创建房间，朋友连热点后搜索即得——全程无需网络。\n搜不到时多为路由器 AP 隔离，可改用热点或手动输 IP。",
+                        "💡 远程对战需联网，由对战服务器中转；局域网热点玩法：房主开热点并创建房间，朋友连热点后搜索即得——全程无需网络。\n搜不到时多为路由器 AP 隔离，可改用热点或手动输 IP。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

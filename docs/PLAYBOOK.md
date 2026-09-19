@@ -123,6 +123,14 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - 运维：`systemctl status/restart pk-server`；服务无状态，换机迁移=改 App 联机页地址
 - App 联机页填：`ws://8.148.192.129:8765`
 
+### 远程模式（v1.6.1 起，公网服务器专属）
+- **在线人数**：服务器实时广播 `{"t":"online","players":N,"waiting":K,"rooms":M}`（连接/断开/入队/出队时触发）；App 联机页远程页签维持空闲长连接显示「🟢 在线 N 人」
+- **快速匹配**：`quick_match` 入队，服务器只配对**同版本**玩家；甲方收 `created`+`peer_joined`、乙方收 `joined` —— 客户端状态机零改动，复用现有确认→倒计时→对战→结算全流程
+- 大厅双页签：🌐 远程（默认，在线人数/快速匹配/科目选择/好友房间）+ 🏠 局域网（创建/搜索/手动直连，原样保留）
+- 服务器地址默认 `ws://8.148.192.129:8765`；旧默认（10.0.2.2）打开时自动迁移；地址修改后 1.5s 防抖自动重连
+- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/整局/取消，7 项断言）
+- 机器人对手：`python tools/pk_guest.py --quick [答对数] [版本]`（快速匹配可当房主）或 `python tools/pk_guest.py <房间码>`（好友房间）
+
 ### 版本策略
 - 单机离线免更新；**联机强制双方同版本**（握手携带 versionName，不一致拒绝加入并提示）
 - 补丁链助老版本（v1.1.2+）小补丁升级；apks/ 历史 APK 保留勿删（补丁链依赖），debug 签名旧版隔离 _hold/
@@ -153,6 +161,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 20 | 跨签名的补丁补丁无法安装 | 合成 APK 与已装 APK 签名不一致时系统拒绝 | release.py 已加签名比对守卫：签名迁移版本自动跳过差分只发全量 |
 | 21 | 发版 APK 体积虚高（16.9MB 应为 3.8MB） | zipflinger 增量打包在旧包基础上改写，被删条目留死空间 | 发版前 `gradlew clean assembleDebug`（或删 APK 重打） |
 | 22 | 混淆后联机/更新失效风险 | R8 裁剪 serializer/WebSocket 类 | proguard-rules.pro 加 kotlinx.serialization + Java-WebSocket + Question 模型 keep 规则（已配） |
+| 23 | 联机页输地址时 App 崩溃 | 地址输到一半（如 `ws://10.0.2.2:28`）防抖重连触发，OkHttp `Request.Builder().url()` 对残缺 URL 抛 IllegalArgumentException，协程内未捕获 | `PkClient.connect()` 加 `validPkUrl()` 前置校验 + try/catch 兜底，无效地址发 Error 事件不发连接 |
 ## 七、后续可做事项
 
 - [x] release 正式签名（keystore.properties + signingConfig；正式签名历史 APK 均在 apks/ 供补丁链使用）
@@ -161,7 +170,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - [x] README 补充截图与 Release 链接
 - [ ] 打 tag 实战验证一次 Actions 发版流水线（workflow 已就绪；目前发版走 tools/publish_github.py 本地发布）
 - [ ] 真机两台实测（热点局域网互搜 / 公网 8.148.192.129 对战 / 应用内更新全流程）
-- [ ] 联机阶段二：随机匹配 + ELO 排行榜
+- [ ] 联机阶段二：ELO 排行榜（随机匹配已于 v1.6.1 完成）
 - [ ] 云存档
 
 ## 八、记录约定

@@ -49,7 +49,7 @@ data class PlayerState(
     val hardMode: Boolean = false, // 🎓 大学考研模式：开启后每日挑战出大学科目高难题
     val pkWins: Int = 0,           // ⚔️ 联机对战胜利场次
     val pkLosses: Int = 0,         // 联机对战失败场次
-    val pkServerUrl: String = "ws://10.0.2.2:8765", // 联机服务器地址（记忆上次填写）
+    val pkServerUrl: String = "ws://8.148.192.129:8765", // 联机服务器地址（默认公网对战服务器，记忆上次填写）
     val lastGoodSource: String = "", // 最近一次检查更新成功的源（优先复用，利于国内更新）
 ) {
     val totalAnswered: Int get() = totalCorrect + totalWrong
