@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 sealed class PkEvent {
     data class Created(val code: String) : PkEvent()     // 房间已创建（自己是房主）
     data class Joined(val code: String, val peer: String) : PkEvent()
-    data class PeerJoined(val peer: String) : PkEvent()
+    data class PeerJoined(val peer: String, val version: String = "?") : PkEvent()
     data class Start(val questions: List<com.brainquest.game.data.question.Question>) : PkEvent()
     data class PeerAnswer(val idx: Int, val correct: Boolean) : PkEvent()
     data class PeerFinish(val correct: Int, val timeMs: Long) : PkEvent()
@@ -43,7 +43,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    fun connect(url: String, name: String, mode: String, code: String = "") {
+    fun connect(url: String, name: String, mode: String, code: String = "", version: String = "") {
         val httpUrl = url.replace("ws://", "http://").replace("wss://", "https://").trimEnd('/')
         val request = Request.Builder().url("$httpUrl/?name=$name").build()
         hostMode = mode == "create"
@@ -53,6 +53,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
                 val msg = buildJsonObject {
                     put("t", mode)
                     put("name", name)
+                    put("version", version)
                     if (mode == "join") put("code", code)
                 }
                 webSocket.send(msg.toString())
@@ -77,7 +78,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
         when (obj["t"]?.jsonPrimitive?.content) {
             "created" -> onEvent(PkEvent.Created(obj["code"]!!.jsonPrimitive.content))
             "joined" -> onEvent(PkEvent.Joined(obj["code"]!!.jsonPrimitive.content, obj["peer"]!!.jsonPrimitive.content))
-            "peer_joined" -> onEvent(PkEvent.PeerJoined(obj["peer"]!!.jsonPrimitive.content))
+            "peer_joined" -> onEvent(PkEvent.PeerJoined(obj["peer"]!!.jsonPrimitive.content, obj["version"]?.jsonPrimitive?.content ?: "?"))
             "start" -> {
                 val qs = json.decodeFromString<List<com.brainquest.game.data.question.Question>>(
                     obj["questions"]!!.jsonArray.toString(),

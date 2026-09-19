@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class EmbeddedPkServer(
     private val port: Int,
     private val hostName: String,
+    private val hostVersion: String,
     private val onEvent: (PkEvent) -> Unit,
 ) : WebSocketServer(InetSocketAddress(port)) {
 
@@ -58,6 +59,14 @@ class EmbeddedPkServer(
             "join" -> {
                 if (guest != null) {
                     sendTo(conn, buildJsonObject { put("t", "error"); put("msg", "房间已满") }.toString())
+                    return
+                }
+                val peerVer = obj["version"]?.jsonPrimitive?.content ?: "?"
+                if (peerVer != hostVersion) {
+                    sendTo(conn, buildJsonObject {
+                        put("t", "error")
+                        put("msg", "版本不一致（你 v$peerVer / 房主 v$hostVersion），请双方都更新到最新版")
+                    }.toString())
                     return
                 }
                 guest = conn

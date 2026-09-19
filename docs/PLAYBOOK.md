@@ -87,6 +87,12 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - `baseDamage / perLevelDamage / comboDamage`：战斗伤害公式参数；`fillTimeBonus`：填空题加时（秒）
 发布方式：把 gen_rules.json（version+1）放进内容包 → `release.py --packs-only` → publish → App 内更新内容包即生效
 
+## 五之〇、版本策略
+- **单机**：离线完全可玩，不做强制更新
+- **联机对战**：强制双方同版本（握手携带 versionName，内嵌服务器/房主端校验，不一致拒绝加入并提示双方更新）
+- **补丁链**：apks/ 内历史 APK 保留（勿删，补丁链依赖），debug 签名旧版隔离在 _hold/；每次发版自动重建「全部历史版本 → 最新」补丁链
+- 目标：尽量让所有用户都在最新版，减少多版本维护；联机是版本收敛的主要动力
+
 ## 五之一、更新体系增强（v1.4.1 起）
 - **多版本补丁链**：`release.py` 为 `apks/` 中每个签名兼容的历史版本生成 →最新补丁（幂等：已验证的补丁重跑直接复用），manifest.patches 全列；App 按自身 versionCode 自动匹配
 - **国内多源回退**：`UpdateManager.fetchManifestMulti` 按序尝试 [GitHub直连, gh-proxy镜像, ghfast镜像]（用户自定义地址时独占），成功源记入 activeBase 供后续补丁/APK/内容包下载使用

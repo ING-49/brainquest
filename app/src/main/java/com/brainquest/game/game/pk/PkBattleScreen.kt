@@ -42,6 +42,7 @@ import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.data.question.Question
 import com.brainquest.game.data.question.Subjects
+import com.brainquest.game.BuildConfig
 import com.brainquest.game.net.PkClient
 import com.brainquest.game.net.PkDiscovery
 import kotlinx.serialization.json.JsonObject
@@ -83,6 +84,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var embedded by remember { mutableStateOf<com.brainquest.game.net.EmbeddedPkServer?>(null) }
     var discovered by remember { mutableStateOf<Map<String, com.brainquest.game.net.PkDiscovery.Beacon>>(emptyMap()) }
     var searching by remember { mutableStateOf(false) }
+    var peerVersion by remember { mutableStateOf("") }
+    val myIps = remember { com.brainquest.game.net.PkDiscovery.localIps() }
 
     LaunchedEffect(searching) {
         if (searching) {
@@ -112,7 +115,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 phase = "waiting"
             }
             is PkEvent.PeerJoined -> {
-                status = "对手 ${event.peer} 已加入！"
+                status = "对手 ${event.peer}（${event.version}）已加入！"
+                peerVersion = event.version
                 runCatching {
                     val qs = buildList {
                         val used = mutableSetOf<String>()
@@ -159,7 +163,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 status = "对手离开了房间"
                 if (phase == "battle") { phase = "lobby"; client.close() }
             }
-            is PkEvent.Error -> status = event.msg
+            is PkEvent.Error -> {
+                status = event.msg
+                android.util.Log.w("PkDebug", "服务器消息: ${event.msg}")
+            }
         }
         }
     }
@@ -236,7 +243,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                             Button(onClick = {
                                 // 本机做服务器：内嵌 WebSocket + UDP 信标
                                 val code = (0..999999).random().toString().padStart(6, '0')
-                                val srv = com.brainquest.game.net.EmbeddedPkServer(8765, player.nickname) { pkEvents.tryEmit(it) }
+                                val srv = com.brainquest.game.net.EmbeddedPkServer(8765, player.nickname, BuildConfig.VERSION_NAME) { pkEvents.tryEmit(it) }
                                 srv.roomCode = code
                                 embedded = srv
                                 srv.start()
@@ -256,7 +263,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 }
                                 discovered.values.forEach { b ->
                                     Card(onClick = {
-                                        client.connect("ws://${b.ip}:${b.tcpPort}", player.nickname, "join", b.room)
+                                        client.connect("ws://${b.ip}:${b.tcpPort}", player.nickname, "join", b.room, BuildConfig.VERSION_NAME)
                                         PkDiscovery.stopListening()
                                     }, modifier = Modifier.fillMaxWidth()) {
                                         Column(Modifier.padding(10.dp)) {
@@ -285,11 +292,11 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = {
                                     vm.setSettings(pkServer = serverUrl)
-                                    client.connect(serverUrl, player.nickname, "join", joinCode)
+                                    client.connect(serverUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME)
                                 }, enabled = serverUrl.isNotBlank()) { Text("🚪 加入") }
                                 OutlinedButton(onClick = {
                                     vm.setSettings(pkServer = serverUrl)
-                                    client.connect(serverUrl, player.nickname, "create")
+                                    client.connect(serverUrl, player.nickname, "create", version = BuildConfig.VERSION_NAME)
                                 }) { Text("在远程服务器上创建") }
                             }
                         }
@@ -310,8 +317,22 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 ) {
                     Text("🎮", style = MaterialTheme.typography.displayMedium)
                     Text(status, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                    if (roomCode.isNotBlank() && roomCode != "（见服务器日志）") {
+                    if (roomCode.isNotBlank()) {
                         Text("房间码 $roomCode", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Text("我的版本 ${BuildConfig.VERSION_NAME} · 对手版本 ${peerVersion.ifBlank { "?" }}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (peerVersion.isNotBlank() && peerVersion != BuildConfig.VERSION_NAME)
+                            Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("📡 本机对战地址（朋友端『手动连接』输入）：",
+                            style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 6.dp))
+                        myIps.forEach { ip ->
+                            Text("ws://$ip:8765",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text("把房间码告诉你的朋友，等 TA 加入后自动开始", style = MaterialTheme.typography.bodySmall)

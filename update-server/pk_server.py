@@ -80,7 +80,8 @@ async def handler(ws):
                 while code in rooms:
                     code = f"{random.randint(0, 999999):06d}"
                 rooms[code] = {"host": ws, "guest": None,
-                               "names": {ws: msg.get("name", "玩家")}, "finish": {}}
+                               "names": {ws: msg.get("name", "玩家")},
+                               "versions": {ws: msg.get("version", "?")}, "finish": {}}
                 send(ws, {"t": "created", "code": code})
                 print(f"[room] {code} created by {msg.get('name')}")
 
@@ -93,8 +94,12 @@ async def handler(ws):
                 code = c
                 room["guest"] = ws
                 room["names"][ws] = msg.get("name", "玩家")
-                send(ws, {"t": "joined", "code": code, "peer": room["names"][room["host"]]})
-                send(room["host"], {"t": "peer_joined", "peer": room["names"][ws]})
+                room["versions"] = room.get("versions", {})
+                room["versions"][ws] = msg.get("version", "?")
+                send(ws, {"t": "joined", "code": code, "peer": room["names"][room["host"]],
+                          "peer_version": room["versions"].get(room["host"], "?")})
+                send(room["host"], {"t": "peer_joined", "peer": room["names"][ws],
+                                    "version": room["versions"].get(ws, "?")})
                 print(f"[room] {code} joined by {msg.get('name')}")
 
             elif code and t in ("start", "question", "answer"):

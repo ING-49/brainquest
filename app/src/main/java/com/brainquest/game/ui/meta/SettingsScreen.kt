@@ -122,7 +122,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                     modifier = Modifier.padding(vertical = 4.dp),
                 )
                 Text(
-                    "有新版本时在这里更新：只下载很小的补丁，进度不丢失",
+                    "有新版本时在这里更新：只下载很小的补丁，进度不丢失。单机离线也能玩；联机对战需双方都为最新版。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 6.dp),

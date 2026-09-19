@@ -11,12 +11,13 @@ import websockets
 
 CODE = sys.argv[1] if len(sys.argv) > 1 else ""
 TARGET_CORRECT = int(sys.argv[2]) if len(sys.argv) > 2 else 10
+VERSION = sys.argv[3] if len(sys.argv) > 3 else "1.4.2"
 URL = __import__("os").environ.get("PK_URL", "ws://localhost:8765")
 
 
 async def main():
     async with websockets.connect(URL) as ws:
-        await ws.send(json.dumps({"t": "join", "code": CODE, "name": "机器人对手"}))
+        await ws.send(json.dumps({"t": "join", "code": CODE, "name": "机器人对手", "version": VERSION}))
         questions = []
         my_done = False
         t0 = time.time()
