@@ -115,65 +115,78 @@ def verify_custom_patch(patch_bytes, old_path, expect_new_sha):
     delta.verify(patch_bytes, old, expect_new_sha)
 
 
+def signer_sha(path):
+    """读取 APK 签名证书指纹，用于跨签名守卫"""
+    import subprocess
+    exe = "apksigner.bat" if os.name == "nt" else "apksigner"
+    bt = os.environ.get("ANDROID_BUILD_TOOLS", "34.0.0")
+    for cand in [bt] + sorted(os.listdir(os.path.join(SDK, "build-tools")), reverse=True):
+        signer = os.path.join(SDK, "build-tools", cand, exe)
+        if os.path.isfile(signer):
+            out = subprocess.run([signer, "verify", "--print-certs", path],
+                                 capture_output=True, text=True).stdout
+            m = re.search(r"SHA-256 digest: ([0-9a-f]+)", out)
+            if m:
+                return m.group(1)
+    return "unknown"
+
+
 def build_patch(manifest):
-    old, new = latest_pair()
-    if not new:
+    """多版本补丁链：为 apks/ 中每个签名兼容、版本更老的历史 APK 生成 →最新版 的补丁。
+    跨签名（如 debug→release 迁移）自动跳过，只登记全量。
+    """
+    all_apks = []
+    for f in sorted(os.listdir(APKS)):
+        p = os.path.join(APKS, f)
+        if not f.lower().endswith(".apk"):
+            continue
+        code, name = apk_version_code(p)
+        all_apks.append((code, name, p))
+    if not all_apks:
         print("[patch] apks/ 下没有 APK，跳过")
         return
-    code_n, name_n = apk_version_code(new)
-    if not old:
-        manifest["latestVersionName"] = name_n
-        manifest["latestVersionCode"] = code_n
-        manifest["fullApk"] = f"apks/{os.path.basename(new)}"
-        manifest["fullApkSha256"] = sha256(new)
-        print(f"[patch] 只有新版本 {os.path.basename(new)} (code={code_n})，登记全量下载")
-        return
+    all_apks.sort()  # 按 versionCode 升序
+    code_n, name_n, new_path = all_apks[-1]
+    new_size = os.path.getsize(new_path)
+    sig_n = signer_sha(new_path)
 
-    code_o, name_o = apk_version_code(old)
-
-    def signer_sha(path):
-        """读取 APK 签名证书指纹，用于跨签名守卫"""
-        import subprocess
-        exe = "apksigner.bat" if os.name == "nt" else "apksigner"
-        bt = os.environ.get("ANDROID_BUILD_TOOLS", "34.0.0")
-        signer = os.path.join(SDK, "build-tools", bt, exe)
-        out = subprocess.run([signer, "verify", "--print-certs", path],
-                             capture_output=True, text=True).stdout
-        import re as _re
-        m = _re.search(r"SHA-256 digest: ([0-9a-f]+)", out)
-        return m.group(1) if m else "unknown"
-
-    sig_o = signer_sha(old)
-    sig_n = signer_sha(new)
-    if sig_o != sig_n:
-        print(f"[patch] 跳过差分：old 与 new 签名证书不同（签名迁移版本），发布全量 APK")
-        manifest["latestVersionName"] = name_n
-        manifest["latestVersionCode"] = code_n
-        manifest["fullApk"] = f"apks/{os.path.basename(new)}"
-        manifest["fullApkSha256"] = sha256(new)
-        manifest["patches"] = [p for p in manifest.get("patches", [])]
-        return
-
-    data, new_size = make_custom_patch(old, new)
-    patch_path = os.path.join(PATCHES, f"{code_o}_to_{code_n}.patch")
-    with open(patch_path, "wb") as f:
-        f.write(data)
-    size = len(data)
-    verify_custom_patch(data, old, sha256(new))
     manifest["latestVersionName"] = name_n
     manifest["latestVersionCode"] = code_n
-    manifest["fullApk"] = f"apks/{os.path.basename(new)}"
-    manifest["fullApkSha256"] = sha256(new)
-    patches = [p for p in manifest.get("patches", []) if not (p["from"] == code_o and p["to"] == code_n)]
-    patches.append({
-        "from": code_o, "to": code_n,
-        "file": f"patches/{code_o}_to_{code_n}.patch",
-        "sha256": sha256(patch_path),
-        "size": size,
-    })
-    manifest["patches"] = patches
-    print(f"[patch] v{name_o}(code={code_o})→v{name_n}(code={code_n}): {size/1024:.1f} KB（新 APK {new_size/1048576:.1f} MB，压缩率 {size/new_size*100:.1f}%）")
+    manifest["fullApk"] = f"apks/{os.path.basename(new_path)}"
+    manifest["fullApkSha256"] = sha256(new_path)
 
+    patches = []
+    for code_o, name_o, old_path in all_apks[:-1]:
+        if code_o >= code_n:
+            print(f"[patch] 跳过 {name_o}：版本不比最新旧")
+            continue
+        sig_o = signer_sha(old_path)
+        if sig_o != sig_n:
+            print(f"[patch] 跳过 v{name_o}(code={code_o})：签名不同（签名迁移版本走全量）")
+            continue
+        patch_name = f"{code_o}_to_{code_n}.patch"
+        patch_path = os.path.join(PATCHES, patch_name)
+        if os.path.exists(patch_path) and os.path.getsize(patch_path) > 0:
+            # 已生成过（幂等：重跑跳过耗时差分）
+            data = open(patch_path, "rb").read()
+            try:
+                verify_custom_patch(data, old_path, sha256(new_path))
+            except AssertionError:
+                data = None
+            if data:
+                patches.append({"from": code_o, "to": code_n, "file": f"patches/{patch_name}",
+                                "sha256": sha256(patch_path), "size": len(data)})
+                print(f"[patch] 复用已验证补丁 {patch_name}")
+                continue
+        data, new_size = make_custom_patch(old_path, new_path)
+        with open(patch_path, "wb") as f:
+            f.write(data)
+        verify_custom_patch(data, old_path, sha256(new_path))
+        patches.append({"from": code_o, "to": code_n, "file": f"patches/{patch_name}",
+                        "sha256": sha256(patch_path), "size": len(data)})
+        print(f"[patch] v{name_o}(code={code_o})→v{name_n}: {len(data)/1024:.1f} KB")
+    manifest["patches"] = sorted(patches, key=lambda p: p["from"])
+    print(f"[patch] 补丁链共 {len(manifest['patches'])} 条（覆盖 v1.1.1+ 全部正式签名版本）")
 
 def main():
     ap = argparse.ArgumentParser()

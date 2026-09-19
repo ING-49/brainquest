@@ -87,6 +87,11 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - `baseDamage / perLevelDamage / comboDamage`：战斗伤害公式参数；`fillTimeBonus`：填空题加时（秒）
 发布方式：把 gen_rules.json（version+1）放进内容包 → `release.py --packs-only` → publish → App 内更新内容包即生效
 
+## 五之一、更新体系增强（v1.4.1 起）
+- **多版本补丁链**：`release.py` 为 `apks/` 中每个签名兼容的历史版本生成 →最新补丁（幂等：已验证的补丁重跑直接复用），manifest.patches 全列；App 按自身 versionCode 自动匹配
+- **国内多源回退**：`UpdateManager.fetchManifestMulti` 按序尝试 [GitHub直连, gh-proxy镜像, ghfast镜像]（用户自定义地址时独占），成功源记入 activeBase 供后续补丁/APK/内容包下载使用
+- 镜像地址格式：`https://gh-proxy.com/` + GitHub 完整链接（ghfast.top 同）
+
 ## 五之二、联机对战（阶段一已实现）
 
 架构（v1.4.0 起双形态）：

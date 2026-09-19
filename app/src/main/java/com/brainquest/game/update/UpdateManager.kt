@@ -23,6 +23,27 @@ class UpdateManager(private val context: Context) {
     val contentDir: File get() = File(context.filesDir, "content/packs")
     val cacheDir: File get() = File(context.cacheDir, "update").apply { mkdirs() }
 
+    /** 多源回退后实际可用的更新源（后续下载都走它） */
+    var activeBase: String? = null
+
+    /** 依次尝试多个更新源，返回 manifest 与成功的源 */
+    fun fetchManifestMulti(bases: List<String>): Pair<UpdateManifest, String> {
+        var lastErr: Exception? = null
+        for (base in bases) {
+            try {
+                val m = fetchManifest(base)
+                activeBase = base
+                return m to base
+            } catch (e: Exception) {
+                lastErr = e
+            }
+        }
+        throw lastErr ?: IOException("所有更新源均不可达")
+    }
+
+    /** 当前应使用的下载基址（多源回退结果） */
+    fun currentBase(fallback: String): String = activeBase ?: fallback
+
     // ---------- manifest ----------
 
     fun fetchManifest(baseUrl: String): UpdateManifest {
