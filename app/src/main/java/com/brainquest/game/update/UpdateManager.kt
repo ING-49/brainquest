@@ -26,6 +26,9 @@ class UpdateManager(private val context: Context) {
     /** 多源回退后实际可用的更新源（后续下载都走它） */
     var activeBase: String? = null
 
+    /** 候选源全列表（按优先级），供下载失败时逐源回退 */
+    var candidateBases: List<String> = emptyList()
+
     /** 依次尝试多个更新源，返回 manifest 与成功的源 */
     fun fetchManifestMulti(bases: List<String>): Pair<UpdateManifest, String> {
         var lastErr: Exception? = null
@@ -33,12 +36,37 @@ class UpdateManager(private val context: Context) {
             try {
                 val m = fetchManifest(base)
                 activeBase = base
+                candidateBases = bases
                 return m to base
             } catch (e: Exception) {
                 lastErr = e
             }
         }
         throw lastErr ?: IOException("所有更新源均不可达")
+    }
+
+    /** 下载某个相对路径文件：按「当前源优先，其余候选源依次回退」 */
+    fun downloadWithFallback(
+        fallbackBase: String,
+        relative: String,
+        expectedSha256: String,
+        onProgress: (DownloadProgress) -> Unit = {},
+        outputName: String? = null,
+    ): File {
+        val ordered = buildList {
+            activeBase?.let { add(it) }
+            candidateBases.forEach { if (it !in this) add(it) }
+            if (fallbackBase !in this) add(fallbackBase)
+        }
+        var lastErr: Exception? = null
+        for (base in ordered) {
+            try {
+                return download(UpdateManager.joinUrl(base, relative), expectedSha256, onProgress, outputName)
+            } catch (e: Exception) {
+                lastErr = e
+            }
+        }
+        throw lastErr ?: IOException("所有更新源下载失败")
     }
 
     /** 当前应使用的下载基址（多源回退结果） */

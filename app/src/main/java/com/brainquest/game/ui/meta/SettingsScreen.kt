@@ -146,12 +146,25 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                                 val (fetched, base) = updater.fetchManifestMulti(bases)
                                 manifest = fetched
                                 android.util.Log.i("UpdateDemo", "更新源: $base")
+                                val srcLabel = when {
+                                    base.contains("gh-proxy") -> "gh-proxy 镜像"
+                                    base.contains("ghfast") -> "ghfast 镜像"
+                                    base == defaultBase -> "GitHub 直连"
+                                    else -> "自定义地址"
+                                }
                                 fetched
                             }.onSuccess { m ->
+                                val srcLabel = when {
+                                    updater.activeBase!!.contains("gh-proxy") -> "gh-proxy 镜像"
+                                    updater.activeBase!!.contains("ghfast") -> "ghfast 镜像"
+                                    updater.activeBase == "https://github.com/ING-49/brainquest/releases/latest/download" -> "GitHub 直连"
+                                    else -> "自定义地址"
+                                }
                                 val packsPending = m.contentPacks.count { it.version > (player.contentVersions[it.id] ?: 0) }
                                 val appOld = BuildConfig.VERSION_CODE < m.latestVersionCode
                                 status = buildString {
                                     append("服务器版本 v${m.latestVersionName}(${m.latestVersionCode})")
+                                    append(" · 更新源：$srcLabel")
                                     if (appOld) append(" · 📱有新版本！")
                                     if (packsPending > 0) append(" · 📦${packsPending}个内容包待更新")
                                     if (!appOld && packsPending == 0) append(" · 一切都是最新 ✅")
@@ -221,8 +234,9 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                                 runCatching {
                                     if (patch != null) {
                                         status = "下载增量补丁（${patch.size / 1024}KB）…"
-                                        val patchFile = updater.download(
-                                            url = UpdateManager.joinUrl(updater.currentBase(player.updateServerUrl), patch.file),
+                                        val patchFile = updater.downloadWithFallback(
+                                            fallbackBase = player.updateServerUrl,
+                                            relative = patch.file,
                                             expectedSha256 = patch.sha256,
                                             onProgress = { p -> progress = p.fraction; status = "下载补丁 ${p.mbText}" },
                                         )
@@ -231,8 +245,9 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                                         tryInstall(context, newApk, { status = it }, { pendingApk = it })
                                     } else {
                                         status = "下载完整 APK…"
-                                        val apk = updater.download(
-                                            url = UpdateManager.joinUrl(updater.currentBase(player.updateServerUrl), m.fullApk),
+                                        val apk = updater.downloadWithFallback(
+                                            fallbackBase = player.updateServerUrl,
+                                            relative = m.fullApk,
                                             expectedSha256 = m.fullApkSha256,
                                             outputName = "brainquest_full.apk",
                                             onProgress = { p -> progress = p.fraction; status = "下载 APK ${p.mbText}" },
