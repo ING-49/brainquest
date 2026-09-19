@@ -138,6 +138,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         })
     }
 
+    /** 今日到期错题（未掌握 且 到期时间已到；stage0 立即到期） */
+    fun dueReviewQuestions(): List<com.brainquest.game.data.question.Question> {
+        val now = System.currentTimeMillis()
+        return _player.value.wrongBook
+            .filter { !it.mastered && (it.nextReviewAt <= now || it.stage == 0) }
+            .map { it.question }
+    }
+
+    /** 复习结算：答对推进阶段（下一次到期），答错回退重练 */
+    fun reviewAnswered(questionId: String, correct: Boolean) {
+        val now = System.currentTimeMillis()
+        commit { state ->
+            state.copy(wrongBook = state.wrongBook.map { entry ->
+                if (entry.question.id != questionId) entry else when {
+                    correct -> {
+                        val ns = (entry.stage + 1).coerceAtMost(5)
+                        entry.copy(stage = ns, nextReviewAt = now + com.brainquest.game.data.reviewIntervalMs(ns))
+                    }
+                    else -> entry.copy(stage = 0, nextReviewAt = now + 60_000L) // 1 分钟后再练
+                }
+            })
+        }
+        if (correct) {
+            _events.tryEmit("📅 复习通过，进入下一轮间隔")
+        } else {
+            _events.tryEmit("🔁 答错了，稍后再练一次")
+        }
+    }
+
     /** 关卡通关结算 */
     fun finishLevel(subject: String, level: Int, stars: Int, coins: Int, xp: Int) {
         val key = "${subjectKey(subject)}_$level"

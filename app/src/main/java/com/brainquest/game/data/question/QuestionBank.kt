@@ -104,6 +104,34 @@ class QuestionBank(private val context: Context) {
         return base?.let(::shuffleOptions)
     }
 
+    /**
+     * 考研战斗出题：60% 真题池 + 40% 该科目难度4；不足回落普通出题
+     */
+    fun pickKaoyanBattle(subject: String, rng: kotlin.random.Random = kotlin.random.Random.Default): Question? {
+        val zhenti = Subjects.all.flatMap { curatedFor(it) }
+            .filter { it.subject == subject && "真题" in it.tags }
+            .distinctBy { it.id }
+        if (zhenti.isNotEmpty() && rng.nextInt(100) < 60) return shuffleOptions(zhenti.random(rng))
+        return pickExcluding(subject, 4, emptySet(), emptySet(), rng)
+            ?: pick(subject, 4, rng)
+    }
+
+    /**
+     * 考研战斗出题（带去重）：60% 真题池 + 40% 该科目难度4；不足回落普通排除出题
+     */
+    fun pickKaoyanBattleExcluding(
+        subject: String,
+        excludeIds: Set<String>,
+        excludeTexts: Set<String>,
+        rng: kotlin.random.Random = kotlin.random.Random.Default,
+    ): Question? {
+        val zhenti = Subjects.all.flatMap { curatedFor(it) }
+            .filter { it.subject == subject && "真题" in it.tags && it.id !in excludeIds && it.question !in excludeTexts }
+            .distinctBy { it.id }
+        if (zhenti.isNotEmpty() && rng.nextInt(100) < 60) return shuffleOptions(zhenti.random(rng))
+        return pickExcluding(subject, 4, excludeIds, excludeTexts, rng)
+    }
+
     /** 打乱选项顺序并重映射答案下标（判断题/选项不足时跳过） */
     private fun shuffleOptions(q: Question, rng: kotlin.random.Random = kotlin.random.Random.Default): Question {
         if (q.type != "single" || q.options.size < 2) return q

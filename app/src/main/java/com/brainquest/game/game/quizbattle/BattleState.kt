@@ -24,6 +24,7 @@ class BattleState(
     val level: Int,
     private val bank: QuestionBank,
     private val rng: Random = Random.Default,
+    val hardMode: Boolean = false,
 ) {
     // 已出题跟踪（去重）与错题重出队列
     private val usedIds = mutableSetOf<String>()
@@ -119,8 +120,13 @@ class BattleState(
             question = pending
             return
         }
-        // 正常出题：排除已用
-        var q = bank.pickExcluding(subject, questionDifficulty, usedIds, usedTexts, rng)
+        // 正常出题：排除已用；考研模式走高难/真题池
+        var q: Question? = if (hardMode && subject != Subjects.MATH && subject != Subjects.LOGIC) {
+            bank.pickKaoyanBattleExcluding(subject, usedIds, usedTexts, rng)
+                ?: bank.pickExcluding(subject, questionDifficulty, usedIds, usedTexts, rng)
+        } else {
+            bank.pickExcluding(subject, questionDifficulty, usedIds, usedTexts, rng)
+        }
         if (q == null) q = bank.pick(subject, questionDifficulty)  // 池子耗尽才允许重复
         question = q
         q?.let { usedIds.add(it.id); usedTexts.add(it.question) }

@@ -9,6 +9,8 @@ data class WrongEntry(
     val chosen: Int, // -1 表示超时未答
     val time: Long,
     val mastered: Boolean = false,
+    val stage: Int = 0,        // 艾宾浩斯复习阶段 0~5（0=刚答错，5=已掌握）
+    val nextReviewAt: Long = 0, // 下次到期复习时间戳（0=立即到期）
 )
 
 /** 每日挑战结果 */
@@ -75,6 +77,15 @@ object Items {
 // ---------- 等级曲线 ----------
 
 /** 升到 lvl 级所需累计经验：2级100，3级300，4级600… */
+/** 艾宾浩斯间隔（毫秒）：阶段 1→+1天 2→+2天 3→+4天 4→+7天 5→+15天 */
+fun reviewIntervalMs(stage: Int): Long = when (stage) {
+    1 -> 1L * 24 * 3600 * 1000
+    2 -> 2L * 24 * 3600 * 1000
+    3 -> 4L * 24 * 3600 * 1000
+    4 -> 7L * 24 * 3600 * 1000
+    else -> 15L * 24 * 3600 * 1000
+}
+
 fun xpForLevel(lvl: Int): Int = 50 * (lvl - 1) * lvl
 
 fun levelForXp(xp: Int): Int {

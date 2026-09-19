@@ -71,7 +71,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val battle = remember(subject, level) { BattleState(subject, level, vm.bank) }
+    val battle = remember(subject, level, player.hardMode) { BattleState(subject, level, vm.bank, hardMode = player.hardMode) }
 
     var answered by remember { mutableStateOf(false) }
     var chosen by remember { mutableIntStateOf(-1) }
@@ -147,7 +147,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         PageHeader(
-            "${Subjects.emoji(subject)} ${subject} · ${if (battle.isBoss) "BOSS战" else "第${level}关"}",
+            "${Subjects.emoji(subject)} ${subject} · ${if (battle.isBoss) "BOSS战" else "第${level}关"}${if (player.hardMode) " · 🎓考研" else ""}",
             onBack = { nav.popBackStack() },
             subtitle = "限时 ${battle.timeLimitSec}s / 题 · 答对出招 答错挨打",
         )

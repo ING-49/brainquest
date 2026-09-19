@@ -32,21 +32,24 @@ import com.brainquest.game.ui.QuizRunner
 fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     var reviewing by remember { mutableStateOf(false) }
+    var reviewDue by remember { mutableStateOf(false) }
 
     if (reviewing) {
-        val questions = player.wrongBook.filter { !it.mastered }.map { it.question }.take(10)
+        val questions = if (reviewDue) vm.dueReviewQuestions().take(15)
+        else player.wrongBook.filter { !it.mastered }.map { it.question }.take(10)
         QuizRunner(
             questions = questions,
-            title = "📖 错题复习",
-            subtitle = "答对即标记掌握",
+            title = if (reviewDue) "📅 今日复习" else "📖 错题复习",
+            subtitle = if (reviewDue) "答对推进下一轮间隔，答错重来" else "答对即标记掌握",
             soundOn = player.soundOn,
             hapticsOn = player.hapticsOn,
             onBack = { nav.popBackStack() },
             onAnswered = { q, chosen, correct ->
                 vm.recordAnswer(q, chosen)
                 if (correct) vm.markWrongMastered(q.id)
+                vm.reviewAnswered(q.id, correct)
             },
-            onFinish = { _, _ -> reviewing = false },
+            onFinish = { _, _ -> reviewing = false; reviewDue = false },
         )
         return
     }
@@ -59,11 +62,34 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
         )
 
         val unmastered = player.wrongBook.count { !it.mastered }
+        val dueQuestions = remember(player.wrongBook) { vm.dueReviewQuestions() }
+
+        // 📅 艾宾浩斯今日待复习
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        ) {
+            Column(Modifier.padding(14.dp)) {
+                Text("📅 今日待复习（艾宾浩斯）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "按遗忘曲线安排：答错当天 → 1天后 → 2天 → 4天 → 7天 → 15天，复习通过进入下一轮",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                Button(
+                    onClick = { reviewing = true; reviewDue = true },
+                    enabled = dueQuestions.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                ) { Text(if (dueQuestions.isNotEmpty()) "开始今日复习（${dueQuestions.size} 题到期）" else "今日无到期复习 ✓") }
+            }
+        }
+
         Button(
             onClick = { reviewing = true },
             enabled = unmastered > 0,
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        ) { Text(if (unmastered > 0) "开始复习（$unmastered 道待掌握）" else "全部已掌握，太棒了！") }
+        ) { Text(if (unmastered > 0) "全部错题过一遍（$unmastered 道）" else "全部已掌握，太棒了！") }
 
         LazyColumn(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)) {
             items(player.wrongBook.size) { i ->
