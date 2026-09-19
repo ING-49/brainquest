@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -42,6 +43,10 @@ import com.brainquest.game.AppViewModel
 import com.brainquest.game.data.question.Question
 import com.brainquest.game.data.question.Subjects
 import com.brainquest.game.net.PkClient
+import com.brainquest.game.net.PkDiscovery
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import com.brainquest.game.net.PkEvent
 import com.brainquest.game.ui.PageHeader
 import com.brainquest.game.util.Sfx
@@ -59,7 +64,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
 
     // 阶段：lobby → waiting → battle → result
     var phase by remember { mutableStateOf("lobby") }
-    var serverUrl by remember { mutableStateOf("ws://10.0.2.2:8765") }
+    var serverUrl by remember { mutableStateOf(player.pkServerUrl) }
     var roomCode by remember { mutableStateOf("") }
     var joinCode by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
@@ -75,6 +80,17 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var qStartAt by remember { mutableLongStateOf(0L) }
     var timeLeftMs by remember { mutableLongStateOf(QUESTION_TIME_MS) }
     var result by remember { mutableStateOf<PkEvent.Result?>(null) }
+    var embedded by remember { mutableStateOf<com.brainquest.game.net.EmbeddedPkServer?>(null) }
+    var discovered by remember { mutableStateOf<Map<String, com.brainquest.game.net.PkDiscovery.Beacon>>(emptyMap()) }
+    var searching by remember { mutableStateOf(false) }
+
+    LaunchedEffect(searching) {
+        if (searching) {
+            com.brainquest.game.net.PkDiscovery.startListening { b ->
+                discovered = discovered + (b.room to b)
+            }
+        } else com.brainquest.game.net.PkDiscovery.stopListening()
+    }
 
     val pkEvents = remember { kotlinx.coroutines.flow.MutableSharedFlow<PkEvent>(extraBufferCapacity = 32) }
     val client = remember { PkClient { pkEvents.tryEmit(it) } }
@@ -96,12 +112,9 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 phase = "waiting"
             }
             is PkEvent.PeerJoined -> {
-                android.util.Log.i("PkDebug", "对手加入，开始发题")
                 status = "对手 ${event.peer} 已加入！"
-                // 服务器只把 peer_joined 发给房主 → 直接选题开局
                 runCatching {
                     val qs = buildList {
-                        // 混合抽题：数学生成 + 各科题库（不含填空），去重
                         val used = mutableSetOf<String>()
                         var guard = 0
                         while (size < PK_QUESTION_COUNT && guard < 60) {
@@ -114,13 +127,14 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                         }
                     }
                     questions = qs
-                    phase = "battle"   // 房主不走 Start 事件，这里直接进对战
+                    phase = "battle"
                     qIndex = 0; myCorrect = 0; peerCorrect = 0; totalTime = 0
                     status = "对战开始！"
-                    android.util.Log.i("PkDebug", "选题完成 ${qs.size} 题，发送 start")
-                    client.sendStart(qs)
-                    android.util.Log.i("PkDebug", "start 已发送")
-                }.onFailure { android.util.Log.e("PkDebug", "发题失败", it) }
+                    // 房主把题目发给对手：内嵌服务器 → broadcastStart；远程 → sendStart
+                    embedded?.setQuestions(qs); embedded?.broadcastStart()
+                        ?: client.sendStart(qs)
+                    PkDiscovery.stopBeacon()
+                }.onFailure { status = "发题失败：${it.message}" }
             }
             is PkEvent.Start -> {
                 questions = event.questions
@@ -132,6 +146,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 if (event.correct) peerCorrect++
             }
             is PkEvent.PeerFinish -> {
+                peerCorrect = event.correct
                 status = "对手已完成 ${event.correct} 题，等待你完成…"
             }
             is PkEvent.Result -> {
@@ -149,7 +164,14 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         }
     }
 
-    DisposableEffect(Unit) { onDispose { client.close() } }
+    DisposableEffect(Unit) {
+        onDispose {
+            client.close()
+            embedded?.stopServer()
+            com.brainquest.game.net.PkDiscovery.stopBeacon()
+            com.brainquest.game.net.PkDiscovery.stopListening()
+        }
+    }
 
     fun beginQuestion() {
         qStartAt = System.currentTimeMillis()
@@ -165,12 +187,19 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         chosen = idx
         Sfx.play(context, player.soundOn, if (correct) SfxType.CORRECT else SfxType.WRONG)
         vm.recordAnswer(q, idx)
-        client.sendAnswer(qIndex, correct, spent)
+        val peerMsg = buildJsonObject {
+            put("t", "peer_answer"); put("idx", qIndex); put("correct", correct); put("timeMs", spent)
+        }
+        if (embedded != null) embedded!!.relayHostMessage(peerMsg) else client.sendAnswer(qIndex, correct, spent)
     }
 
     fun nextOrFinish() {
         if (qIndex + 1 >= questions.size) {
-            client.sendFinish(myCorrect, totalTime)
+            val fin = buildJsonObject {
+                put("t", "peer_finish"); put("correct", myCorrect); put("timeMs", totalTime)
+            }
+            if (embedded != null) embedded!!.hostFinish(myCorrect, totalTime)
+            else client.sendFinish(myCorrect, totalTime)
             status = "已完成，等待对手…"
         } else {
             qIndex++
@@ -199,33 +228,78 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
 
         when (phase) {
             "lobby" -> {
-                Card(Modifier.fillMaxWidth().padding(top = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("当前战绩：${player.pkWins} 胜 ${player.pkLosses} 负", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        OutlinedTextField(
-                            value = serverUrl, onValueChange = { serverUrl = it },
-                            label = { Text("对战服务器") },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        )
-                        Button(onClick = {
-                            client.connect(serverUrl, player.nickname, "create")
-                        }, modifier = Modifier.fillMaxWidth()) { Text("🏠 创建房间") }
-                        OutlinedTextField(
-                            value = joinCode, onValueChange = { joinCode = it.take(6) },
-                            label = { Text("输入好友的房间码") },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        )
-                        Button(onClick = {
-                            if (joinCode.length == 6) client.connect(serverUrl, player.nickname, "join", joinCode)
-                        }, modifier = Modifier.fillMaxWidth(), enabled = joinCode.length == 6) { Text("🚪 加入房间") }
-                        Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            "💡 两台设备连同一网络（电脑跑 pk_server.py），或今后部署到公网随时玩。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Card(Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("当前战绩：${player.pkWins} 胜 ${player.pkLosses} 负", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Button(onClick = {
+                                // 本机做服务器：内嵌 WebSocket + UDP 信标
+                                val code = (0..999999).random().toString().padStart(6, '0')
+                                val srv = com.brainquest.game.net.EmbeddedPkServer(8765, player.nickname) { pkEvents.tryEmit(it) }
+                                srv.roomCode = code
+                                embedded = srv
+                                srv.start()
+                                com.brainquest.game.net.PkDiscovery.startBeacon(code, player.nickname, 8765)
+                                roomCode = code
+                                status = "房间已创建，等待对手加入…"
+                                phase = "waiting"
+                            }, modifier = Modifier.fillMaxWidth()) { Text("🏠 创建房间（本机做服务器 · 热点可离线）") }
+                            OutlinedButton(onClick = { searching = !searching }, modifier = Modifier.fillMaxWidth()) {
+                                Text(if (searching) "收起搜索" else "🔍 搜索附近的房间")
+                            }
+                            if (searching) {
+                                if (discovered.isEmpty()) {
+                                    Text("正在搜索同一网络下的房间…（若搜不到可手动输 IP）",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                discovered.values.forEach { b ->
+                                    Card(onClick = {
+                                        client.connect("ws://${b.ip}:${b.tcpPort}", player.nickname, "join", b.room)
+                                        PkDiscovery.stopListening()
+                                    }, modifier = Modifier.fillMaxWidth()) {
+                                        Column(Modifier.padding(10.dp)) {
+                                            Text("🎮 ${b.name} 的房间 ${b.room}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                                            Text("${b.ip}:${b.tcpPort}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
+                    Card(Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("⌨️ 手动连接（远程服务器 / 搜索失败兜底）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            OutlinedTextField(
+                                value = serverUrl, onValueChange = { serverUrl = it },
+                                label = { Text("对战服务器 / 房主IP") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                            )
+                            OutlinedTextField(
+                                value = joinCode, onValueChange = { joinCode = it.take(6) },
+                                label = { Text("房间码（连房主本机服务器时可不填）") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = {
+                                    vm.setSettings(pkServer = serverUrl)
+                                    client.connect(serverUrl, player.nickname, "join", joinCode)
+                                }, enabled = serverUrl.isNotBlank()) { Text("🚪 加入") }
+                                OutlinedButton(onClick = {
+                                    vm.setSettings(pkServer = serverUrl)
+                                    client.connect(serverUrl, player.nickname, "create")
+                                }) { Text("在远程服务器上创建") }
+                            }
+                        }
+                    }
+                    if (status.isNotBlank()) Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "💡 热点玩法：房主开手机热点并创建房间，朋友连热点后搜索即得——全程无需网络。\n搜不到时多为路由器 AP 隔离，可改用热点或手动输 IP。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             "waiting" -> {
@@ -307,7 +381,11 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                         style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
                     Text("我 $myC 题 ｜ 对手 $peerC 题", style = MaterialTheme.typography.titleMedium)
                     Text("我的用时 ${result!!.myTimeMs / 1000} 秒", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Button(onClick = { client.close(); phase = "lobby" }, modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = {
+                        client.close(); embedded?.stopServer()
+                        com.brainquest.game.net.PkDiscovery.stopBeacon()
+                        embedded = null; phase = "lobby"
+                    }, modifier = Modifier.fillMaxWidth()) {
                         Text("再来一局")
                     }
                 }

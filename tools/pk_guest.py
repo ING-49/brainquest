@@ -11,7 +11,7 @@ import websockets
 
 CODE = sys.argv[1] if len(sys.argv) > 1 else ""
 TARGET_CORRECT = int(sys.argv[2]) if len(sys.argv) > 2 else 10
-URL = "ws://localhost:8765"
+URL = __import__("os").environ.get("PK_URL", "ws://localhost:8765")
 
 
 async def main():

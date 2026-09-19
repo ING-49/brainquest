@@ -47,6 +47,7 @@ data class PlayerState(
     val hardMode: Boolean = false, // 🎓 大学考研模式：开启后每日挑战出大学科目高难题
     val pkWins: Int = 0,           // ⚔️ 联机对战胜利场次
     val pkLosses: Int = 0,         // 联机对战失败场次
+    val pkServerUrl: String = "ws://10.0.2.2:8765", // 联机服务器地址（记忆上次填写）
 ) {
     val totalAnswered: Int get() = totalCorrect + totalWrong
     val accuracy: Float get() = if (totalAnswered == 0) 0f else totalCorrect.toFloat() / totalAnswered

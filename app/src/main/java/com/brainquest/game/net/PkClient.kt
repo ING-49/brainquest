@@ -126,6 +126,11 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
         scope.launch { ws?.send(text) }
     }
 
+    /** 发送任意已构建的 JSON（内嵌服务器模式下房主转发用） */
+    fun rawSend(text: String) {
+        send(text)
+    }
+
     fun close() {
         ws?.close(1000, "bye")
         ws = null
