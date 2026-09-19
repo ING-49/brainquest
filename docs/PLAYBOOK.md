@@ -132,7 +132,8 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 18 | 更新装完停在安装器界面 | Android 后台启动限制（BAL）：安装器在前台时 Receiver 无法直接拉起 Activity | Receiver 先尝试拉起，失败则发"更新完成"通知（点通知回游戏）；另需 POST_NOTIFICATIONS 权限 |
 | 19 | `adb shell input text` 报 NullPointerException | 该命令不支持中文字符 | 中文输入用真机键盘；自动化测试用英文/数字输入 |
 | 20 | 跨签名的补丁补丁无法安装 | 合成 APK 与已装 APK 签名不一致时系统拒绝 | release.py 已加签名比对守卫：签名迁移版本自动跳过差分只发全量 |
-
+| 21 | 发版 APK 体积虚高（16.9MB 应为 3.8MB） | zipflinger 增量打包在旧包基础上改写，被删条目留死空间 | 发版前 `gradlew clean assembleDebug`（或删 APK 重打） |
+| 22 | 混淆后联机/更新失效风险 | R8 裁剪 serializer/WebSocket 类 | proguard-rules.pro 加 kotlinx.serialization + Java-WebSocket + Question 模型 keep 规则（已配） |
 ## 七、后续可做事项
 
 - [ ] 打 tag（v1.1.1）实战验证一次 Actions 发版流水线（workflow 已就绪）
