@@ -92,6 +92,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var searching by remember { mutableStateOf(false) }
     var peerVersion by remember { mutableStateOf("") }
     var peerName by remember { mutableStateOf("") }
+    var joinedAsGuest by remember { mutableStateOf(false) }
     var myReady by remember { mutableStateOf(false) }
     var peerReady by remember { mutableStateOf(false) }
     var countdown by remember { mutableIntStateOf(0) }
@@ -122,8 +123,11 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 phase = "waiting"
             }
             is PkEvent.Joined -> {
-                roomCode = event.code; status = "已加入房间，对手：${event.peer}"
-                phase = "waiting"
+                roomCode = event.code
+                joinedAsGuest = true
+                peerName = event.peer
+                status = "已加入房间，等待双方准备…"
+                phase = "matched"
             }
             is PkEvent.PeerJoined -> {
                 peerName = event.peer
@@ -198,11 +202,11 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         if (phase == "matched" && myReady && peerReady) {
             delay(600)  // 让"匹配成功"动画呼吸一下
             if (embedded != null) {
-                embedded!!.broadcastStart()
-            } else {
-                client.sendStart(questions)
+                embedded!!.broadcastStart()          // 房主(本机做服)：发题给乙方
+            } else if (!joinedAsGuest) {
+                client.sendStart(questions)          // 远程服务器房主：发题
             }
-            phase = "countdown"; countdown = 3   // 双方都进倒计时（guest 经 Start 事件）
+            phase = "countdown"; countdown = 3
         }
     }
     LaunchedEffect(phase) {
@@ -351,11 +355,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
             "matched" -> {
-                // 匹配成功动画 + 双方确认
                 Column(
-                    Modifier.fillMaxWidth().padding(top = 24.dp),
+                    Modifier.fillMaxWidth().padding(top = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
                     val scale = transition.animateFloat(
@@ -368,16 +371,29 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     Text("🎉", style = MaterialTheme.typography.displayLarge,
                         modifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale))
                     Text("匹配成功！", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text("$peerName VS ${player.nickname}", style = MaterialTheme.typography.titleLarge)
+
+                    val iAmHost = embedded != null || !joinedAsGuest
+                    PlayerReadyCard(
+                        label = "甲方（房主）",
+                        name = if (iAmHost) player.nickname else peerName,
+                        ready = if (iAmHost) myReady else peerReady,
+                        accent = Color(0xFFEF5350),
+                    )
+                    Text("VS", style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                    PlayerReadyCard(
+                        label = "乙方（挑战者）",
+                        name = if (iAmHost) peerName else player.nickname,
+                        ready = if (iAmHost) peerReady else myReady,
+                        accent = Color(0xFF42A5F5),
+                    )
                     Button(onClick = { sendReady() }, enabled = !myReady, modifier = Modifier.fillMaxWidth()) {
                         Text(if (myReady) "已准备，等待对方…" else "✋ 准备就绪")
                     }
-                    if (myReady && peerReady) Text("双方已就绪！", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
-                    LinearProgressIndicator(
-                        progress = { listOf(myReady, peerReady).count { it } / 2f },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (myReady && peerReady) Text("双方已就绪，即将开始！",
+                        color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                    Text(status, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
             }
             "countdown" -> {
@@ -514,6 +530,35 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                 }
             }
+        }
+    }
+}
+
+
+/** 匹配页玩家卡：角色标签 + 名称 + 准备状态 */
+@Composable
+private fun PlayerReadyCard(label: String, name: String, ready: Boolean, accent: Color) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (ready) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Row(
+            Modifier.padding(14.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                if (ready) "✓ 已准备" else "⏳ 未准备",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (ready) Color(0xFF2E7D32) else Color(0xFF9E9E9E),
+            )
         }
     }
 }
