@@ -5,10 +5,10 @@
 
 ## 一、项目概况
 
-- **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机
+- **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.1.1 (versionCode 4)
+- **当前版本**：v1.6.6 (versionCode 31)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -58,7 +58,16 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | `tools/publish_github.py` | `GH_EXE=<gh路径> python tools/publish_github.py` | 发布 update-server 产物到 Releases |
 | `update-server/release.py` | `python release.py`；`--packs-only` 只发内容包 | 每次发版第一步之后 |
 | `update-server/delta.py` | 被 release.py 调用；`verify()` 独立可测 | 差分编码 |
-| `启动更新服务器.bat` | 双击 | 本地/局域网静态文件服务 |
+| `tools/klotski_verify.py` | `python tools/klotski_verify.py` | 华容道 6 关可解性 BFS 校验（含最少步数） |
+| `tools/snake_autoeat.py` | `python tools/snake_autoeat.py` | 贪吃蛇自动追豆（像素识别 + 暂停分步，转向用棋盘内滑动） |
+| `tools/snake_speed_check.py` | 同上 | 贪吃蛇速度/无方向键/速度档/返回确认取证 |
+| `tools/klotski_anim_check.py` | 同上 | 华容道拖动跟手/过阈值滑行/精确落格/步数取证 |
+| `tools/gomoku_undo_check.py` | 同上 | 五子棋悔棋语义 + 思考期取消 + 返回确认取证 |
+| `tools/ui.py` | 被上面几个脚本 import | uiautomator 文本定位/点击/滑动/截图（`tap_text`/`swipe`/`shot`） |
+| `tools/pk_guest.py` | `python tools/pk_guest.py --quick [答对数] [版本]` | 联机机器人对手（PK_URL 指定服务器） |
+| `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://8.148.192.129:8765` | PK 服务器冒烟（16 项断言） |
+| `tools/deploy_pk_server.py` | `PK_SSH_PASS='<密码>' python tools/deploy_pk_server.py` | 部署/更新公网 pk_server（systemd 常驻） |
+| `启动对战服务器.bat` | 双击 | 局域网 PC 端 PK 服务器 |
 
 ## 四、内容与功能速记
 
@@ -66,6 +75,25 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
   `{"subject","version","questions":[{"id","subject","difficulty"(1-5),"type","question","options"[4],"answer"(下标),"explanation","tags"}]}`
 - **加题**：直接改 assets 里的 JSON（随 APK 发）或在 `update-server/packs/src/` 新建 JSON（version+1 → release.py --packs-only → publish_github，走热更）
 - **小游戏**（v1.6.5 起）：速算英雄（答题战斗）、`game/klotski/`（华容道，关卡 Kotlin 内置，最优步数由 `tools/klotski_verify.py` BFS 校验）、`game/gomoku/`（五子棋，本地启发式 AI）、`game/snake/`（贪吃蛇 2D）；三者纯逻辑类 + `version` 计数器，无资产依赖
+- **小游戏清单（v1.6.5 / 体验强化 v1.6.6）**：速算英雄（答题战斗闯关）· 华容道（6 关，滑动/点选移动 + 滑行动画，记录最少步数）· 五子棋（本地 AI 三档，记录总胜场/最佳连胜）· 贪吃蛇（最高分，300ms 起步缓加速）· 联机对战
+- 成就联动：智取华容 / 棋逢对手 / 连战连捷 / 蛇行三十；奖励统一走 `vm.reportBest(Low) + addCoins + addXp`
+
+### 小游戏交互规范（v1.6.6 定稿，改小游戏先读这条）
+- **手势优先，不做屏幕方向键**：棋盘类用滑动（华容道滑棋子、贪吃蛇整屏滑动）；大块不好滑时支持"先点一下选中，再在棋盘空白处滑动"；自动化用 `adb shell input swipe`（`input motionevent` 合成的 UP 可能不被 Compose 收尾，仅适合中途截图取证）
+- **移动必须有过程动画**：位置变化统一交给一个动画值（`animateDpAsState`，落格 150ms、拖动跟手 70ms），不要"瞬移"。拖动偏移用普通 state 直接赋值，位置 = 格位 + 偏移，**不要再开动画协程**（多协程抢同一动画值会互相取消）
+- **棋盘与棋子必须拉开对比**：浅底深子或深底亮子，棋子加描边，选中态用高对比描边（如琥珀 3dp），**不要用半透明白蒙层**
+- **音效与事件一一对应**（`util/Sfx.kt`，ToneGenerator 音序，无音频资源）：
+
+| 事件 | SfxType |
+|---|---|
+| 选中棋子 / 棋子滑动 / 我落子 / 电脑落子 | `SELECT` / `MOVE` / `PLACE` / `PLACE_AI` |
+| 吃豆 / 撞墙咬自己 | `EAT` / `CRASH` |
+| 开局 / 胜利 / 失败 | `START` / `WIN` / `LOSE` |
+| 答题对错 / 点击 | `CORRECT` / `WRONG` / `CLICK`（沿用原单音） |
+
+  同类型 60ms 内节流；`Sfx.play(context, soundOn, hapticsOn, type)` 同时给触感（滑动/选中无、落子/吃豆轻、撞击/胜负强）
+- **悔棋语义 = 回到我上一手之前**（对方应的那手一并撤销），撤完必轮到自己；AI"思考中"悔棋 = 取消那次落子
+- **对局中返回要确认**：先弹「退出这一局？」；华容道是两级返回（对局 → 选关 → 离开）
 - **已下线**：知识2048 / 记忆翻牌（v1.6.5 移除，`assets/pairs/` 一并删除；老存档里的 `g2048_*`/`memory_*` 记录保留但不再展示，无需迁移）
 - **科目注册**：`data/question/Subjects.kt`（名称/emoji/描述）+ `data/Achievements.kt` subjectKey + 科目卡颜色（ui/LevelsScreen.kt subjectColor）
 - **存档**：DataStore 单键 JSON（PlayerState），换版本自动兼容（新字段有默认值）
@@ -83,24 +111,24 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - [ ] 真机/模拟器实际走一次「检查更新 → 增量更新」
 - [ ] git commit + push
 
-## 五之二、出题规则热更（gen_rules.json）
+## 五之一、出题规则热更（gen_rules.json）
 `assets/config/gen_rules.json` 可由热更包同名文件覆盖（`filesDir/content/packs/gen_rules.json`），改手感无需发版：
 - `fillChance`：填空题出现概率（%）；`fillMaxDifficulty`：填空题最高难度
 - `baseDamage / perLevelDamage / comboDamage`：战斗伤害公式参数；`fillTimeBonus`：填空题加时（秒）
 发布方式：把 gen_rules.json（version+1）放进内容包 → `release.py --packs-only` → publish → App 内更新内容包即生效
 
-## 五之〇、版本策略
+## 五之二、版本策略
 - **单机**：离线完全可玩，不做强制更新
 - **联机对战**：强制双方同版本（握手携带 versionName，内嵌服务器/房主端校验，不一致拒绝加入并提示双方更新）
 - **补丁链**：apks/ 内历史 APK 保留（勿删，补丁链依赖），debug 签名旧版隔离在 _hold/；每次发版自动重建「全部历史版本 → 最新」补丁链
 - 目标：尽量让所有用户都在最新版，减少多版本维护；联机是版本收敛的主要动力
 
-## 五之一、更新体系增强（v1.4.1 起）
+## 五之三、更新体系增强（v1.4.1 起）
 - **多版本补丁链**：`release.py` 为 `apks/` 中每个签名兼容的历史版本生成 →最新补丁（幂等：已验证的补丁重跑直接复用），manifest.patches 全列；App 按自身 versionCode 自动匹配
 - **国内多源回退**：`UpdateManager.fetchManifestMulti` 按序尝试 [GitHub直连, gh-proxy镜像, ghfast镜像]（用户自定义地址时独占），成功源记入 activeBase 供后续补丁/APK/内容包下载使用
 - 镜像地址格式：`https://gh-proxy.com/` + GitHub 完整链接（ghfast.top 同）
 
-## 五之二、联机对战（阶段一已实现）
+## 五之四、联机对战（阶段一已实现）
 
 架构（v1.4.0 起双形态）：
 - **App 内嵌服务器**（`net/EmbeddedPkServer.kt`，Java-WebSocket 库）：房主手机即服务器，支持热点离线对战
@@ -110,7 +138,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 验证状态（模拟器实测）：内嵌服务器完整对战一局（创建→加入→10题同答→判定→结算 3:8 正确呈现）✓；UDP 信标被主机侧监听接收 ✓。
 待真机两台实测：同 Wi-Fi 搜索发现、热点模式（模拟器 NAT 不转发广播，无法模拟真机行为）。
 
-## 五之四、联机对战服务器（远程部署）
+## 五之五、联机对战服务器（远程部署）
 
 三种形态：
 1. **App 内嵌服务器**（v1.4.0 起）：房主手机即服务器，热点模式完全离线可玩（`net/EmbeddedPkServer.kt`）
@@ -130,7 +158,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - 大厅双页签：🌐 远程（默认，在线人数/快速匹配/科目选择/好友房间）+ 🏠 局域网（创建/搜索/手动直连，原样保留）
 - 服务器地址**不在界面显示**（默认公网唯一地址）；长按「在线人数」行弹出隐藏编辑对话框（调试/自建用），修改后 1.5s 防抖自动重连；旧默认（10.0.2.2）打开时自动迁移为公网地址
 - PK 战斗体验（v1.6.2 定稿）：答完题卡内显示对错与正确答案，停留 0.75s **自动进下一题**（无"下一题"按钮，最后一题自动交卷）；顶部双方进度「🧑 我 x/10」｜「对手 x/10」实时更新；我方完成页上下布局显示自己成绩+对手进度；双方完成出结算页
-- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/整局/取消/ELO/不计分/排行榜/云存档，13 项断言）
+- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/整局/取消/ELO/不计分/排行榜/云存档，16 项断言）
 - 机器人对手：`python tools/pk_guest.py --quick [答对数] [版本]`（快速匹配可当房主）或 `python tools/pk_guest.py <房间码>`（好友房间）
 
 ### ELO 与排行榜（v1.6.3 起）
@@ -165,10 +193,6 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 ### 联机页返回行为（v1.6.3）
 - 返回键两级：非大厅阶段（等待/匹配/对战/结算）先取消会话回联机大厅；大厅再返回才离开页面（含系统返回键 BackHandler）
 
-### 版本策略
-- 单机离线免更新；**联机强制双方同版本**（握手携带 versionName，不一致拒绝加入并提示）
-- 补丁链助老版本（v1.1.2+）小补丁升级；apks/ 历史 APK 保留勿删（补丁链依赖），debug 签名旧版隔离 _hold/
-
 ## 六、踩坑详表（现象 → 根因 → 解法）
 
 | # | 现象 | 根因 | 解法 |
@@ -183,7 +207,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 8 | 关卡解锁状态滚动后错乱 | LazyColumn item 内顺序累加变量 | remember 在列表外预计算 |
 | 9 | 更新报 CLEARTEXT not permitted | Android 9+ 禁明文 HTTP | manifest 加 usesCleartextTraffic="true" |
 | 10 | 更新报 NetworkOnMainThreadException | OkHttp 跑在组合协程（主线程） | scope.launch(Dispatchers.IO) |
-| 11 | ToneGenerator 常量编译错 | TONE_PROP_KEY/PIP 不存在 | 用 TONE_PROP_ACK 等 |
+| 11 | ToneGenerator 常量编译错 | TONE_PROP_KEY/PIP 不存在 | 用 TONE_PROP_ACK/BEEP/BEEP2/NACK 等；要不同音高用 `TONE_DTMF_0..9`（音序 = 多个 Note 配 postDelayed，见 v1.6.6 的 Sfx.kt） |
 | 12 | 增量补丁报 Stream is not in the BZip2 format / Stream closed | python-bsdiff4 的 bzip2 流串联解析 + Windows 32 位 long 溢出缺陷 | 弃用 bsdiff4，自研 BQDELTA1（COPY/LIT 操作流） |
 | 13 | `adb shell uiautomator dump /sdcard/ui.xml` 输出落在本机 | Git Bash 把 /sdcard 转成本地路径 | 写 `//sdcard//ui.xml` 或用 `adb exec-out` |
 | 14 | 拉取的 APK 哈希不对 | `adb shell cat` 二进制被 CRLF 损坏 | `adb exec-out run-as <pkg> cat <path>` |
@@ -195,12 +219,12 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 20 | 跨签名的补丁补丁无法安装 | 合成 APK 与已装 APK 签名不一致时系统拒绝 | release.py 已加签名比对守卫：签名迁移版本自动跳过差分只发全量 |
 | 21 | 发版 APK 体积虚高（16.9MB 应为 3.8MB） | zipflinger 增量打包在旧包基础上改写，被删条目留死空间 | 发版前 `gradlew clean assembleDebug`（或删 APK 重打） |
 | 22 | 混淆后联机/更新失效风险 | R8 裁剪 serializer/WebSocket 类 | proguard-rules.pro 加 kotlinx.serialization + Java-WebSocket + Question 模型 keep 规则（已配） |
-| 24 | 小游戏最佳成绩记反了 | `vm.reportBest(key, score)` 语义是「越大越好」，而步数/用时类指标越小越好（早期记忆翻牌就写成了记最大步数） | 反向指标统一用 `AppViewModel.reportBestLow(key, score)`（华容道最少步数即用它） |
 | 23 | 联机页输地址时 App 崩溃 | 地址输到一半（如 `ws://10.0.2.2:28`）防抖重连触发，OkHttp `Request.Builder().url()` 对残缺 URL 抛 IllegalArgumentException，协程内未捕获 | `PkClient.connect()` 加 `validPkUrl()` 前置校验 + try/catch 兜底，无效地址发 Error 事件不发连接 |
 | 24 | 部署新 pk_server 后新功能没生效 | systemd `enable --now` 对**已运行**的服务不会重启，线上跑的还是旧代码 | 部署脚本改 `enable + restart`；手动更新用 `systemctl restart pk-server` |
-### 小游戏清单（v1.6.5）
-- 速算英雄（答题战斗闯关）· 华容道（6 关，记录最少步数）· 五子棋（本地 AI 三档，记录总胜场/最佳连胜）· 贪吃蛇（最高分）· 联机对战
-- 成就联动：智取华容 / 棋逢对手 / 连战连捷 / 蛇行三十；奖励统一走 `vm.reportBest(Low) + addCoins + addXp`
+| 25 | 小游戏最佳成绩记反了 | `vm.reportBest(key, score)` 语义是「越大越好」，而步数/用时类指标越小越好（早期记忆翻牌就写成了记最大步数） | 反向指标统一用 `AppViewModel.reportBestLow(key, score)`（华容道最少步数即用它） |
+| 26 | 华容道棋子拖完停在半格，重开也回不去 | 手势 `pointerInput(b.id, version)` 的 key 含 `version`：走子 `version++` → 手势协程被重启，`onDragEnd/onDragCancel` 永不执行，拖动偏移永久残留 | 手势 key 只绑棋子 id；拖动偏移用普通 state，位置 = 格位 + 偏移统一交给 `animateDpAsState` 一个动画值（不再另开动画协程） |
+| 27 | 五子棋悔棋撤错手（只撤电脑那颗 / 或连上轮自己那颗一起撤） | `undo()` 奇偶判断写反：玩家手是奇数手、AI 手是偶数手 | 偶数手（AI 刚应过）撤 2 手、奇数手撤 1 手 → 永远回到"玩家落子之前"，撤完必轮到玩家 |
+| 28 | 改小游戏配色后像素识别脚本全失效 | 脚本按 RGB 阈值识别棋盘/棋子；且暂停时棋盘上有 40% 黑蒙层（观察色 = 原色 × 0.6） | 脚本改自适应：棋盘取屏幕最高频色的包围盒；棋子色同时匹配原色与 ×0.6 变体（见 tools/snake_autoeat.py） |
 
 ## 七、后续可做事项
 
@@ -211,6 +235,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - [ ] 打 tag 实战验证一次 Actions 发版流水线（workflow 已就绪；目前发版走 tools/publish_github.py 本地发布）
 - [ ] 真机两台实测（热点局域网互搜 / 公网 8.148.192.129 对战 / 应用内更新全流程）
 - [x] 联机随机匹配（v1.6.1）、ELO 排行榜 + 云存档（v1.6.3，仅快速匹配计分）
+- [x] 小游戏体验强化（v1.6.6：手势化/动效/配色/音效/悔棋语义/减速）
 
 ## 八、记录约定
 

@@ -286,7 +286,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
             OutlinedButton(
                 onClick = {
                     if (vm.useItem(Items.ITEM_HINT) && battle.useHint()) {
-                        Sfx.play(context, sfxOn, SfxType.CLICK)
+                        Sfx.play(context, sfxOn, hapticOn, SfxType.CLICK)
                     }
                 },
                 enabled = !answered && resultState == 0 && (player.items[Items.ITEM_HINT] ?: 0) > 0,
@@ -294,7 +294,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
             OutlinedButton(
                 onClick = {
                     if (vm.useItem(Items.ITEM_SKIP)) {
-                        Sfx.play(context, sfxOn, SfxType.CLICK)
+                        Sfx.play(context, sfxOn, hapticOn, SfxType.CLICK)
                         battle.nextQuestion()
                     }
                 },
@@ -308,7 +308,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
         1 -> {
             val stars = battle.stars()
             LaunchedEffect(Unit) {
-                Sfx.play(context, sfxOn, SfxType.WIN)
+                Sfx.play(context, sfxOn, hapticOn, SfxType.WIN)
             }
             AlertDialog(
                 onDismissRequest = {},
@@ -343,7 +343,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
             )
         }
         2 -> {
-            LaunchedEffect(Unit) { Sfx.play(context, sfxOn, SfxType.LOSE) }
+            LaunchedEffect(Unit) { Sfx.play(context, sfxOn, hapticOn, SfxType.LOSE) }
             AlertDialog(
                 onDismissRequest = {},
                 title = { Text("💀 战败了…") },
@@ -389,10 +389,10 @@ private suspend fun handleAnswer(
     val dmg = if (fillInput != null) battle.answerFill(fillInput) else battle.answer(index)
     vm.recordAnswer(q, if (fillInput != null) (if (dmg > 0) q.answer else -1) else index)
     if (dmg > 0) {
-        Sfx.play(context, sfxOn, SfxType.CORRECT)
+        Sfx.play(context, sfxOn, hapticOn, SfxType.CORRECT)
         onDone(dmg, "⚔️ 造成 $dmg 伤害！")
     } else {
-        Sfx.play(context, sfxOn, SfxType.WRONG)
+        Sfx.play(context, sfxOn, hapticOn, SfxType.WRONG)
         onDone(dmg, "🛡️ 受到 ${-dmg} 伤害")
     }
     delay(900)

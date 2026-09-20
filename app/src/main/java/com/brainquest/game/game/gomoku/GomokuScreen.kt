@@ -1,5 +1,11 @@
 package com.brainquest.game.game.gomoku
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,7 +42,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,6 +54,19 @@ import com.brainquest.game.ui.PageHeader
 import com.brainquest.game.util.Sfx
 import com.brainquest.game.util.SfxType
 import kotlinx.coroutines.delay
+
+// 浅木色棋盘 + 深色网格线：原来黄褐底配白子几乎糊在一起
+private val BOARD_BG = Color(0xFFF0DCB8)
+private val BOARD_EDGE = Color(0xFF6D4C41)
+private val GRID_LINE = Color(0x4D000000)
+private val BLACK_STONE = Color(0xFF212121)
+private val BLACK_STONE_EDGE = Color(0x4D000000)
+private val WHITE_STONE = Color(0xFFFDFDFD)
+private val WHITE_STONE_EDGE = Color(0xFF5D4037)
+private val LAST_MOVE_COLOR = Color(0xFFE53935)
+private val WIN_RING = Color(0xFFD81B60)
+
+private const val AI_DELAY_MS = 350L
 
 /** 五子棋：人机对战（本地 AI，离线可玩） */
 @Composable
@@ -59,12 +81,29 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
     var streak by remember { mutableIntStateOf(0) }
     var rewarded by remember { mutableStateOf(false) }
     var showResult by remember { mutableStateOf(false) }
+    var confirmExit by remember { mutableStateOf(false) }
+
+    val inGame = game.moves > 0 && !game.finished
+
+    // 新落的子弹入一下，落子更有实感
+    val pop = remember { Animatable(1f) }
+    LaunchedEffect(game.lastMove) {
+        if (game.lastMove != null) {
+            pop.snapTo(0.72f)
+            pop.animateTo(1f, tween(130))
+        }
+    }
 
     // AI 回合：稍作停顿再落子（有"思考"感，也避免瞬间连点）
     LaunchedEffect(game, game.moves, game.winner) {
         if (!game.finished && !game.playerTurn) {
-            delay(350)
+            game.beginThinking()
+            delay(AI_DELAY_MS)
+            val before = game.moves
             game.aiTurn()
+            if (game.moves != before) {
+                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.PLACE_AI)
+            }
         }
     }
 
@@ -79,18 +118,24 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                 vm.reportBest("gomoku_best_streak", streak)
                 vm.addCoins(40 + streak * 5)
                 vm.addXp(25)
-                Sfx.play(context, player.soundOn, SfxType.WIN)
+                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.WIN)
             } else {
                 sessionLosses++
                 streak = 0
-                Sfx.play(context, player.soundOn, SfxType.LOSE)
+                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.LOSE)
             }
             showResult = true
         }
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
-        PageHeader("⚫ 五子棋", onBack = { nav.popBackStack() }, subtitle = "你执黑先手 · 先连成五子者胜")
+        // 对局中按返回先确认，避免一按就丢掉棋局
+        androidx.activity.compose.BackHandler(enabled = inGame) { confirmExit = true }
+        PageHeader(
+            "⚫ 五子棋",
+            onBack = { if (inGame) confirmExit = true else nav.popBackStack() },
+            subtitle = "你执黑先手 · 先连成五子者胜",
+        )
 
         // 难度
         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -101,6 +146,7 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                         difficulty = i
                         game = GomokuGame(15, i)
                         rewarded = false; showResult = false
+                        Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
                     },
                     label = { Text(label) },
                 )
@@ -127,12 +173,32 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val cell = maxWidth / game.size
             val ver = game.version  // 读版本号触发重组
+            val boardShape = RoundedCornerShape(12.dp)
             Box(
                 Modifier
                     .fillMaxWidth()
                     .height(cell * game.size)
-                    .background(Color(0xFFE0B980), RoundedCornerShape(10.dp)),
+                    .clip(boardShape)
+                    .background(BOARD_BG)
+                    .border(BorderStroke(2.dp, BOARD_EDGE), boardShape),
             ) {
+                // 网格线
+                for (i in 1 until game.size) {
+                    Box(
+                        Modifier
+                            .offset(x = cell * i, y = 0.dp)
+                            .width(1.dp)
+                            .height(cell * game.size)
+                            .background(GRID_LINE),
+                    )
+                    Box(
+                        Modifier
+                            .offset(x = 0.dp, y = cell * i)
+                            .width(cell * game.size)
+                            .height(1.dp)
+                            .background(GRID_LINE),
+                    )
+                }
                 for (r in 0 until game.size) {
                     for (c in 0 until game.size) {
                         val v = game.cell(r, c)
@@ -143,31 +209,33 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                                 .offset(x = cell * c, y = cell * r)
                                 .size(cell)
                                 .clickable(enabled = game.playerTurn && !game.finished) {
-                                    if (game.playerPlace(r, c)) Sfx.play(context, player.soundOn, SfxType.CLICK)
+                                    if (game.playerPlace(r, c)) {
+                                        Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.PLACE)
+                                    }
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
-                            if (v == 0) {
-                                Box(Modifier.size(2.dp).background(Color(0x33000000), CircleShape))
-                            } else {
+                            if (v != 0) {
                                 Box(
                                     Modifier
-                                        .size(cell * 0.82f)
-                                        .background(if (v == 1) Color(0xFF212121) else Color(0xFFFAFAFA), CircleShape)
+                                        .size(cell * 0.82f * if (isLast) pop.value else 1f)
+                                        .background(if (v == 1) BLACK_STONE else WHITE_STONE, CircleShape)
                                         .border(
                                             BorderStroke(
-                                                if (inWin) 2.dp else 1.dp,
-                                                if (inWin) Color(0xFFFFC107) else Color(0x33000000),
+                                                if (v == 1) 1.dp else 1.5.dp,
+                                                if (v == 1) BLACK_STONE_EDGE else WHITE_STONE_EDGE,
                                             ),
                                             CircleShape,
                                         ),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (isLast) {
-                                        Box(Modifier.size(cell * 0.22f).background(Color(0xFFE53935), CircleShape))
+                                        Box(Modifier.size(cell * 0.22f).background(LAST_MOVE_COLOR, CircleShape))
                                     }
                                 }
                             }
+                            // 五连高亮：脉动描边，只在成五的格子上组合（避免整盘每帧重组）
+                            if (inWin) PulsingWinRing(CircleShape)
                         }
                     }
                 }
@@ -176,19 +244,38 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
 
         Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
-                onClick = { game.undo(); rewarded = false; showResult = false },
-                enabled = game.moves > 0 && !game.thinking && !game.finished,
+                onClick = {
+                    game.undo(); rewarded = false; showResult = false
+                    Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
+                },
+                enabled = game.moves > 0 && !game.finished,
             ) { Text("↩️ 悔棋") }
             OutlinedButton(onClick = {
                 game.reset(); rewarded = false; showResult = false
+                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
             }) { Text("🔄 重开一局") }
         }
         Text(
-            "💡 电脑棋力：简单（会走神）/ 普通（攻守均衡）/ 困难（带两步预判）。悔棋可撤销双方各一手。",
+            "💡 电脑棋力：简单（会走神）/ 普通（攻守均衡）/ 困难（带两步预判）。" +
+                "悔棋会回到你上一手落子之前（电脑应的那手一并撤销）。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),
         )
+
+        if (confirmExit) {
+            AlertDialog(
+                onDismissRequest = { confirmExit = false },
+                title = { Text("退出这一局？") },
+                text = { Text("当前棋局不会保存，退出后需要重新开始。") },
+                confirmButton = {
+                    Button(onClick = { confirmExit = false; nav.popBackStack() }) { Text("退出") }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { confirmExit = false }) { Text("继续下") }
+                },
+            )
+        }
 
         if (showResult) {
             AlertDialog(
@@ -213,4 +300,17 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
             )
         }
     }
+}
+
+/** 成五格子的脉动描边（读动画状态的范围限制在这几个格子里） */
+@Composable
+private fun PulsingWinRing(shape: Shape) {
+    val transition = rememberInfiniteTransition(label = "winRing")
+    val alpha by transition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(520), RepeatMode.Reverse),
+        label = "winRingAlpha",
+    )
+    Box(Modifier.fillMaxSize().border(BorderStroke(3.dp, WIN_RING.copy(alpha = alpha)), shape))
 }

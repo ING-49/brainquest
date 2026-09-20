@@ -54,19 +54,28 @@ class GomokuGame(val size: Int = 15, var difficulty: Int = 1) {
 
     /** AI 走一步（界面在延时后调用，避免瞬间落子太突兀） */
     fun aiTurn() {
-        if (winner != 0 || moves % 2 == 0) return
-        thinking = true
+        if (winner != 0 || moves % 2 == 0) {
+            thinking = false
+            return
+        }
         val mv = chooseAiMove()
         thinking = false
         if (mv != null) place(mv.first, mv.second, 2)
         version++
     }
 
-    /** 悔棋：撤销到轮玩家落子为止 */
+    /** 界面在延时等待 AI 落子前调用：显示"思考中"，期间悔棋可取消这次思考 */
+    fun beginThinking() {
+        if (winner != 0 || moves % 2 == 0 || thinking) return
+        thinking = true
+        version++
+    }
+
+    /** 悔棋：回到玩家上一手落子之前（电脑应的那手一并撤销），撤完必轮到玩家 */
     fun undo() {
-        if (history.isEmpty() || thinking) return
-        // 若刚才是 AI 走完（moves 为奇数），撤两手（AI + 玩家）
-        var steps = if (moves % 2 == 1) 2 else 1
+        if (history.isEmpty()) return
+        // 偶数手 = 电脑刚应过，连它那手一起撤；奇数手 = 我那手还没被应，只撤一手
+        var steps = if (moves % 2 == 0) 2 else 1
         while (steps > 0 && history.isNotEmpty()) {
             val (r, c) = history.removeAt(history.size - 1)
             board[r][c] = 0
@@ -76,6 +85,7 @@ class GomokuGame(val size: Int = 15, var difficulty: Int = 1) {
         winner = 0
         winLine = emptyList()
         lastMove = history.lastOrNull()
+        thinking = false
         version++
     }
 

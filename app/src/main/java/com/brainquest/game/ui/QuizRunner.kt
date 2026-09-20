@@ -104,7 +104,7 @@ fun QuizRunner(
                         chosen = i
                         val correct = i == q.answer
                         if (correct) correctCount++
-                        Sfx.play(context, soundOn, if (correct) SfxType.CORRECT else SfxType.WRONG)
+                        Sfx.play(context, soundOn, hapticsOn, if (correct) SfxType.CORRECT else SfxType.WRONG)
                         onAnswered(q, i, correct)
                     },
                     explanation = q.explanation,

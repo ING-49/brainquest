@@ -166,6 +166,13 @@ class KlotskiGame(val level: KlotskiLevel) {
         version++
     }
 
+    /** 取消选中（点击棋盘空白处） */
+    fun clearSelection() {
+        if (selectedId == -1) return
+        selectedId = -1
+        version++
+    }
+
     private fun occupied(ignoreId: Int, row: Int, col: Int, w: Int, h: Int): Boolean {
         if (row < 0 || col < 0) return true
         if (row + h > KlotskiLevels.ROWS || col + w > KlotskiLevels.COLS) return true

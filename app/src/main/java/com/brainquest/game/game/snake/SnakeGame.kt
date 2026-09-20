@@ -95,6 +95,13 @@ class SnakeGame(val cols: Int = 15, val rows: Int = 20) {
         food = if (free.isEmpty()) 0 to 0 else free.random()
     }
 
-    /** 当前速度（毫秒/格）：分数越高越快 */
-    val tickMs: Long get() = (220 - score * 5).coerceAtLeast(90).toLong()
+    /** 当前速度（毫秒/格）：起步慢一些，随分数缓慢加快 */
+    val tickMs: Long get() = (300 - score * 6).coerceAtLeast(130).toLong()
+
+    /** 速度档（给 HUD 显示，让加速可感知） */
+    val speedLabel: String get() = when {
+        tickMs >= 260 -> "慢"
+        tickMs >= 200 -> "中"
+        else -> "快"
+    }
 }

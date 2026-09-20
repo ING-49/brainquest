@@ -48,7 +48,11 @@ adb exec-out screencap -p > screen.png
 | `tools/pk_guest.py` | 联机机器人对手：`--quick` 快速匹配（可当房主）/ 房间码模式；PK_URL 环境变量 |
 | `tools/pk_server_smoke.py` | PK 服务器冒烟测试（在线人数/版本隔离/配对/整局/ELO/排行榜/云存档，16 项断言） |
 | `tools/klotski_verify.py` | 华容道关卡校验（BFS 判可解性 + 最少步数） |
-| `tools/snake_autoeat.py` | 贪吃蛇自动追豆（像素识别 + 暂停分步控制，验证吃豆闭环） |
+| `tools/ui.py` | uiautomator 文本定位/点击/滑动/截图（`tap_text`/`swipe`/`shot`，验证脚本复用） |
+| `tools/snake_autoeat.py` | 贪吃蛇自动追豆（像素识别 + 暂停分步控制；v1.6.6 起转向改用棋盘内滑动） |
+| `tools/snake_speed_check.py` | 贪吃蛇速度/无方向键/速度档/返回确认取证 |
+| `tools/klotski_anim_check.py` | 华容道拖动跟手/过阈值滑行/精确落格/步数取证 |
+| `tools/gomoku_undo_check.py` | 五子棋悔棋语义（回到我落子之前）+ 思考期取消 + 返回确认 |
 | `update-server/release.py` | 一键：打内容包 + BQDELTA1 差分 + manifest + 合成自校验 |
 | `update-server/delta.py` | 自研差分编码器（滚动哈希块匹配，numpy 加速） |
 | `启动更新服务器.bat` | 本地静态服务器（自动显示局域网 IP，供真机同 Wi-Fi 更新） |
