@@ -221,12 +221,12 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
             }
         }
 
-        // 题目卡
+        // 题目卡（内容可滚动：长题干/解析不虚）
         Card(
             modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         ) {
-            Column(Modifier.padding(16.dp)) {
+            Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Text("Q${battle.answered + 1}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
@@ -243,7 +243,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
                     battle.question?.question ?: "",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 10.dp).verticalScroll(rememberScrollState()),
+                    modifier = Modifier.padding(vertical = 10.dp),
                 )
                 val q = battle.question
                 if (q?.type == "fill") {
@@ -263,30 +263,17 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
                         enabled = !answered && fillInput.isNotBlank(),
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     ) { Text("提交答案") }
-                } else q?.options?.forEachIndexed { i, opt ->
-                    val isEliminated = i in battle.eliminated
-                    if (!isEliminated || answered) {
-                        val bg = when {
-                            !answered -> MaterialTheme.colorScheme.surfaceContainerLow
-                            i == q.answer -> Color(0xFFC8E6C9)
-                            i == chosen -> Color(0xFFFFCDD2)
-                            else -> MaterialTheme.colorScheme.surfaceContainerLow
-                        }
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            colors = CardDefaults.cardColors(containerColor = bg),
-                            enabled = !answered,
-                            onClick = { doAnswer(i) },
-                        ) {
-                            Text(
-                                "${'A' + i}. $opt",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(12.dp),
-                            )
-                        }
-                    }
+                } else if (q != null) {
+                    // 统一选项视图：正确绿框、错选红框、解析随选项展示
+                    com.brainquest.game.ui.QuizOptionList(
+                        options = q.options,
+                        answer = q.answer,
+                        chosen = if (answered) chosen else -1,
+                        revealed = answered,
+                        onChoose = { doAnswer(it) },
+                        eliminated = battle.eliminated.toSet(),
+                        explanation = q.explanation,
+                    )
                 }
             }
         }

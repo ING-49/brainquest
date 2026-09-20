@@ -100,7 +100,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setAvatar(emoji: String) = commit { it.copy(avatar = emoji) }
 
-    fun setSettings(url: String? = null, sound: Boolean? = null, haptics: Boolean? = null, hard: Boolean? = null, pkServer: String? = null, lastGoodSource: String? = null) = commit {
+    fun setSettings(url: String? = null, sound: Boolean? = null, haptics: Boolean? = null, hard: Boolean? = null, pkServer: String? = null, lastGoodSource: String? = null, cloudCode: String? = null) = commit {
         it.copy(
             updateServerUrl = url ?: it.updateServerUrl,
             soundOn = sound ?: it.soundOn,
@@ -108,7 +108,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             hardMode = hard ?: it.hardMode,
             pkServerUrl = pkServer ?: it.pkServerUrl,
             lastGoodSource = lastGoodSource ?: it.lastGoodSource,
+            cloudCode = cloudCode ?: it.cloudCode,
         )
+    }
+
+    // ---------- 云存档 ----------
+
+    private val saveJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    /** 导出当前存档 JSON（云存档上传用） */
+    fun exportSaveJson(): String = saveJson.encodeToString(PlayerState.serializer(), _player.value)
+
+    /** 导入云存档（覆盖本地），成功返回 true */
+    fun importSaveJson(text: String): Boolean = runCatching {
+        val state = saveJson.decodeFromString(PlayerState.serializer(), text)
+        _player.value = state
+        viewModelScope.launch { store.save(state) }
+    }.isSuccess
+
+    /** 生成 8 位云存档码（大写字母数字，去除易混字符） */
+    fun generateCloudCode(): String {
+        val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        return "BQ" + (1..6).map { chars.random() }.joinToString("")
     }
 
     // ---------- 答题结算 ----------

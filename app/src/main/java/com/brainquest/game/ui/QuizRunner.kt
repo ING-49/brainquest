@@ -96,66 +96,30 @@ fun QuizRunner(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 10.dp),
                 )
-                q.options.forEachIndexed { i, opt ->
-                    val bg = when {
-                        chosen == null -> MaterialTheme.colorScheme.surfaceContainerLow
-                        i == q.answer -> Color(0xFFC8E6C9)
-                        i == chosen -> Color(0xFFFFCDD2)
-                        else -> MaterialTheme.colorScheme.surfaceContainerLow
-                    }
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = bg),
-                        enabled = chosen == null,
-                        onClick = {
-                            chosen = i
-                            val correct = i == q.answer
-                            if (correct) correctCount++
-                            Sfx.play(context, soundOn, if (correct) SfxType.CORRECT else SfxType.WRONG)
-                            onAnswered(q, i, correct)
-                        },
-                    ) {
-                        Row(Modifier.padding(12.dp)) {
-                            Text(
-                                "${'A' + i}. ",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(opt, style = MaterialTheme.typography.titleMedium)
-                        }
-                    }
-                }
+                QuizOptionList(
+                    options = q.options,
+                    answer = q.answer,
+                    chosen = chosen ?: -1,
+                    onChoose = { i ->
+                        chosen = i
+                        val correct = i == q.answer
+                        if (correct) correctCount++
+                        Sfx.play(context, soundOn, if (correct) SfxType.CORRECT else SfxType.WRONG)
+                        onAnswered(q, i, correct)
+                    },
+                    explanation = q.explanation,
+                )
 
                 if (chosen != null) {
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
-                            .background(Color(0xFFFFF8E1), RoundedCornerShape(10.dp))
-                            .padding(12.dp),
+                    Button(
+                        onClick = {
+                            index++
+                            chosen = null
+                            if (index >= questions.size) onFinish(correctCount, questions.size)
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                     ) {
-                        Text(
-                            if (chosen == q.answer) "✅ 回答正确！" else "❌ 正确答案：${'A' + q.answer}. ${q.options.getOrNull(q.answer) ?: ""}",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        if (q.explanation.isNotBlank()) {
-                            Text(
-                                "💡 ${q.explanation}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                        Button(
-                            onClick = {
-                                index++
-                                chosen = null
-                                if (index >= questions.size) onFinish(correctCount, questions.size)
-                            },
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        ) {
-                            Text(if (index + 1 >= questions.size) "完成" else "下一题 →")
-                        }
+                        Text(if (index + 1 >= questions.size) "完成" else "下一题 →")
                     }
                 }
             }

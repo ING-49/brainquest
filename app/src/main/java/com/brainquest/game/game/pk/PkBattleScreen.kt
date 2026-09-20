@@ -99,6 +99,11 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var matchSubject by remember { mutableStateOf<String?>(null) } // 房主出题科目，null = 混合
     var lanUrl by remember { mutableStateOf("") }              // 局域网手动直连地址
     var showServerEdit by remember { mutableStateOf(false) }   // 长按在线行弹出的服务器地址编辑框
+    var showBoard by remember { mutableStateOf(false) }        // 排行榜对话框
+    var board by remember { mutableStateOf<List<PkEvent.RankRow>?>(null) }
+    var boardMe by remember { mutableStateOf<PkEvent.RankRow?>(null) }
+    var pendingBoard by remember { mutableStateOf(false) }     // 连接建立后自动查询排行榜
+    var lanSession by remember { mutableStateOf(false) }       // 本局是否局域网/热点对战（不计分标注用）
 
     var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
     var qIndex by remember { mutableIntStateOf(0) }
@@ -165,6 +170,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     matching -> "已连接，正在匹配对手…"
                     event.hostMode -> "已连接，房间创建中…"
                     else -> "已连接"
+                }
+                if (pendingBoard) {
+                    client.sendLeaderboard(player.nickname)
+                    pendingBoard = false
                 }
             }
             is PkEvent.Created -> {
@@ -238,6 +247,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 onlineWaiting = event.waiting
                 onlineRooms = event.rooms
             }
+            is PkEvent.Leaderboard -> {
+                board = event.top
+                boardMe = event.me
+            }
             is PkEvent.Disconnected -> {
                 remoteConnected = false
                 if (matching) matching = false
@@ -249,6 +262,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 }
                 android.util.Log.w("PkDebug", "服务器消息: ${event.msg}")
             }
+            else -> {}  // 云存档等事件由设置页处理
         }
         }
     }
@@ -261,6 +275,27 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
             com.brainquest.game.net.PkDiscovery.stopListening()
         }
     }
+
+    // 返回键：非大厅阶段先取消会话回联机大厅，大厅再返回才离开页面
+    fun backToLobby() {
+        client.close()
+        embedded?.stopServer()
+        embedded = null
+        com.brainquest.game.net.PkDiscovery.stopBeacon()
+        com.brainquest.game.net.PkDiscovery.stopListening()
+        searching = false
+        matching = false
+        myReady = false; peerReady = false
+        joinedAsGuest = false
+        peerName = ""; roomCode = ""
+        result = null
+        remoteConnected = false
+        lanSession = false
+        status = ""
+        phase = "lobby"
+    }
+
+    androidx.activity.compose.BackHandler(enabled = phase != "lobby") { backToLobby() }
 
     // 双方都点了准备 → 房主发题（内嵌广播/远程 sendStart），双方进倒计时
     LaunchedEffect(myReady, peerReady) {
@@ -348,7 +383,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     // ---------- 界面 ----------
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         PageHeader("⚔️ 联机对战", onBack = {
-            client.close(); phase = "lobby"; nav.popBackStack()
+            if (phase != "lobby") backToLobby() else nav.popBackStack()
         }, subtitle = "远程匹配 / 好友房间 / 局域网热点 · 10 题同答")
 
         when (phase) {
@@ -390,6 +425,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 if (!matching) {
                                     Button(onClick = {
                                         matching = true
+                                        lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
                                         if (remoteConnected && connectedUrl == serverUrl) {
                                             client.sendQuickMatch(player.nickname, BuildConfig.VERSION_NAME)
@@ -412,6 +448,16 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                         }) { Text("取消") }
                                     }
                                 }
+                                OutlinedButton(onClick = {
+                                    showBoard = true
+                                    board = null; boardMe = null
+                                    if (remoteConnected && connectedUrl == serverUrl) {
+                                        client.sendLeaderboard(player.nickname)
+                                    } else if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)) {
+                                        connectedUrl = serverUrl
+                                        pendingBoard = true
+                                    }
+                                }, modifier = Modifier.fillMaxWidth()) { Text("🏆 排行榜（快速匹配积分）") }
                                 HorizontalDivider()
                                 Text("对战科目（房主出题用）", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -429,10 +475,12 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 )
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Button(onClick = {
+                                        lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
                                         client.connect(serverUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME)
                                     }, enabled = serverUrl.isNotBlank()) { Text("🚪 加入房间") }
                                     OutlinedButton(onClick = {
+                                        lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
                                         client.connect(serverUrl, player.nickname, "create", version = BuildConfig.VERSION_NAME)
                                     }) { Text("🏠 创建房间") }
@@ -461,6 +509,48 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 },
                             )
                         }
+                        if (showBoard) {
+                            AlertDialog(
+                                onDismissRequest = { showBoard = false },
+                                confirmButton = { Button(onClick = { showBoard = false }) { Text("关闭") } },
+                                title = { Text("🏆 快速匹配排行榜") },
+                                text = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        val list = board
+                                        when {
+                                            list == null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                                                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                                Text("  加载中…", style = MaterialTheme.typography.bodyMedium)
+                                            }
+                                            list.isEmpty() -> Text("还没有人上榜，来打一局快速匹配吧！（仅快速匹配计分）",
+                                                style = MaterialTheme.typography.bodyMedium)
+                                            else -> {
+                                                list.forEachIndexed { i, r ->
+                                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                        Text("${i + 1}. ${r.name}",
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            fontWeight = if (r.name == player.nickname) FontWeight.Bold else FontWeight.Normal)
+                                                        Text("${r.rating} 分 · ${r.wins}胜${r.losses}负",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    }
+                                                }
+                                                HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                                                val me = boardMe
+                                                if (me != null && me.rank > 0) {
+                                                    Text("我的排名：第 ${me.rank} 名 · ${me.rating} 分（${me.wins} 胜 ${me.losses} 负）",
+                                                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                                } else {
+                                                    Text("我还没上榜，打一局快速匹配即可计分上榜",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                            )
+                        }
                     } else {
                         // ---- 局域网：创建（本机做服务器）+ 搜索 + 手动直连 ----
                         Card(Modifier.fillMaxWidth(),
@@ -475,6 +565,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     srv.start()
                                     com.brainquest.game.net.PkDiscovery.startBeacon(code, player.nickname, 8765)
                                     roomCode = code
+                                    lanSession = true
                                     status = "房间已创建，等待对手加入…"
                                     phase = "waiting"
                                 }, modifier = Modifier.fillMaxWidth()) { Text("🏠 创建房间（本机做服务器 · 热点可离线）") }
@@ -489,6 +580,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     }
                                     discovered.values.forEach { b ->
                                         Card(onClick = {
+                                            lanSession = true
                                             client.connect("ws://${b.ip}:${b.tcpPort}", player.nickname, "join", b.room, BuildConfig.VERSION_NAME)
                                             PkDiscovery.stopListening()
                                         }, modifier = Modifier.fillMaxWidth()) {
@@ -516,6 +608,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     modifier = Modifier.fillMaxWidth(), singleLine = true,
                                 )
                                 Button(onClick = {
+                                    lanSession = true
                                     client.connect(lanUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME)
                                 }, enabled = lanUrl.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("🚪 直连加入") }
                             }
@@ -657,27 +750,18 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(q?.question ?: "", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(vertical = 8.dp))
-                                if (answered) {
-                                    Text(
-                                        if (chosen == q?.answer) "✅ 正确" else "❌ 正确答案：${'A' + (q?.answer ?: 0)}. ${q?.options?.getOrNull(q.answer) ?: ""}",
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (chosen == q?.answer) Color(0xFF2E7D32) else Color(0xFFC62828),
-                                    )
-                                }
                             }
                         }
-                        if (!answered) {
-                            q?.options?.forEachIndexed { i, opt ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                                    onClick = { submit(i) },
-                                ) {
-                                    Text("${'A' + i}. $opt", style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(12.dp))
-                                }
-                            }
-                        }  // 答完显示对错与正确答案，0.75s 后自动进下一题
+                        q?.let {
+                            com.brainquest.game.ui.QuizOptionList(
+                                options = it.options,
+                                answer = it.answer,
+                                chosen = if (answered) chosen else -1,
+                                revealed = answered,
+                                onChoose = { i -> submit(i) },
+                                explanation = it.explanation,
+                            )
+                        }  // 答完标绿/红框并显示解析，0.75s 后自动进下一题
                     }
                 }
             }
@@ -693,12 +777,16 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     Text(if (outcome == "win") "🏆 胜利！" else if (outcome == "lose") "💀 惜败" else "🤝 平局",
                         style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
                     Text("我 $myC 题 ｜ 对手 $peerC 题", style = MaterialTheme.typography.titleMedium)
+                    if (result!!.ranked) {
+                        Text("🏅 积分 ${result!!.myRating}（${if (result!!.ratingDelta >= 0) "+" else ""}${result!!.ratingDelta}）",
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32))
+                    } else {
+                        Text(if (lanSession) "局域网对战 · 不计分" else "好友房间 · 不计分（仅快速匹配计分）",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Text("我的用时 ${result!!.myTimeMs / 1000} 秒", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Button(onClick = {
-                        client.close(); embedded?.stopServer()
-                        com.brainquest.game.net.PkDiscovery.stopBeacon()
-                        embedded = null; phase = "lobby"
-                    }, modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = { backToLobby() }, modifier = Modifier.fillMaxWidth()) {
                         Text("再来一局")
                     }
                 }

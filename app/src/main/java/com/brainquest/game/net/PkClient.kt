@@ -26,7 +26,22 @@ sealed class PkEvent {
     data object PeerReady : PkEvent()
     data class PeerAnswer(val idx: Int, val correct: Boolean) : PkEvent()
     data class PeerFinish(val correct: Int, val timeMs: Long) : PkEvent()
-    data class Result(val outcome: String, val myCorrect: Int, val myTimeMs: Long, val peerCorrect: Int, val peerTimeMs: Long) : PkEvent()
+    data class Result(
+        val outcome: String,
+        val myCorrect: Int,
+        val myTimeMs: Long,
+        val peerCorrect: Int,
+        val peerTimeMs: Long,
+        val ranked: Boolean = false,   // 是否计分局（仅快速匹配计分）
+        val myRating: Int = 0,         // 我的积分（计分局）
+        val ratingDelta: Int = 0,      // 本局积分变化
+        val peerRating: Int = 0,
+    ) : PkEvent()
+    /** 排行榜条目 */
+    data class RankRow(val name: String, val rating: Int, val wins: Int, val losses: Int, val games: Int = 0, val rank: Int = 0)
+    data class Leaderboard(val top: List<RankRow>, val me: RankRow?) : PkEvent()
+    data class SaveOk(val size: Int) : PkEvent()          // 云存档上传成功
+    data class SaveData(val data: String) : PkEvent()     // 云存档下载数据
     data object PeerLeft : PkEvent()
     data class Error(val msg: String) : PkEvent()
     data class Connected(val hostMode: Boolean) : PkEvent()  // WebSocket 已连上
@@ -115,13 +130,35 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
             "peer_ready", "ready" -> onEvent(PkEvent.PeerReady)
             "peer_answer" -> onEvent(PkEvent.PeerAnswer(obj["idx"]!!.jsonPrimitive.content.toInt(), obj["correct"]!!.jsonPrimitive.content.toBoolean()))
             "peer_finish" -> onEvent(PkEvent.PeerFinish(obj["correct"]!!.jsonPrimitive.content.toInt(), obj["timeMs"]!!.jsonPrimitive.content.toLong()))
-            "result" -> onEvent(PkEvent.Result(
-                outcome = obj["outcome"]!!.jsonPrimitive.content,
-                myCorrect = obj["my"]!!.jsonObject["correct"]!!.jsonPrimitive.content.toInt(),
-                myTimeMs = obj["my"]!!.jsonObject["timeMs"]!!.jsonPrimitive.content.toLong(),
-                peerCorrect = obj["peer"]!!.jsonObject["correct"]!!.jsonPrimitive.content.toInt(),
-                peerTimeMs = obj["peer"]!!.jsonObject["timeMs"]!!.jsonPrimitive.content.toLong(),
-            ))
+            "result" -> {
+                val rating = obj["rating"]?.let { runCatching { it.jsonObject }.getOrNull() }
+                onEvent(PkEvent.Result(
+                    outcome = obj["outcome"]!!.jsonPrimitive.content,
+                    myCorrect = obj["my"]!!.jsonObject["correct"]!!.jsonPrimitive.content.toInt(),
+                    myTimeMs = obj["my"]!!.jsonObject["timeMs"]!!.jsonPrimitive.content.toLong(),
+                    peerCorrect = obj["peer"]!!.jsonObject["correct"]!!.jsonPrimitive.content.toInt(),
+                    peerTimeMs = obj["peer"]!!.jsonObject["timeMs"]!!.jsonPrimitive.content.toLong(),
+                    ranked = rating?.get("ranked")?.jsonPrimitive?.content?.toBoolean() ?: false,
+                    myRating = rating?.get("my")?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    ratingDelta = rating?.get("delta")?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    peerRating = rating?.get("peer")?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                ))
+            }
+            "leaderboard" -> {
+                fun row(o: JsonObject, fallbackRank: Int) = PkEvent.RankRow(
+                    name = o["name"]?.jsonPrimitive?.content ?: "?",
+                    rating = o["rating"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1000,
+                    wins = o["wins"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    losses = o["losses"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    games = o["games"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    rank = o["rank"]?.jsonPrimitive?.content?.toIntOrNull() ?: fallbackRank,
+                )
+                val top = obj["top"]?.jsonArray?.mapIndexed { i, el -> row(el.jsonObject, i + 1) } ?: emptyList()
+                val me = obj["me"]?.let { runCatching { row(it.jsonObject, 0) }.getOrNull() }
+                onEvent(PkEvent.Leaderboard(top, me))
+            }
+            "save_ok" -> onEvent(PkEvent.SaveOk(obj["size"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0))
+            "save_data" -> onEvent(PkEvent.SaveData(obj["data"]?.jsonPrimitive?.content ?: ""))
             "peer_left" -> onEvent(PkEvent.PeerLeft)
             "online" -> onEvent(PkEvent.Online(
                 players = obj["players"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
@@ -171,6 +208,25 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
     /** 查询在线人数（服务器同时也会主动广播） */
     fun sendOnlineQuery() {
         send(buildJsonObject { put("t", "online") }.toString())
+    }
+
+    /** 查询快速匹配排行榜（含我自己的排名） */
+    fun sendLeaderboard(name: String) {
+        send(buildJsonObject {
+            put("t", "leaderboard"); put("name", name)
+        }.toString())
+    }
+
+    /** 云存档：上传 */
+    fun sendCloudPut(code: String, data: String) {
+        send(buildJsonObject {
+            put("t", "save_put"); put("code", code); put("data", data)
+        }.toString())
+    }
+
+    /** 云存档：下载 */
+    fun sendCloudGet(code: String) {
+        send(buildJsonObject { put("t", "save_get"); put("code", code) }.toString())
     }
 
     private fun send(text: String) {

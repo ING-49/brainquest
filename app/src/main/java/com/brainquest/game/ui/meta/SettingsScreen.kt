@@ -2,6 +2,7 @@ package com.brainquest.game.ui.meta
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -21,6 +23,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +60,73 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     var busy by remember { mutableStateOf(false) }
     var pendingApk by remember { mutableStateOf<java.io.File?>(null) }
     var showDevUrl by remember { mutableStateOf(false) }
+    var cloudStatus by remember { mutableStateOf("") }
+    var cloudAction by remember { mutableStateOf("") }        // put / get，"正在操作中"防重复点击
+    var pendingRestore by remember { mutableStateOf<String?>(null) }
+
+    // 云存档：独立短连（连接成功后按 cloudAction 发对应请求）
+    val cloudEvents = remember { kotlinx.coroutines.flow.MutableSharedFlow<com.brainquest.game.net.PkEvent>(extraBufferCapacity = 8) }
+    val cloudClient = remember { com.brainquest.game.net.PkClient { cloudEvents.tryEmit(it) } }
+    DisposableEffect(Unit) { onDispose { cloudClient.close() } }
+    LaunchedEffect(Unit) {
+        cloudEvents.collect { e ->
+            when (e) {
+                is com.brainquest.game.net.PkEvent.Connected -> when (cloudAction) {
+                    "put" -> {
+                        cloudStatus = "正在上传…"
+                        cloudClient.sendCloudPut(vm.player.value.cloudCode, vm.exportSaveJson())
+                    }
+                    "get" -> {
+                        cloudStatus = "正在下载…"
+                        cloudClient.sendCloudGet(vm.player.value.cloudCode)
+                    }
+                }
+                is com.brainquest.game.net.PkEvent.SaveOk -> {
+                    cloudAction = ""
+                    cloudStatus = "✅ 已上传（${e.size} 字节）"
+                    cloudClient.close()
+                }
+                is com.brainquest.game.net.PkEvent.SaveData -> {
+                    cloudAction = ""
+                    pendingRestore = e.data
+                    cloudStatus = "已取到云端存档，确认后覆盖本地"
+                    cloudClient.close()
+                }
+                is com.brainquest.game.net.PkEvent.Error -> {
+                    // 操作已完成后是我们主动关连接，关闭事件不算错误
+                    if (cloudAction.isNotEmpty()) {
+                        cloudAction = ""
+                        cloudStatus = "❌ ${e.msg}"
+                        cloudClient.close()
+                    }
+                }
+                is com.brainquest.game.net.PkEvent.Disconnected -> {
+                    if (cloudAction.isNotEmpty()) {
+                        cloudAction = ""
+                        cloudStatus = "❌ 连接失败，请检查网络后重试"
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun startCloudPut() {
+        if (player.cloudCode.isBlank()) vm.setSettings(cloudCode = vm.generateCloudCode())
+        cloudAction = "put"
+        cloudStatus = "连接服务器…"
+        cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
+    }
+
+    fun startCloudGet() {
+        if (player.cloudCode.isBlank()) {
+            cloudStatus = "先在原设备「上传存档」获取存档码"
+            return
+        }
+        cloudAction = "get"
+        cloudStatus = "连接服务器…"
+        cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
+    }
     val notifPermission = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) { }
@@ -107,6 +178,48 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             subtitle = "开：每日挑战出大学科目高难题（高数/线代/概率/高频/通信，考研向）\n关：每日挑战出基础入门题（数学口算/逻辑/英语/科学/编程）",
             checked = player.hardMode,
         ) { vm.setSettings(hard = it) }
+
+        // 云存档
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        ) {
+            Column(Modifier.padding(14.dp)) {
+                Text("☁️ 云存档", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("换手机 / 重装后恢复进度：先在原设备「上传存档」，再在新设备输入同一存档码「下载存档」。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp))
+                Text("存档码：${player.cloudCode.ifBlank { "（首次上传自动生成）" }}",
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp))
+                Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { startCloudPut() }, enabled = cloudAction.isEmpty()) { Text("⬆️ 上传存档") }
+                    OutlinedButton(onClick = { startCloudGet() }, enabled = cloudAction.isEmpty()) { Text("⬇️ 下载存档") }
+                }
+                if (cloudStatus.isNotBlank()) {
+                    Text(cloudStatus, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+        }
+        pendingRestore?.let { data ->
+            AlertDialog(
+                onDismissRequest = { pendingRestore = null; cloudStatus = "已取消" },
+                title = { Text("恢复云存档？") },
+                text = { Text("将用云端存档覆盖本机当前进度，确定继续吗？") },
+                confirmButton = {
+                    Button(onClick = {
+                        val ok = vm.importSaveJson(data)
+                        cloudStatus = if (ok) "✅ 已恢复云端存档" else "❌ 存档解析失败"
+                        pendingRestore = null
+                    }) { Text("覆盖恢复") }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { pendingRestore = null; cloudStatus = "已取消" }) { Text("取消") }
+                },
+            )
+        }
 
         // 更新中心
         Card(

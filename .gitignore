@@ -22,3 +22,7 @@ update-server/release_notes.md
 keystore/
 update-server/apks/_hold/
 update-server/packs/*.zip
+
+# PK 服务器运行时数据（本地测试产生）
+update-server/ratings.json
+update-server/saves/

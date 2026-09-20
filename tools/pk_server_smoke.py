@@ -86,7 +86,50 @@ async def main():
     re_ = await recv_until(e, "created", timeout=2)
     check("取消匹配后不再被配对", re_ is None)
 
-    for ws in (b, c, d, e, f):
+    # 7. ELO：快速匹配对局返回对称积分（胜者加分 = 败者减分）
+    rw_rating = rw.get("rating") if rw else None
+    rl_rating = rl.get("rating") if rl else None
+    check("快速匹配结果带计分信息",
+          bool(rw_rating and rw_rating.get("ranked")) and bool(rl_rating and rl_rating.get("ranked")))
+    check("ELO 对称（胜者 delta = -败者 delta）",
+          bool(rw_rating and rl_rating and rw_rating.get("delta") == -rl_rating.get("delta")))
+    check("ELO 胜者加分", bool(rw_rating and rw_rating.get("delta", 0) >= 8))
+
+    # 8. 好友房间不计分
+    g = await websockets.connect(URL)
+    g2 = await websockets.connect(URL)
+    await g.send(json.dumps({"t": "create", "name": "G", "version": V}))
+    rc = await recv_until(g, "created", timeout=5)
+    await g2.send(json.dumps({"t": "join", "code": rc["code"], "name": "H", "version": V}))
+    await recv_until(g2, "joined", timeout=5)
+    qs2 = [{"id": f"roomq{i}", "subject": "数学口算", "difficulty": 1, "type": "choice",
+            "question": f"{i}+1=?", "options": ["0", "1", "2", "3"], "answer": 1,
+            "explanation": "smoke", "tags": []} for i in range(10)]
+    await g.send(json.dumps({"t": "start", "questions": qs2}))
+    await recv_until(g2, "start", timeout=5)
+    await g.send(json.dumps({"t": "finish", "correct": 5, "timeMs": 500}))
+    await g2.send(json.dumps({"t": "finish", "correct": 3, "timeMs": 600}))
+    rg = await recv_until(g, "result", timeout=5)
+    check("好友房间不计分（ranked=false）",
+          bool(rg and rg.get("rating") and rg["rating"].get("ranked") is False))
+
+    # 9. 排行榜：包含刚才计分玩家
+    await b.send(json.dumps({"t": "leaderboard", "name": "B"}))
+    lb = await recv_until(b, "leaderboard", timeout=5)
+    check("排行榜返回 Top 列表与我的排名",
+          bool(lb and isinstance(lb.get("top"), list) and len(lb["top"]) >= 1
+               and lb.get("me") and lb["me"].get("rank", 0) >= 1))
+
+    # 10. 云存档：上传后下载一致
+    payload = '{"nickname":"冒烟测试","coins":321}'
+    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "data": payload}))
+    ok_ = await recv_until(b, "save_ok", timeout=5)
+    await b.send(json.dumps({"t": "save_get", "code": "SMOKE1"}))
+    sd = await recv_until(b, "save_data", timeout=5)
+    check("云存档上传+下载一致",
+          bool(ok_ and sd and sd.get("data") == payload))
+
+    for ws in (b, c, d, e, f, g, g2):
         await ws.close()
     ok, fail = sum(results), len(results) - sum(results)
     print(f"\n结果: {ok} 通过, {fail} 失败 @ {URL}")
