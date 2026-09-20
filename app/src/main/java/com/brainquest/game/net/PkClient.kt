@@ -39,7 +39,7 @@ sealed class PkEvent {
     ) : PkEvent()
     /** 排行榜条目 */
     data class RankRow(val name: String, val rating: Int, val wins: Int, val losses: Int, val games: Int = 0, val rank: Int = 0)
-    data class Leaderboard(val top: List<RankRow>, val me: RankRow?) : PkEvent()
+    data class Leaderboard(val top: List<RankRow>, val me: RankRow?, val subject: String = "") : PkEvent()
     data class SaveOk(val size: Int) : PkEvent()          // 云存档上传成功
     data class SaveData(val data: String) : PkEvent()     // 云存档下载数据
     data object PeerLeft : PkEvent()
@@ -155,7 +155,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
                 )
                 val top = obj["top"]?.jsonArray?.mapIndexed { i, el -> row(el.jsonObject, i + 1) } ?: emptyList()
                 val me = obj["me"]?.let { runCatching { row(it.jsonObject, 0) }.getOrNull() }
-                onEvent(PkEvent.Leaderboard(top, me))
+                onEvent(PkEvent.Leaderboard(top, me, obj["subject"]?.jsonPrimitive?.content ?: ""))
             }
             "save_ok" -> onEvent(PkEvent.SaveOk(obj["size"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0))
             "save_data" -> onEvent(PkEvent.SaveData(obj["data"]?.jsonPrimitive?.content ?: ""))
@@ -198,10 +198,10 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
         send(buildJsonObject { put("t", "cancel_match") }.toString())
     }
 
-    /** 发起快速匹配（连接已建立时用；未连接时直接 connect(mode="quick_match")） */
-    fun sendQuickMatch(name: String, version: String) {
+    /** 发起快速匹配（连接已建立时用；未连接时先 connect(mode="idle") 再调用） */
+    fun sendQuickMatch(name: String, version: String, subject: String = "混合") {
         send(buildJsonObject {
-            put("t", "quick_match"); put("name", name); put("version", version)
+            put("t", "quick_match"); put("name", name); put("version", version); put("subject", subject)
         }.toString())
     }
 
@@ -210,10 +210,10 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
         send(buildJsonObject { put("t", "online") }.toString())
     }
 
-    /** 查询快速匹配排行榜（含我自己的排名） */
-    fun sendLeaderboard(name: String) {
+    /** 查询某科目排行榜（含我自己的排名），默认混合 */
+    fun sendLeaderboard(name: String, subject: String = "混合") {
         send(buildJsonObject {
-            put("t", "leaderboard"); put("name", name)
+            put("t", "leaderboard"); put("name", name); put("subject", subject)
         }.toString())
     }
 

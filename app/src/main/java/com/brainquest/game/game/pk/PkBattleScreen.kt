@@ -103,6 +103,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var board by remember { mutableStateOf<List<PkEvent.RankRow>?>(null) }
     var boardMe by remember { mutableStateOf<PkEvent.RankRow?>(null) }
     var pendingBoard by remember { mutableStateOf(false) }     // 连接建立后自动查询排行榜
+    var boardSubject by remember { mutableStateOf("混合") }    // 排行榜当前科目（默认混合）
+    var pendingMatch by remember { mutableStateOf(false) }     // 连接建立后自动发起快速匹配
     var lanSession by remember { mutableStateOf(false) }       // 本局是否局域网/热点对战（不计分标注用）
 
     var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
@@ -126,6 +128,18 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var countdown by remember { mutableIntStateOf(0) }
     var peerAnswered by remember { mutableIntStateOf(0) }  // 对手已作答题数（含未判分提交）
     val myIps = remember { com.brainquest.game.net.PkDiscovery.localIps() }
+
+    // 连续对局：每局开打前必须清零上一局残留（房主路径不经 Start 事件，此前漏重置）
+    fun resetBattleState() {
+        qIndex = 0
+        answered = false
+        chosen = -1
+        myCorrect = 0
+        peerCorrect = 0
+        peerAnswered = 0
+        totalTime = 0
+        timeLeftMs = QUESTION_TIME_MS
+    }
 
     LaunchedEffect(searching) {
         if (searching) {
@@ -171,8 +185,12 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     event.hostMode -> "已连接，房间创建中…"
                     else -> "已连接"
                 }
+                if (pendingMatch) {
+                    client.sendQuickMatch(player.nickname, BuildConfig.VERSION_NAME, matchSubject ?: "混合")
+                    pendingMatch = false
+                }
                 if (pendingBoard) {
-                    client.sendLeaderboard(player.nickname)
+                    client.sendLeaderboard(player.nickname, boardSubject)
                     pendingBoard = false
                 }
             }
@@ -216,7 +234,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
             }
             is PkEvent.Start -> {
                 questions = event.questions
-                qIndex = 0; myCorrect = 0; peerCorrect = 0; peerAnswered = 0; totalTime = 0
+                resetBattleState()   // 连续对局：清零上一局残留进度
                 myReady = false; peerReady = false
                 countdown = 3       // 进入 3·2·1 倒计时
                 phase = "countdown"
@@ -291,8 +309,21 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         result = null
         remoteConnected = false
         lanSession = false
+        resetBattleState()
         status = ""
         phase = "lobby"
+    }
+
+    // 排行榜查询：切换科目并拉取（默认混合）
+    fun queryBoard(subject: String) {
+        boardSubject = subject
+        board = null; boardMe = null
+        if (remoteConnected && connectedUrl == serverUrl) {
+            client.sendLeaderboard(player.nickname, subject)
+        } else if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)) {
+            connectedUrl = serverUrl
+            pendingBoard = true
+        }
     }
 
     androidx.activity.compose.BackHandler(enabled = phase != "lobby") { backToLobby() }
@@ -306,6 +337,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
             } else if (!joinedAsGuest) {
                 client.sendStart(questions)          // 远程服务器房主：发题
             }
+            resetBattleState()  // 连续对局：房主路径不经 Start 事件，这里必须清零
             phase = "countdown"; countdown = 3
         }
     }
@@ -427,10 +459,12 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                         matching = true
                                         lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
+                                        val subject = matchSubject ?: "混合"
                                         if (remoteConnected && connectedUrl == serverUrl) {
-                                            client.sendQuickMatch(player.nickname, BuildConfig.VERSION_NAME)
-                                        } else if (client.connect(serverUrl, player.nickname, "quick_match", version = BuildConfig.VERSION_NAME)) {
+                                            client.sendQuickMatch(player.nickname, BuildConfig.VERSION_NAME, subject)
+                                        } else if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)) {
                                             connectedUrl = serverUrl
+                                            pendingMatch = true
                                         }
                                     }, modifier = Modifier.fillMaxWidth()) { Text("⚡ 快速匹配（同版本随机对手）") }
                                 } else {
@@ -450,13 +484,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 }
                                 OutlinedButton(onClick = {
                                     showBoard = true
-                                    board = null; boardMe = null
-                                    if (remoteConnected && connectedUrl == serverUrl) {
-                                        client.sendLeaderboard(player.nickname)
-                                    } else if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)) {
-                                        connectedUrl = serverUrl
-                                        pendingBoard = true
-                                    }
+                                    queryBoard("混合")   // 打开优先显示混合榜
                                 }, modifier = Modifier.fillMaxWidth()) { Text("🏆 排行榜（快速匹配积分）") }
                                 HorizontalDivider()
                                 Text("对战科目（房主出题用）", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -513,16 +541,29 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                             AlertDialog(
                                 onDismissRequest = { showBoard = false },
                                 confirmButton = { Button(onClick = { showBoard = false }) { Text("关闭") } },
-                                title = { Text("🏆 快速匹配排行榜") },
+                                title = { Text("🏆 排行榜 · $boardSubject") },
                                 text = {
                                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("仅快速匹配计分 · 对战科目由房主选定",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            FilterChip(selected = boardSubject == "混合", onClick = { queryBoard("混合") },
+                                                label = { Text("🎲 混合") })
+                                            Subjects.all.forEach { s ->
+                                                FilterChip(selected = boardSubject == s, onClick = { queryBoard(s) },
+                                                    label = { Text("${Subjects.emoji(s)} $s") })
+                                            }
+                                        }
+                                        HorizontalDivider(Modifier.padding(vertical = 2.dp))
                                         val list = board
                                         when {
                                             list == null -> Row(verticalAlignment = Alignment.CenterVertically) {
                                                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                                                 Text("  加载中…", style = MaterialTheme.typography.bodyMedium)
                                             }
-                                            list.isEmpty() -> Text("还没有人上榜，来打一局快速匹配吧！（仅快速匹配计分）",
+                                            list.isEmpty() -> Text("该科目还没有人上榜，来打一局快速匹配吧！",
                                                 style = MaterialTheme.typography.bodyMedium)
                                             else -> {
                                                 list.forEachIndexed { i, r ->

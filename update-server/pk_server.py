@@ -5,10 +5,10 @@
   客户端 → 服务器：
     {"t":"create","name":"昵称"}                    → 创建房间（不计分）
     {"t":"join","code":"123456","name":"昵称"}       → 加入房间（不计分）
-    {"t":"quick_match","name":"昵称"}               → 进入快速匹配队列（同版本才配对，计分）
+    {"t":"quick_match","name":"昵称","subject":"混合"} → 进入快速匹配队列（同版本才配对，计分；科目=房主选定）
     {"t":"cancel_match"}                            → 退出匹配队列
     {"t":"online"}                                  → 查询在线人数
-    {"t":"leaderboard","name":"昵称"}               → 查询快速匹配排行榜（Top10 + 我的排名）
+    {"t":"leaderboard","name":"昵称","subject":"混合"} → 查询某科目排行榜（Top10 + 我的排名）
     {"t":"save_put","code":"XXXX","data":"<json>"}  → 上传云存档
     {"t":"save_get","code":"XXXX"}                  → 下载云存档
     {"t":"start","questions":[...]}                 （房主）开始并下发题目
@@ -52,21 +52,27 @@ SAVES_DIR = os.path.join(DATA_DIR, "saves")
 
 K_FACTOR = 32          # ELO K 值
 DEFAULT_RATING = 1000  # 初始积分
+DEFAULT_SUBJECT = "混合"  # 排行榜默认科目（房主未选科目时）
 
-rooms = {}   # code -> {"host": ws, "guest": ws, "names": {ws: name}, "versions": {ws: version}, "finish": {ws: (correct, timeMs)}, "ranked": bool}
+rooms = {}   # code -> {"host": ws, "guest": ws, "names": {ws: name}, "versions": {ws: version}, "finish": {ws: (correct, timeMs)}, "ranked": bool, "subject": str}
 online = set()   # 当前所有连接
-queue = []   # 快速匹配等待队列：[{"ws","name","version"}, ...]
-ratings = {}  # name -> {"r": 1000, "w": 0, "l": 0, "g": 0}
+queue = []   # 快速匹配等待队列：[{"ws","name","version","subject"}, ...]
+ratings = {}  # 科目 -> {name -> {"r": 1000, "w": 0, "l": 0, "g": 0}}（排行榜按科目分桶）
 
 
-# ---------- 积分持久化（快速匹配 ELO，仅计分局更新） ----------
+# ---------- 积分持久化（快速匹配 ELO，按科目分桶，仅计分局更新） ----------
 
 def load_ratings():
     global ratings
     try:
         with open(RATINGS_FILE, "r", encoding="utf-8") as f:
-            ratings = json.load(f)
-        print(f"[elo] 已载入 {len(ratings)} 名玩家积分")
+            data = json.load(f)
+        # 兼容 v1.6.3 的旧扁平结构（name -> 积分）→ 迁移进「混合」桶
+        if data and all(isinstance(v, dict) and "r" in v for v in data.values()):
+            data = {DEFAULT_SUBJECT: data}
+        ratings = data
+        n = sum(len(v) for v in ratings.values())
+        print(f"[elo] 已载入 {len(ratings)} 个科目桶 / {n} 名玩家积分")
     except Exception:
         ratings = {}
 
@@ -80,13 +86,14 @@ def save_ratings():
         print(f"[elo] 积分保存失败: {e}")
 
 
-def rating_of(name):
-    return ratings.setdefault(name, {"r": DEFAULT_RATING, "w": 0, "l": 0, "g": 0})
+def rating_of(subject, name):
+    return ratings.setdefault(subject, {}).setdefault(
+        name, {"r": DEFAULT_RATING, "w": 0, "l": 0, "g": 0})
 
 
-def apply_elo(host_name, guest_name, host_score):
+def apply_elo(subject, host_name, guest_name, host_score):
     """host_score: 1 胜 / 0.5 平 / 0 负；返回 (host_delta, host_rating, guest_rating)"""
-    h, g = rating_of(host_name), rating_of(guest_name)
+    h, g = rating_of(subject, host_name), rating_of(subject, guest_name)
     exp_h = 1 / (1 + 10 ** ((g["r"] - h["r"]) / 400))
     delta = round(K_FACTOR * (host_score - exp_h))
     h["r"] += delta
@@ -101,8 +108,8 @@ def apply_elo(host_name, guest_name, host_score):
     return delta, h["r"], g["r"]
 
 
-def rank_of(name):
-    order = sorted(ratings.items(), key=lambda kv: -kv[1]["r"])
+def rank_of(subject, name):
+    order = sorted(ratings.get(subject, {}).items(), key=lambda kv: -kv[1]["r"])
     for i, (n, _) in enumerate(order):
         if n == name:
             return i + 1
@@ -138,11 +145,11 @@ def new_code():
     return c
 
 
-def enqueue(ws, name, version):
+def enqueue(ws, name, version, subject):
     if any(e["ws"] == ws for e in queue):
         return
-    queue.append({"ws": ws, "name": name, "version": version})
-    print(f"[match] {name} v{version} 入队（等待 {len(queue)}）")
+    queue.append({"ws": ws, "name": name, "version": version, "subject": subject})
+    print(f"[match] {name} v{version} 科目[{subject}] 入队（等待 {len(queue)}）")
 
 
 def dequeue(ws):
@@ -169,14 +176,15 @@ def pair(a, b):
     rooms[code] = {"host": a["ws"], "guest": b["ws"],
                    "names": {a["ws"]: a["name"], b["ws"]: b["name"]},
                    "versions": {a["ws"]: a["version"], b["ws"]: b["version"]},
-                   "finish": {}, "ranked": True}   # 快速匹配 = 计分局
+                   "finish": {}, "ranked": True,          # 快速匹配 = 计分局
+                   "subject": a.get("subject") or DEFAULT_SUBJECT}  # 房主选定的科目 = 计分桶
     # 甲方走房主路径：created → peer_joined（收到后本地选题并发 start）
     send(a["ws"], {"t": "created", "code": code})
     send(a["ws"], {"t": "peer_joined", "peer": b["name"], "version": b["version"]})
     # 乙方走加入方路径
     send(b["ws"], {"t": "joined", "code": code, "peer": a["name"],
                    "peer_version": a["version"]})
-    print(f"[match] {code} 配对成功: {a['name']} vs {b['name']}（计分）")
+    print(f"[match] {code} 配对成功: {a['name']} vs {b['name']}（计分 · 科目[{rooms[code]['subject']}]）")
 
 
 def peer_of(code, ws):
@@ -203,12 +211,13 @@ def try_result(code):
     if room.get("ranked"):
         h_name = room["names"].get(host, "玩家")
         g_name = room["names"].get(guest, "玩家")
-        delta, h_r, g_r = apply_elo(h_name, g_name, host_score)
+        subject = room.get("subject") or DEFAULT_SUBJECT
+        delta, h_r, g_r = apply_elo(subject, h_name, g_name, host_score)
         rating = {
             host: {"ranked": True, "my": h_r, "delta": delta, "peer": g_r},
             guest: {"ranked": True, "my": g_r, "delta": -delta, "peer": h_r},
         }
-        print(f"[elo] {h_name}({h_r}) vs {g_name}({g_r}) delta={delta:+d}")
+        print(f"[elo] [{subject}] {h_name}({h_r}) vs {g_name}({g_r}) delta={delta:+d}")
     for ws, my, other in (
         (host, (hc, ht), (gc, gt)),
         (guest, (gc, gt), (hc, ht)),
@@ -268,7 +277,8 @@ async def handler(ws):
                 print(f"[room] {c} joined by {msg.get('name')}")
 
             elif t == "quick_match":
-                enqueue(ws, msg.get("name", "玩家"), msg.get("version", "?"))
+                enqueue(ws, msg.get("name", "玩家"), msg.get("version", "?"),
+                        str(msg.get("subject") or DEFAULT_SUBJECT))
                 if not try_match():
                     broadcast_presence()
 
@@ -281,13 +291,15 @@ async def handler(ws):
 
             elif t == "leaderboard":
                 name = msg.get("name", "")
-                top = sorted(ratings.items(), key=lambda kv: -kv[1]["r"])[:10]
+                subject = str(msg.get("subject") or DEFAULT_SUBJECT)
+                table = ratings.get(subject, {})
+                top = sorted(table.items(), key=lambda kv: -kv[1]["r"])[:10]
                 me = None
-                if name in ratings:
-                    v = ratings[name]
+                if name in table:
+                    v = table[name]
                     me = {"name": name, "rating": v["r"], "wins": v["w"],
-                          "losses": v["l"], "games": v["g"], "rank": rank_of(name)}
-                send(ws, {"t": "leaderboard",
+                          "losses": v["l"], "games": v["g"], "rank": rank_of(subject, name)}
+                send(ws, {"t": "leaderboard", "subject": subject,
                           "top": [{"name": n, "rating": v["r"], "wins": v["w"],
                                    "losses": v["l"], "games": v["g"]} for n, v in top],
                           "me": me})

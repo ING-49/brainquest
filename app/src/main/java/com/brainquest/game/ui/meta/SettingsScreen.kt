@@ -63,6 +63,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     var cloudStatus by remember { mutableStateOf("") }
     var cloudAction by remember { mutableStateOf("") }        // put / get，"正在操作中"防重复点击
     var pendingRestore by remember { mutableStateOf<String?>(null) }
+    var cloudCodeInput by remember(player.cloudCode) { mutableStateOf(player.cloudCode) }
 
     // 云存档：独立短连（连接成功后按 cloudAction 发对应请求）
     val cloudEvents = remember { kotlinx.coroutines.flow.MutableSharedFlow<com.brainquest.game.net.PkEvent>(extraBufferCapacity = 8) }
@@ -74,11 +75,11 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                 is com.brainquest.game.net.PkEvent.Connected -> when (cloudAction) {
                     "put" -> {
                         cloudStatus = "正在上传…"
-                        cloudClient.sendCloudPut(vm.player.value.cloudCode, vm.exportSaveJson())
+                        cloudClient.sendCloudPut(cloudCodeInput.trim().uppercase(), vm.exportSaveJson())
                     }
                     "get" -> {
                         cloudStatus = "正在下载…"
-                        cloudClient.sendCloudGet(vm.player.value.cloudCode)
+                        cloudClient.sendCloudGet(cloudCodeInput.trim().uppercase())
                     }
                 }
                 is com.brainquest.game.net.PkEvent.SaveOk -> {
@@ -112,17 +113,24 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     }
 
     fun startCloudPut() {
-        if (player.cloudCode.isBlank()) vm.setSettings(cloudCode = vm.generateCloudCode())
+        var code = cloudCodeInput.trim().uppercase()
+        if (code.isBlank()) {
+            code = vm.generateCloudCode()
+            cloudCodeInput = code
+        }
+        vm.setSettings(cloudCode = code)
         cloudAction = "put"
         cloudStatus = "连接服务器…"
         cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
     }
 
     fun startCloudGet() {
-        if (player.cloudCode.isBlank()) {
-            cloudStatus = "先在原设备「上传存档」获取存档码"
+        val code = cloudCodeInput.trim().uppercase()
+        if (code.isBlank()) {
+            cloudStatus = "请输入原设备的存档码"
             return
         }
+        vm.setSettings(cloudCode = code)
         cloudAction = "get"
         cloudStatus = "连接服务器…"
         cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
@@ -186,13 +194,17 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
         ) {
             Column(Modifier.padding(14.dp)) {
                 Text("☁️ 云存档", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("换手机 / 重装后恢复进度：先在原设备「上传存档」，再在新设备输入同一存档码「下载存档」。",
+                Text("跨设备恢复进度：原设备「上传存档」得到存档码 → 新设备在下方输入同一存档码 → 点「下载存档」恢复。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp))
-                Text("存档码：${player.cloudCode.ifBlank { "（首次上传自动生成）" }}",
-                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp))
+                OutlinedTextField(
+                    value = cloudCodeInput,
+                    onValueChange = { cloudCodeInput = it.uppercase().take(12) },
+                    label = { Text("存档码（留空上传则自动生成）") },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    singleLine = true,
+                )
                 Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { startCloudPut() }, enabled = cloudAction.isEmpty()) { Text("⬆️ 上传存档") }
                     OutlinedButton(onClick = { startCloudGet() }, enabled = cloudAction.isEmpty()) { Text("⬇️ 下载存档") }

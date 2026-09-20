@@ -85,6 +85,10 @@ async def main():
     await f.send(json.dumps({"t": "quick_match", "name": "F", "version": V}))
     re_ = await recv_until(e, "created", timeout=2)
     check("取消匹配后不再被配对", re_ is None)
+    # 清空等待队列（c 版本独苗、f 无人可配），避免干扰后续分科目配对测试
+    await c.close()
+    await f.close()
+    await asyncio.sleep(0.3)
 
     # 7. ELO：快速匹配对局返回对称积分（胜者加分 = 败者减分）
     rw_rating = rw.get("rating") if rw else None
@@ -113,12 +117,38 @@ async def main():
     check("好友房间不计分（ranked=false）",
           bool(rg and rg.get("rating") and rg["rating"].get("ranked") is False))
 
-    # 9. 排行榜：包含刚才计分玩家
+    # 9. 排行榜：包含刚才计分玩家（混合桶）
     await b.send(json.dumps({"t": "leaderboard", "name": "B"}))
     lb = await recv_until(b, "leaderboard", timeout=5)
     check("排行榜返回 Top 列表与我的排名",
           bool(lb and isinstance(lb.get("top"), list) and len(lb["top"]) >= 1
                and lb.get("me") and lb["me"].get("rank", 0) >= 1))
+
+    # 9b. 排行榜按科目分桶：混合桶有 B，数学口算桶独立为空
+    await b.send(json.dumps({"t": "leaderboard", "name": "B", "subject": "数学口算"}))
+    lb_sub = await recv_until(b, "leaderboard", timeout=5)
+    check("排行榜按科目分桶（数学口算桶不含混合桶玩家）",
+          bool(lb_sub and lb_sub.get("subject") == "数学口算" and lb_sub.get("me") is None))
+
+    # 9c. 带科目的快速匹配计分进对应科目桶
+    i = await websockets.connect(URL)
+    j = await websockets.connect(URL)
+    await i.send(json.dumps({"t": "quick_match", "name": "smokeI", "version": V, "subject": "数学口算"}))
+    await j.send(json.dumps({"t": "quick_match", "name": "smokeJ", "version": V}))
+    ri = await recv_until(i, "created", timeout=5)
+    await recv_until(j, "joined", timeout=5)
+    await i.send(json.dumps({"t": "finish", "correct": 6, "timeMs": 400}))
+    await j.send(json.dumps({"t": "finish", "correct": 2, "timeMs": 500}))
+    rsub = await recv_until(i, "result", timeout=5)
+    check("数学口算局计分（ranked 且带积分）",
+          bool(rsub and rsub.get("rating", {}).get("ranked")))
+    await i.send(json.dumps({"t": "leaderboard", "name": "smokeI", "subject": "数学口算"}))
+    lbi = await recv_until(i, "leaderboard", timeout=5)
+    await i.send(json.dumps({"t": "leaderboard", "name": "smokeI"}))
+    lbm = await recv_until(i, "leaderboard", timeout=5)
+    check("科目桶独立（数学口算榜有我、混合榜无我）",
+          bool(lbi and lbi.get("me") and lbi["me"].get("rank", 0) >= 1
+               and lbm and lbm.get("me") is None))
 
     # 10. 云存档：上传后下载一致
     payload = '{"nickname":"冒烟测试","coins":321}'
@@ -129,7 +159,7 @@ async def main():
     check("云存档上传+下载一致",
           bool(ok_ and sd and sd.get("data") == payload))
 
-    for ws in (b, c, d, e, f, g, g2):
+    for ws in (b, d, e, g, g2, i, j):
         await ws.close()
     ok, fail = sum(results), len(results) - sum(results)
     print(f"\n结果: {ok} 通过, {fail} 失败 @ {URL}")
