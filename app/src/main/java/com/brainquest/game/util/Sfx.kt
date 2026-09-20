@@ -8,7 +8,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 
-enum class SfxType { CORRECT, WRONG, CLICK, WIN, LOSE, MERGE, FLIP }
+enum class SfxType { CORRECT, WRONG, CLICK, WIN, LOSE }
 
 /** 轻量音效（ToneGenerator，无需音频资源）+ 震动反馈 */
 object Sfx {
@@ -23,8 +23,6 @@ object Sfx {
                 SfxType.CLICK -> SfxParams(ToneGenerator.TONE_PROP_ACK, 60)
                 SfxType.WIN -> SfxParams(ToneGenerator.TONE_CDMA_CONFIRM, 350)
                 SfxType.LOSE -> SfxParams(ToneGenerator.TONE_SUP_ERROR, 300)
-                SfxType.MERGE -> SfxParams(ToneGenerator.TONE_PROP_BEEP2, 100)
-                SfxType.FLIP -> SfxParams(ToneGenerator.TONE_PROP_ACK, 40)
             }
             tone.startTone(params.tone, params.durationMs)
             android.os.Handler(context.mainLooper).postDelayed({ tone.release() }, params.durationMs + 200L)

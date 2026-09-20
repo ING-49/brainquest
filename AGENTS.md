@@ -9,7 +9,7 @@
 |---|---|
 | JDK 17 | `E:\Tools\jdk-17.0.20.1+1`（JAVA_HOME 已 setx）⚠️ 不要用 Studio 自带 JBR（Java 25，Kotlin 2.0 编译器崩溃报 `IllegalArgumentException: <版本号>`） |
 | Android SDK | `E:\Tools\Android-Studio\Android\SDK`（ANDROID_HOME 已 setx；platform 34/37、build-tools 34.0.0/36.0.0、系统镜像 android-34 google_apis x86_64） |
-| 模拟器 AVD | `BrainQuest`（Pixel 6, API 34）。headless 启动：`emulator -avd BrainQuest -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot`（需设 ANDROID_HOME/ANDROID_AVD_HOME 环境变量） |
+| 模拟器 AVD | `BrainQuest`（Pixel 6, API 34）；**AVD home 目录 `E:/Tools/Android-Studio/avd-home`**（启动前需 `export ANDROID_AVD_HOME=E:/Tools/Android-Studio/avd-home`，否则报 Unknown AVD name）。headless 启动：`emulator -avd BrainQuest -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot`（需设 ANDROID_HOME/ANDROID_AVD_HOME 环境变量） |
 | gh CLI | `E:\Tools\gh-cli\bin\gh.exe`（已登录 GitHub 账号 ING-49，token 在系统 keyring） |
 | Gradle | wrapper 8.7；依赖走阿里云镜像（settings.gradle.kts，dl.google.com 被墙）；GRADLE_USER_HOME=`E:\Tools\Android-Studio\Gradle-home` |
 | Python | 3.8 + numpy（差分编码依赖）；bsdiff4 已弃用（Windows 版有缺陷） |
@@ -46,7 +46,9 @@ adb exec-out screencap -p > screen.png
 | `tools/dev_relay.py` | 开发中继：模拟器 → 本机 → GitHub Releases |
 | `tools/publish_github.py` | 发布 update-server 产物到 GitHub Releases（latest 地址自校验） |
 | `tools/pk_guest.py` | 联机机器人对手：`--quick` 快速匹配（可当房主）/ 房间码模式；PK_URL 环境变量 |
-| `tools/pk_server_smoke.py` | PK 服务器冒烟测试（在线人数/版本隔离/配对/整局/取消，7 项断言） |
+| `tools/pk_server_smoke.py` | PK 服务器冒烟测试（在线人数/版本隔离/配对/整局/ELO/排行榜/云存档，16 项断言） |
+| `tools/klotski_verify.py` | 华容道关卡校验（BFS 判可解性 + 最少步数） |
+| `tools/snake_autoeat.py` | 贪吃蛇自动追豆（像素识别 + 暂停分步控制，验证吃豆闭环） |
 | `update-server/release.py` | 一键：打内容包 + BQDELTA1 差分 + manifest + 合成自校验 |
 | `update-server/delta.py` | 自研差分编码器（滚动哈希块匹配，numpy 加速） |
 | `启动更新服务器.bat` | 本地静态服务器（自动显示局域网 IP，供真机同 Wi-Fi 更新） |

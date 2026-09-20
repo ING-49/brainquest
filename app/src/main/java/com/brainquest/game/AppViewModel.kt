@@ -210,6 +210,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return false
     }
 
+    /** 反向指标记录（越小越好，如最少步数）：首次记录或刷新更低值，返回是否破纪录 */
+    fun reportBestLow(key: String, score: Int): Boolean {
+        val old = _player.value.bestScores[key]
+        if (old == null || (old > 0 && score < old) || old == 0) {
+            commit { it.copy(bestScores = it.bestScores + (key to score)) }
+            return true
+        }
+        return false
+    }
+
     // ---------- 每日 ----------
 
     fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())

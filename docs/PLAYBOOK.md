@@ -65,7 +65,8 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **题库 schema**（`assets/questions/*.json` 与热更包同构）：
   `{"subject","version","questions":[{"id","subject","difficulty"(1-5),"type","question","options"[4],"answer"(下标),"explanation","tags"}]}`
 - **加题**：直接改 assets 里的 JSON（随 APK 发）或在 `update-server/packs/src/` 新建 JSON（version+1 → release.py --packs-only → publish_github，走热更）
-- **配对数据**：`assets/pairs/merge_*.json`（2048 词对/算式对，8 级）、`memory_sets.json`（翻牌知识集）
+- **小游戏**（v1.6.5 起）：速算英雄（答题战斗）、`game/klotski/`（华容道，关卡 Kotlin 内置，最优步数由 `tools/klotski_verify.py` BFS 校验）、`game/gomoku/`（五子棋，本地启发式 AI）、`game/snake/`（贪吃蛇 2D）；三者纯逻辑类 + `version` 计数器，无资产依赖
+- **已下线**：知识2048 / 记忆翻牌（v1.6.5 移除，`assets/pairs/` 一并删除；老存档里的 `g2048_*`/`memory_*` 记录保留但不再展示，无需迁移）
 - **科目注册**：`data/question/Subjects.kt`（名称/emoji/描述）+ `data/Achievements.kt` subjectKey + 科目卡颜色（ui/LevelsScreen.kt subjectColor）
 - **存档**：DataStore 单键 JSON（PlayerState），换版本自动兼容（新字段有默认值）
 - **考研模式**：`PlayerState.hardMode` → 设置开关。每日挑战走 `pickDaily`（开=大学五科 60% 真题+40% 难度4，关=基础五科难度2）；闯关/战斗 v1.6.0 起同样联动（`BattleState(subject, level, hardMode=…)`，非数学/逻辑科目走 `pickKaoyanBattleExcluding` 真题+高难并去重），战斗页标题带 🎓 徽标
@@ -194,8 +195,13 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 20 | 跨签名的补丁补丁无法安装 | 合成 APK 与已装 APK 签名不一致时系统拒绝 | release.py 已加签名比对守卫：签名迁移版本自动跳过差分只发全量 |
 | 21 | 发版 APK 体积虚高（16.9MB 应为 3.8MB） | zipflinger 增量打包在旧包基础上改写，被删条目留死空间 | 发版前 `gradlew clean assembleDebug`（或删 APK 重打） |
 | 22 | 混淆后联机/更新失效风险 | R8 裁剪 serializer/WebSocket 类 | proguard-rules.pro 加 kotlinx.serialization + Java-WebSocket + Question 模型 keep 规则（已配） |
+| 24 | 小游戏最佳成绩记反了 | `vm.reportBest(key, score)` 语义是「越大越好」，而步数/用时类指标越小越好（早期记忆翻牌就写成了记最大步数） | 反向指标统一用 `AppViewModel.reportBestLow(key, score)`（华容道最少步数即用它） |
 | 23 | 联机页输地址时 App 崩溃 | 地址输到一半（如 `ws://10.0.2.2:28`）防抖重连触发，OkHttp `Request.Builder().url()` 对残缺 URL 抛 IllegalArgumentException，协程内未捕获 | `PkClient.connect()` 加 `validPkUrl()` 前置校验 + try/catch 兜底，无效地址发 Error 事件不发连接 |
 | 24 | 部署新 pk_server 后新功能没生效 | systemd `enable --now` 对**已运行**的服务不会重启，线上跑的还是旧代码 | 部署脚本改 `enable + restart`；手动更新用 `systemctl restart pk-server` |
+### 小游戏清单（v1.6.5）
+- 速算英雄（答题战斗闯关）· 华容道（6 关，记录最少步数）· 五子棋（本地 AI 三档，记录总胜场/最佳连胜）· 贪吃蛇（最高分）· 联机对战
+- 成就联动：智取华容 / 棋逢对手 / 连战连捷 / 蛇行三十；奖励统一走 `vm.reportBest(Low) + addCoins + addXp`
+
 ## 七、后续可做事项
 
 - [x] release 正式签名（keystore.properties + signingConfig；正式签名历史 APK 均在 apks/ 供补丁链使用）

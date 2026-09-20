@@ -126,12 +126,12 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
             ElevatedCard(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { nav.navigate(Routes.MERGE) },
+                    .clickable { nav.navigate(Routes.KLOTSKI) },
             ) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("🧩", style = MaterialTheme.typography.headlineLarge)
-                    Text("知识2048", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text("配对合成", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("🧱", style = MaterialTheme.typography.headlineLarge)
+                    Text("华容道", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("滑动移块救曹操", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -139,24 +139,35 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
             ElevatedCard(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { nav.navigate(Routes.MEMORY) },
+                    .clickable { nav.navigate(Routes.GOMOKU) },
             ) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("🃏", style = MaterialTheme.typography.headlineLarge)
-                    Text("记忆翻牌", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text("限时配对", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("⚫", style = MaterialTheme.typography.headlineLarge)
+                    Text("五子棋", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("挑战电脑棋力", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             ElevatedCard(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { nav.navigate(Routes.PK) },
+                    .clickable { nav.navigate(Routes.SNAKE) },
             ) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("🌐", style = MaterialTheme.typography.headlineLarge)
-                    Text("联机对战", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text("好友码 PK", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("🐍", style = MaterialTheme.typography.headlineLarge)
+                    Text("贪吃蛇", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("滑动吃豆变长", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+        }
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { nav.navigate(Routes.PK) },
+        ) {
+            Column(Modifier.padding(14.dp)) {
+                Text("🌐", style = MaterialTheme.typography.headlineLarge)
+                Text("联机对战", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("快速匹配 / 好友房间 / 局域网", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -187,10 +198,12 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
         if (player.bestScores.isNotEmpty()) {
             SectionCard("🏆 最佳成绩") {
                 player.bestScores.entries.sortedByDescending { it.value }.take(5).forEach { (k, v) ->
-                    val name = when (k) {
-                        "g2048_en" -> "知识2048·英语"
-                        "g2048_math" -> "知识2048·速算"
-                        else -> if (k.startsWith("memory_")) "记忆翻牌·${k.removePrefix("memory_")}" else k
+                    val name = when {
+                        k.startsWith("hrd_") -> "华容道·${k.removePrefix("hrd_")}（最少步数）"
+                        k == "gomoku_wins" -> "五子棋·总胜场"
+                        k == "gomoku_best_streak" -> "五子棋·最佳连胜"
+                        k == "snake_best" -> "贪吃蛇·最高分"
+                        else -> k
                     }
                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(name, style = MaterialTheme.typography.bodyMedium)

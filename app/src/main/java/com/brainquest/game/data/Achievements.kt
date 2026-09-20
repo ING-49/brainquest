@@ -29,6 +29,14 @@ object Achievements {
             val subjects = it.levelStars.keys.map { key -> key.substringBefore("_") }
             Subjects.all.all { s -> subjects.any { k -> k == subjectKey(s) } }
         },
+        AchievementDef("klotski_clear", "智取华容", "华容道通关任意一关", "🧱", 80) {
+            it.bestScores.entries.any { (k, v) -> k.startsWith("hrd_") && v > 0 }
+        },
+        AchievementDef("gomoku_win", "棋逢对手", "五子棋战胜电脑", "⚫", 60) { (it.bestScores["gomoku_wins"] ?: 0) >= 1 },
+        AchievementDef("gomoku_streak3", "连战连捷", "五子棋连胜 3 场", "🏅", 150) {
+            (it.bestScores["gomoku_best_streak"] ?: 0) >= 3
+        },
+        AchievementDef("snake_30", "蛇行三十", "贪吃蛇得分达到 30", "🐍", 100) { (it.bestScores["snake_best"] ?: 0) >= 30 },
     )
 
     fun byId(id: String): AchievementDef? = all.find { it.id == id }

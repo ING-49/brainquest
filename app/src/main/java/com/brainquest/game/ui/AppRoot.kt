@@ -35,8 +35,9 @@ import com.brainquest.game.ui.meta.ProfileScreen
 import com.brainquest.game.ui.meta.SettingsScreen
 import com.brainquest.game.ui.meta.ShopScreen
 import com.brainquest.game.ui.meta.WrongBookScreen
-import com.brainquest.game.game.memory.MemoryScreen
-import com.brainquest.game.game.merge2048.MergeScreen
+import com.brainquest.game.game.klotski.KlotskiScreen
+import com.brainquest.game.game.gomoku.GomokuScreen
+import com.brainquest.game.game.snake.SnakeScreen
 import com.brainquest.game.game.quizbattle.BattleScreen
 import com.brainquest.game.ui.LevelListScreen
 import com.brainquest.game.ui.SubjectsScreen
@@ -48,8 +49,9 @@ object Routes {
     const val PROFILE = "profile"
     const val LEVELS = "levels/{subject}"
     const val BATTLE = "battle/{subject}/{level}"
-    const val MERGE = "merge2048"
-    const val MEMORY = "memory"
+    const val KLOTSKI = "klotski"
+    const val GOMOKU = "gomoku"
+    const val SNAKE = "snake"
     const val DAILY = "daily"
     const val WRONGBOOK = "wrongbook"
     const val SHOP = "shop"
@@ -123,8 +125,9 @@ fun AppRoot(vm: AppViewModel) {
                 val level = entry.arguments?.getString("level")?.toIntOrNull() ?: 1
                 BattleScreen(vm, nav, subjectFromKey(key), level)
             }
-            composable(Routes.MERGE) { MergeScreen(vm, nav) }
-            composable(Routes.MEMORY) { MemoryScreen(vm, nav) }
+            composable(Routes.KLOTSKI) { KlotskiScreen(vm, nav) }
+            composable(Routes.GOMOKU) { GomokuScreen(vm, nav) }
+            composable(Routes.SNAKE) { SnakeScreen(vm, nav) }
             composable(Routes.DAILY) { DailyScreen(vm, nav) }
             composable(Routes.WRONGBOOK) { WrongBookScreen(vm, nav) }
             composable(Routes.SHOP) { ShopScreen(vm, nav) }
