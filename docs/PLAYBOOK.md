@@ -68,6 +68,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://8.148.192.129:8765` | PK 服务器冒烟（16 项断言） |
 | `tools/deploy_pk_server.py` | `PK_SSH_PASS='<密码>' python tools/deploy_pk_server.py` | 部署/更新公网 pk_server（systemd 常驻） |
 | `启动对战服务器.bat` | 双击 | 局域网 PC 端 PK 服务器 |
+| `tools/_oneshot/*.py`（20 个） | ⛔ **不要运行** | 历史一次性改写脚本（`fix_*`/`add_*`/`v1xx_*`/`upgrade_*` 等），改动已并入源码；重跑会二次改写源码或题库 JSON。见 `tools/_oneshot/README.md` |
 
 ## 四、内容与功能速记
 
@@ -95,7 +96,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **悔棋语义 = 回到我上一手之前**（对方应的那手一并撤销），撤完必轮到自己；AI"思考中"悔棋 = 取消那次落子
 - **对局中返回要确认**：先弹「退出这一局？」；华容道是两级返回（对局 → 选关 → 离开）
 - **已下线**：知识2048 / 记忆翻牌（v1.6.5 移除，`assets/pairs/` 一并删除；老存档里的 `g2048_*`/`memory_*` 记录保留但不再展示，无需迁移）
-- **科目注册**：`data/question/Subjects.kt`（名称/emoji/描述）+ `data/Achievements.kt` subjectKey + 科目卡颜色（ui/LevelsScreen.kt subjectColor）
+- **科目注册**：`data/question/Question.kt` 里的 `object Subjects`（10 个科目的名称与 `all` 列表）+ `data/Achievements.kt` 的 `subjectKey()`（科目 → 存档 key 前缀）+ 科目卡颜色（`ui/LevelsScreen.kt` 的 `subjectColor`）
 - **存档**：DataStore 单键 JSON（PlayerState），换版本自动兼容（新字段有默认值）
 - **考研模式**：`PlayerState.hardMode` → 设置开关。每日挑战走 `pickDaily`（开=大学五科 60% 真题+40% 难度4，关=基础五科难度2）；闯关/战斗 v1.6.0 起同样联动（`BattleState(subject, level, hardMode=…)`，非数学/逻辑科目走 `pickKaoyanBattleExcluding` 真题+高难并去重），战斗页标题带 🎓 徽标
 - **错题本艾宾浩斯复习**（v1.6.0）：`WrongEntry.stage/nextReviewAt` + `PlayerState.reviewIntervalMs`（答错当天→1→2→4→7→15 天）；复习答对 stage+1，答错退回 stage0 且 60s 后重练；`AppViewModel.dueReviewQuestions()` 汇总到期题，错题本页顶部「今日待复习」卡片一键进入复习
@@ -224,12 +225,13 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 25 | 小游戏最佳成绩记反了 | `vm.reportBest(key, score)` 语义是「越大越好」，而步数/用时类指标越小越好（早期记忆翻牌就写成了记最大步数） | 反向指标统一用 `AppViewModel.reportBestLow(key, score)`（华容道最少步数即用它） |
 | 26 | 华容道棋子拖完停在半格，重开也回不去 | 手势 `pointerInput(b.id, version)` 的 key 含 `version`：走子 `version++` → 手势协程被重启，`onDragEnd/onDragCancel` 永不执行，拖动偏移永久残留 | 手势 key 只绑棋子 id；拖动偏移用普通 state，位置 = 格位 + 偏移统一交给 `animateDpAsState` 一个动画值（不再另开动画协程） |
 | 27 | 五子棋悔棋撤错手（只撤电脑那颗 / 或连上轮自己那颗一起撤） | `undo()` 奇偶判断写反：玩家手是奇数手、AI 手是偶数手 | 偶数手（AI 刚应过）撤 2 手、奇数手撤 1 手 → 永远回到"玩家落子之前"，撤完必轮到玩家 |
+| 29 | 后来人误跑 `tools/fix_*.py` / `tools/v1xx_*.py`，源码或题库被二次改写 | 这些是历史一次性脚本（读源码→断言行→字符串替换→覆盖写回），改动早已并入源码，但当时和现役工具混放在 `tools/` 顶层，没有任何警示 | 统一移入 `tools/_oneshot/` 并加 README 警告；想追改动看 git 历史而不是重跑脚本 |
 | 28 | 改小游戏配色后像素识别脚本全失效 | 脚本按 RGB 阈值识别棋盘/棋子；且暂停时棋盘上有 40% 黑蒙层（观察色 = 原色 × 0.6） | 脚本改自适应：棋盘取屏幕最高频色的包围盒；棋子色同时匹配原色与 ×0.6 变体（见 tools/snake_autoeat.py） |
 
 ## 七、后续可做事项
 
 - [x] release 正式签名（keystore.properties + signingConfig；正式签名历史 APK 均在 apks/ 供补丁链使用）
-- [x] 题库批量扩充（8 科 420+ 题 + 真题卷 papers.json + 干扰项质量审计）
+- [x] 题库批量扩充（8 个题库 JSON 共 420 题 + 真题卷 papers.json + 干扰项质量审计；数学口算/逻辑推理由 MathGenerator 程序化生成，合计 10 科目）
 - [x] 考研模式扩展到闯关、错题本艾宾浩斯复习（v1.6.0 完成）
 - [x] README 补充截图与 Release 链接
 - [ ] 打 tag 实战验证一次 Actions 发版流水线（workflow 已就绪；目前发版走 tools/publish_github.py 本地发布）

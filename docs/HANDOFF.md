@@ -1,6 +1,14 @@
 # HANDOFF — 脑力大冒险 · 项目交接速览
 
-> 一屏内恢复上下文用。详细手册见 `docs/PLAYBOOK.md`，环境与坑见 `AGENTS.md`。
+> ## ⏸ 项目暂停中（2026-09-23）
+> 完整交接包在 **[`docs/移交/`](移交/)**，按需要查：
+> **[00 交接总览](移交/00-交接总览.md)**（先读：现状 / 三条红线 / 恢复开发 5 步）·
+> [01 资产与凭据](移交/01-资产与凭据.md)（不在 git 的东西要单独备份、口令从哪取）·
+> [02 恢复开发](移交/02-恢复开发.md)（环境含 Python 漂移 / 构建 / 发版 / 部署）·
+> [03 待办与路线图](移交/03-待办与路线图.md)（P0 风险 / 已规划未实现 / 不要做清单）·
+> [04 上架准备清单](移交/04-上架准备清单.md)（隐私合规 / 素材 / 签名与双通道更新策略）
+>
+> 本篇是一屏速览。详细工程手册见 [`PLAYBOOK.md`](PLAYBOOK.md)，环境与坑见 [`../AGENTS.md`](../AGENTS.md)。
 
 ## 现状
 - **版本**：v1.6.6（versionCode 31）· 包名 `com.brainquest.game` · Android 单机 APK + 应用内增量更新
@@ -24,10 +32,10 @@
 - **v1.6.6**：三个小游戏体验强化——去掉屏幕方向键（改纯滑动+点选）、华容道移动改滑行动画与拖动跟手、棋盘/棋子重做高对比配色、五子棋悔棋语义修复（原来撤错手）、音效扩到 12 种音序（滑动/落子/吃豆/撞击/开局等）、贪吃蛇减速到 300ms/格、设置里的「震动反馈」开关真正生效（原来无一处调用）
 
 ## 待办
-- [ ] 打 tag 实战验证一次 GitHub Actions 发版流水线（目前发版走 `tools/publish_github.py`）
-- [ ] **真机两台实测**（热点局域网互搜 / 公网对战 / 应用内更新全流程）——需用户参与
-- [ ] 云存档身份校验（口令加密 + save_get 限流 + 存档码升 10 位）——已规划未实现
-- [ ] 内容持续扩充（题库/真题卷，走热更包不用发版）
+**已全部收进 [`docs/移交/03-待办与路线图.md`](移交/03-待办与路线图.md)**（分 P0 风险 / P1 已规划未实现 / P2 体验，每条带"从哪开始改 + 怎么验收"）。最要紧的三件：
+1. 备份签名 keystore 与服务器玩家数据（`01-资产与凭据.md`）
+2. 真机两台实测（热点局域网互搜 / 公网对战 / 应用内更新全流程）
+3. 云存档身份校验（口令加密 + `save_get` 限流 + 存档码升 10 位）——已规划未实现
 
 ## 常用命令
 ```bash
@@ -40,7 +48,7 @@
 # 联机服务器（阿里云 8.148.192.129:8765）
 PK_SSH_PASS='<密码>' python tools/deploy_pk_server.py     # 部署（改完 pk_server.py 后）
 python tools/pk_server_smoke.py ws://8.148.192.129:8765   # 冒烟 16 项
-python tools/pk_guest.py --quick 6 1.6.5                  # 机器人对手（PK_URL 指定服务器）
+python tools/pk_guest.py --quick 6 1.6.6                  # 机器人对手（版本必须与 App 一致，否则配不上；PK_URL 指定服务器）
 python tools/klotski_verify.py                            # 华容道关卡可解性 BFS 校验
 python tools/snake_autoeat.py                             # 贪吃蛇自动追豆（像素识别）
 python tools/snake_speed_check.py                         # 贪吃蛇速度/无方向键/返回确认取证
@@ -56,4 +64,5 @@ python tools/gomoku_undo_check.py                         # 五子棋悔棋语�
 - 新增页面：`ui/AppRoot.kt` 加路由常量 + import + composable；`ui/HomeScreen.kt` 加入口卡片与最佳成绩标签
 - 联机非大厅阶段返回要先回大厅（`BackHandler`），别直接 `popBackStack`
 - 发版前必须 `clean`（zipflinger 死空间会让 APK 虚高）
+- ⛔ `tools/_oneshot/` 里的 20 个脚本是**历史一次性脚本**（改动已并入源码），**勿重跑**，见 `tools/_oneshot/README.md`
 - 模拟器 AVD：`BrainQuest`，`ANDROID_AVD_HOME=E:/Tools/Android-Studio/avd-home`
