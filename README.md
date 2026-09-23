@@ -2,9 +2,12 @@
 
 > © 2026 ING-49 · 本项目未采用开源许可证，保留所有权利（All Rights Reserved）。
 > 📌 项目速览 / 待办 / 常用命令见 [`docs/HANDOFF.md`](docs/HANDOFF.md)。
+> ⏸ **项目暂停中（2026-09）**：完整交接包在 [`docs/移交/`](docs/移交/)，先读 [00-交接总览](docs/移交/00-交接总览.md)（现状 / 三条红线 / 恢复开发 5 步）。
 
-单机益智学习手游（原生 Android / Kotlin + Jetpack Compose），五个小游戏共用一套成长线，
-内置 **9 大科目题库**，并实现完整的三级更新体系：**内容热更新 / APK 增量更新 / APK 全量更新**。
+单机益智学习手游（原生 Android / Kotlin + Jetpack Compose），五个玩法入口共用一套成长线
+（速算英雄 · 华容道 · 五子棋 · 贪吃蛇 · 联机对战），
+内置 **10 大科目题库**（8 个题库 JSON 共 420 题 + 数学口算/逻辑推理由程序化生成器无限出题），
+并实现完整的三级更新体系：**内容热更新 / APK 增量更新 / APK 全量更新**。
 
 > 全部代码由 ZCode 生成，已在 Android 13 (API 34) 模拟器上完成全流程实机验证。
 
@@ -164,7 +167,7 @@ app/src/main/java/com/brainquest/game/
 ├── ui/                                    # 导航、大厅、关卡、商店、成就、错题本、设置
 └── util/Sfx.kt                            # 音效与震动
 app/src/main/assets/
-├── questions/                             # 内置题库 JSON（8 科 420 题）
+├── questions/                             # 内置题库 JSON（8 科 420 题；另 2 科由 MathGenerator 程序化生成）
 update-server/                             # 更新演示服务器（纯静态 + 发布工具）
 tools/                                     # 自动化：autoplay.py（自动答题）、update_demo.py（更新演示）
 ```

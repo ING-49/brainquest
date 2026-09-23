@@ -2,6 +2,8 @@
 
 > 「脑力大冒险」Android 项目的环境速查与避坑清单。供 AI 助手与新成员快速上手。
 > 完整版（流水线叙述、踩坑详表）见 `docs/PLAYBOOK.md`。
+> ⏸ 项目暂停中（2026-09）：交接包见 `docs/移交/`（[总览](docs/移交/00-交接总览.md) · [资产与凭据](docs/移交/01-资产与凭据.md) · [恢复开发](docs/移交/02-恢复开发.md) · [待办路线图](docs/移交/03-待办与路线图.md) · [上架清单](docs/移交/04-上架准备清单.md)）。
+> ⛔ `tools/_oneshot/` 是历史一次性脚本，**勿重跑**（会二次改写源码/题库）。
 
 ## 环境（已固化，直接用）
 
@@ -12,7 +14,7 @@
 | 模拟器 AVD | `BrainQuest`（Pixel 6, API 34）；**AVD home 目录 `E:/Tools/Android-Studio/avd-home`**（启动前需 `export ANDROID_AVD_HOME=E:/Tools/Android-Studio/avd-home`，否则报 Unknown AVD name）。headless 启动：`emulator -avd BrainQuest -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot`（需设 ANDROID_HOME/ANDROID_AVD_HOME 环境变量） |
 | gh CLI | `E:\Tools\gh-cli\bin\gh.exe`（已登录 GitHub 账号 ING-49，token 在系统 keyring） |
 | Gradle | wrapper 8.7；依赖走阿里云镜像（settings.gradle.kts，dl.google.com 被墙）；GRADLE_USER_HOME=`E:\Tools\Android-Studio\Gradle-home` |
-| Python | 3.8 + numpy（差分编码依赖）；bsdiff4 已弃用（Windows 版有缺陷） |
+| Python | ⚠️ 本机 `python` 实测解析到 LibreOffice 自带 **3.13.15**，且**未装 numpy/websockets/pillow/scipy**。跑 `update-server/release.py`/`delta.py` 需 `python -m pip install numpy`；跑 pk_server/冒烟/机器人需 `websockets`；跑像素取证脚本需 numpy+pillow+scipy。`pip` 不在 PATH，用 `python -m pip`。（文档旧说法「3.8 + numpy」已过期）bsdiff4 已弃用（Windows 版有缺陷） |
 
 ## 关键命令
 
@@ -53,6 +55,7 @@ adb exec-out screencap -p > screen.png
 | `tools/snake_speed_check.py` | 贪吃蛇速度/无方向键/速度档/返回确认取证 |
 | `tools/klotski_anim_check.py` | 华容道拖动跟手/过阈值滑行/精确落格/步数取证 |
 | `tools/gomoku_undo_check.py` | 五子棋悔棋语义（回到我落子之前）+ 思考期取消 + 返回确认 |
+| `tools/_oneshot/` | ⛔ 历史一次性改写脚本（20 个），改动已并入源码，**勿重跑**（会二次改写源码/题库） |
 | `update-server/release.py` | 一键：打内容包 + BQDELTA1 差分 + manifest + 合成自校验 |
 | `update-server/delta.py` | 自研差分编码器（滚动哈希块匹配，numpy 加速） |
 | `启动更新服务器.bat` | 本地静态服务器（自动显示局域网 IP，供真机同 Wi-Fi 更新） |
