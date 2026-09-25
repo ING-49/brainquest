@@ -1,0 +1,486 @@
+{
+  "subject": "通信原理",
+  "version": 1,
+  "questions": [
+    {
+      "id": "com3_001",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "广义平稳随机过程的数字特征应满足什么条件？",
+      "options": [
+        "均值为常数且自相关只与时间间隔有关",
+        "概率密度不随时间变化",
+        "均值为零且方差恒定",
+        "任一实现的时间平均等于统计平均"
+      ],
+      "answer": 0,
+      "explanation": "广义平稳只要求均值与时间无关、自相关函数仅取决于时间间隔 τ；全部统计特性不随时间平移变化是严平稳，时间平均等于统计平均是各态历经性。",
+      "tags": ["随机过程"]
+    },
+    {
+      "id": "com3_002",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "具有各态历经性的平稳随机过程，其任一实现的时间平均等于什么？",
+      "options": [
+        "信号方差",
+        "瞬时值本身",
+        "相关时间长度",
+        "统计平均（集平均）"
+      ],
+      "answer": 3,
+      "explanation": "各态历经性使任一实现的时间平均依概率 1 等于集平均，因此可用一条足够长的记录估计统计特性。",
+      "tags": ["随机过程"]
+    },
+    {
+      "id": "com3_003",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "平稳随机过程的自相关函数 R(0) 表示什么？",
+      "options": [
+        "直流功率",
+        "交流功率",
+        "总平均功率",
+        "噪声功率谱密度"
+      ],
+      "answer": 2,
+      "explanation": "R(0)=E[X²(t)] 为总平均功率；R(∞) 为直流功率，R(0)−R(∞) 为交流功率。",
+      "tags": ["随机过程"]
+    },
+    {
+      "id": "com3_004",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "均值为零、双边功率谱密度为 n0/2 的高斯白噪声，其自相关函数为？",
+      "options": [
+        "(n0/2)δ(τ)",
+        "(n0/2)sa(2πBτ)",
+        "n0 常数",
+        "n0δ(2τ)"
+      ],
+      "answer": 0,
+      "explanation": "白噪声功率谱均匀分布，其傅里叶反变换为 (n0/2)δ(τ)，即只有 τ=0 时才相关，任意两个不同时刻的取值不相关。",
+      "tags": ["随机过程"]
+    },
+    {
+      "id": "com3_005",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "零均值窄带高斯噪声的包络服从什么分布？",
+      "options": [
+        "高斯分布",
+        "均匀分布",
+        "瑞利分布",
+        "莱斯分布"
+      ],
+      "answer": 2,
+      "explanation": "窄带高斯噪声的同相、正交分量为独立高斯过程，其包络服从瑞利分布；叠加正弦载波后包络才变为莱斯分布。",
+      "tags": ["随机过程"]
+    },
+    {
+      "id": "com3_006",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "最高频率为 f_H 的带限信号，其单边带（SSB）调制信号的带宽为？",
+      "options": [
+        "2f_H",
+        "f_H",
+        "f_H/2",
+        "4f_H"
+      ],
+      "answer": 1,
+      "explanation": "SSB 只传输一个边带，带宽为 f_H，是 AM/DSB（带宽 2f_H）的一半，频带利用率最高。",
+      "tags": ["模拟调制"]
+    },
+    {
+      "id": "com3_007",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "单音 100% 调制（ma=1）的 AM 信号，边带功率占总功率的比例为？",
+      "options": [
+        "50%",
+        "66.7%",
+        "100%",
+        "33.3%"
+      ],
+      "answer": 3,
+      "explanation": "调制效率 η=ma²/(2+ma²)=1/3≈33.3%，其余 2/3 的功率被不携带信息的载波占用。",
+      "tags": ["模拟调制"]
+    },
+    {
+      "id": "com3_008",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "调频信号最大频偏 Δf=75 kHz、调制信号频率 f_m=15 kHz，按卡森公式其带宽为？",
+      "options": [
+        "150 kHz",
+        "180 kHz",
+        "90 kHz",
+        "75 kHz"
+      ],
+      "answer": 1,
+      "explanation": "卡森公式 B=2(Δf+f_m)=2×(75+15)=180 kHz。",
+      "tags": ["模拟调制"]
+    },
+    {
+      "id": "com3_009",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "与 AM 相比，宽带 FM 抗噪声性能更好的根本原因是？",
+      "options": [
+        "载波功率更大",
+        "采用相干解调",
+        "依靠带宽换取信噪比改善",
+        "调制度必须为 1"
+      ],
+      "answer": 2,
+      "explanation": "宽带 FM 占用更大带宽获得制度增益，正体现香农公式中带宽与信噪比可以互换的思想。",
+      "tags": ["模拟调制"]
+    },
+    {
+      "id": "com3_010",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "带限信号最高频率为 3400 Hz，按低通抽样定理允许的最低抽样频率为？",
+      "options": [
+        "6800 Hz",
+        "3400 Hz",
+        "13600 Hz",
+        "8000 Hz"
+      ],
+      "answer": 0,
+      "explanation": "fs(min)=2f_H=2×3400=6800 Hz；实际电话系统取 8000 Hz 以留出防卫间隔。",
+      "tags": ["抽样定理"]
+    },
+    {
+      "id": "com3_011",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "PCM 采用 13 折线 A 律压扩特性的主要目的是？",
+      "options": [
+        "改善小信号量化信噪比",
+        "增大每样值的编码位数",
+        "消除码间串扰",
+        "展宽信号带宽"
+      ],
+      "answer": 0,
+      "explanation": "非均匀量化对小信号细分量化级、对大信号粗分，从而在编码位数不变的前提下改善小信号的量化信噪比。",
+      "tags": ["PCM"]
+    },
+    {
+      "id": "com3_012",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "一路 PCM 数字电话采用 fs=8 kHz 抽样、每样值编 8 位码，其信息速率为？",
+      "options": [
+        "8 kbps",
+        "16 kbps",
+        "32 kbps",
+        "64 kbps"
+      ],
+      "answer": 3,
+      "explanation": "Rb=8000×8=64 kbps，这是一路数字电话的标准速率。",
+      "tags": ["PCM"]
+    },
+    {
+      "id": "com3_013",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "理想低通信道带宽为 2000 Hz，根据奈奎斯特第一准则无码间串扰的最大码元速率为？",
+      "options": [
+        "2000 Baud",
+        "1000 Baud",
+        "8000 Baud",
+        "4000 Baud"
+      ],
+      "answer": 3,
+      "explanation": "RB(max)=2B=4000 Baud，此时频带利用率达到极限 2 Baud/Hz。",
+      "tags": ["数字基带"]
+    },
+    {
+      "id": "com3_014",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "升余弦滚降系统（α=1）信道带宽为 3000 Hz，无码间串扰的最大码元速率为？",
+      "options": [
+        "6000 Baud",
+        "1500 Baud",
+        "3000 Baud",
+        "4500 Baud"
+      ],
+      "answer": 2,
+      "explanation": "RB=2B/(1+α)=2×3000/2=3000 Baud；α=1 时频带利用率降为 1 Baud/Hz。",
+      "tags": ["数字基带"]
+    },
+    {
+      "id": "com3_015",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "观察眼图时，最佳抽样判决时刻对应眼图的什么位置？",
+      "options": [
+        "眼睛张开最大处",
+        "眼图交叉点",
+        "眼图闭合处",
+        "零交叉点处"
+      ],
+      "answer": 0,
+      "explanation": "眼睛张开最大处信号电平离判决门限最远，噪声容限最大，误判概率最低；零交叉点常用于提取定时信息。",
+      "tags": ["数字基带"]
+    },
+    {
+      "id": "com3_016",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "眼图的\"眼睛\"张开越大，表明系统什么特性越好？",
+      "options": [
+        "符号速率一定很高",
+        "载波频率一定很高",
+        "信号带宽一定很窄",
+        "码间串扰小、噪声容限大"
+      ],
+      "answer": 3,
+      "explanation": "眼睛张开度大意味着码间串扰小、对噪声的容限大，抽样判决更可靠。",
+      "tags": ["数字基带"]
+    },
+    {
+      "id": "com3_017",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "2PSK 相干解调的主要缺点是？",
+      "options": [
+        "相位模糊（倒π现象）",
+        "频带利用率低",
+        "判决门限必须非零",
+        "不能相干解调"
+      ],
+      "answer": 0,
+      "explanation": "载波恢复电路存在 0/π 相位不确定性，一旦倒相解调输出全部反相，故工程上常采用 2DPSK；其判决门限本可为零。",
+      "tags": ["数字调制"]
+    },
+    {
+      "id": "com3_018",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "与 2PSK 相比，相同码元速率下 QPSK 的信息速率为其几倍？",
+      "options": [
+        "相同",
+        "1/2",
+        "2 倍",
+        "4 倍"
+      ],
+      "answer": 2,
+      "explanation": "QPSK 每符号携带 log2(4)=2 bit，Rb=RB·log2M，故信息速率为 2PSK 的 2 倍。",
+      "tags": ["数字调制"]
+    },
+    {
+      "id": "com3_019",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "OQPSK 相对 QPSK 的主要改进是？",
+      "options": [
+        "频带利用率提高一倍",
+        "抗噪性能提高 3dB",
+        "无需载波同步",
+        "相位跳变不超过±90°"
+      ],
+      "answer": 3,
+      "explanation": "OQPSK 的 I/Q 支路交错半个码元，相邻符号只有一条支路变化，相位跳变不超过 ±90°，包络起伏小，适合非线性功放；其频带利用率与 QPSK 相同。",
+      "tags": ["数字调制"]
+    },
+    {
+      "id": "com3_020",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "2FSK 信号两个载频为 4 kHz 和 8 kHz，码元速率 1000 Baud，其带宽约为？",
+      "options": [
+        "6 kHz",
+        "4 kHz",
+        "12 kHz",
+        "2 kHz"
+      ],
+      "answer": 0,
+      "explanation": "B≈|f2−f1|+2RB=(8−4)+2×1=6 kHz，即两载频之差加上两倍码元速率。",
+      "tags": ["数字调制"]
+    },
+    {
+      "id": "com3_021",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 5,
+      "question": "白噪声背景下匹配滤波器能获得的最大输出信噪比为？",
+      "options": [
+        "E/n0",
+        "2E/n0",
+        "E²/n0",
+        "n0/(2E)"
+      ],
+      "answer": 1,
+      "explanation": "r_max=2E/n0（E 为信号能量，n0 为噪声单边功率谱密度），只与信号能量有关而与波形形状无关。",
+      "tags": ["最佳接收"]
+    },
+    {
+      "id": "com3_022",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "2PSK 相干解调的误码率公式为（r 为解调器输入信噪比）？",
+      "options": [
+        "0.5·erfc(√r)",
+        "0.5·erfc(√(r/2))",
+        "0.5·e^(−r)",
+        "0.5·erfc(√(r/4))"
+      ],
+      "answer": 0,
+      "explanation": "2PSK 相干解调 Pe=0.5·erfc(√r)，是二进制调制中所需信噪比最小（抗噪最好）的方式；erfc(√(r/2)) 对应 2FSK 相干解调。",
+      "tags": ["数字调制"]
+    },
+    {
+      "id": "com3_023",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "若要求分组码能纠正 t 位错误，其最小码距 d0 必须满足？",
+      "options": [
+        "d0 ≥ t+1",
+        "d0 ≥ 2t",
+        "d0 ≥ t²",
+        "d0 ≥ 2t+1"
+      ],
+      "answer": 3,
+      "explanation": "纠错条件为 d0≥2t+1；检错 e 位的要求是 d0≥e+1，两者由码字间最小距离的几何关系导出。",
+      "tags": ["差错控制"]
+    },
+    {
+      "id": "com3_024",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "(7,4) 汉明码的最小码距为？",
+      "options": [
+        "2",
+        "4",
+        "3",
+        "5"
+      ],
+      "answer": 2,
+      "explanation": "(7,4) 汉明码最小码距 d0=3，可纠正 1 位错或检测 2 位错。",
+      "tags": ["差错控制"]
+    },
+    {
+      "id": "com3_025",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 3,
+      "question": "一维奇偶监督码能够检测出的错误是？",
+      "options": [
+        "所有偶数个错误",
+        "仅两位错误",
+        "全部错误",
+        "所有奇数个错误"
+      ],
+      "answer": 3,
+      "explanation": "监督关系使码字中 1 的个数的奇偶性固定，只有奇数个错误会破坏该约束而被发现，偶数个错误不可检。",
+      "tags": ["差错控制"]
+    },
+    {
+      "id": "com3_026",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "(n,k) 循环码的任一码多项式 C(x) 与生成多项式 g(x) 的关系是？",
+      "options": [
+        "两者互质",
+        "g(x) 是 C(x) 的倍式",
+        "C(x) 是 g(x) 的倍式",
+        "C(x)+g(x)=1"
+      ],
+      "answer": 2,
+      "explanation": "循环码的充要特征是每个码多项式都能被 g(x) 整除，这也是循环冗余校验（CRC）检错的数学依据。",
+      "tags": ["差错控制"]
+    },
+    {
+      "id": "com3_027",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 4,
+      "question": "信道带宽 3 kHz、信噪比 30 dB（功率比 1000），由香农公式信道容量约为？",
+      "options": [
+        "约 10 kbps",
+        "约 30 kbps",
+        "3 kbps",
+        "约 60 kbps"
+      ],
+      "answer": 1,
+      "explanation": "C=B·log2(1+S/N)=3000×log2(1001)≈3000×9.97≈29.9 kbps，约 30 kbps。",
+      "tags": ["信道容量"]
+    },
+    {
+      "id": "com3_028",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 5,
+      "question": "根据香农公式，当信道容量 C 一定时增大带宽 B，则？",
+      "options": [
+        "提高所需信噪比",
+        "不改变信噪比要求",
+        "降低所需的信噪比",
+        "使容量趋于无穷"
+      ],
+      "answer": 2,
+      "explanation": "C=B·log2(1+S/N)，B 增大时可降低对信噪比的要求；但 B→∞ 时 C 趋于有限值 S/(n0·ln2)，并非无穷。",
+      "tags": ["信道容量"]
+    },
+    {
+      "id": "com3_029",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 5,
+      "question": "理想低通奈奎斯特波形（h(t)=Sa(πt/T)）的主要缺点是？",
+      "options": [
+        "频带利用率太低",
+        "需要远大于 2B 的带宽",
+        "拖尾按 1/t³ 衰减",
+        "拖尾衰减慢且物理不可实现"
+      ],
+      "answer": 3,
+      "explanation": "理想低通频域特性矩形突变、物理不可实现，时域拖尾按 1/t 缓慢衰减，对抽样定时误差敏感；升余弦滚降可克服这两个缺点。",
+      "tags": ["数字基带"]
+    },
+    {
+      "id": "com3_030",
+      "subject": "通信原理",
+      "type": "single",
+      "difficulty": 5,
+      "question": "四进制基带系统采用 α=0.5 升余弦滚降特性，信道带宽 3000 Hz，无码间串扰的最大信息速率为？",
+      "options": [
+        "4 kbps",
+        "8 kbps",
+        "12 kbps",
+        "6 kbps"
+      ],
+      "answer": 1,
+      "explanation": "RB=2B/(1+α)=2×3000/1.5=4000 Baud，Rb=RB·log2(4)=4000×2=8000 bps。",
+      "tags": ["数字基带"]
+    }
+  ]
+}

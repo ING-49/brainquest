@@ -64,6 +64,9 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     var cloudAction by remember { mutableStateOf("") }        // put / get，"正在操作中"防重复点击
     var pendingRestore by remember { mutableStateOf<String?>(null) }
     var cloudCodeInput by remember(player.cloudCode) { mutableStateOf(player.cloudCode) }
+    var cloudPassword by remember { mutableStateOf("") }   // 口令只在本机内存，不落盘不上服务器
+    var showPrivacy by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf(false) }
 
     // 云存档：独立短连（连接成功后按 cloudAction 发对应请求）
     val cloudEvents = remember { kotlinx.coroutines.flow.MutableSharedFlow<com.brainquest.game.net.PkEvent>(extraBufferCapacity = 8) }
@@ -74,17 +77,23 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             when (e) {
                 is com.brainquest.game.net.PkEvent.Connected -> when (cloudAction) {
                     "put" -> {
-                        cloudStatus = "正在上传…"
-                        cloudClient.sendCloudPut(cloudCodeInput.trim().uppercase(), vm.exportSaveJson())
+                        cloudStatus = "正在加密并上传…"
+                        cloudClient.sendCloudPut(cloudCodeInput.trim().uppercase(), vm.encryptSaveJson(cloudPassword.trim()))
                     }
                     "get" -> {
                         cloudStatus = "正在下载…"
                         cloudClient.sendCloudGet(cloudCodeInput.trim().uppercase())
                     }
+                    "del" -> cloudClient.sendCloudDel(cloudCodeInput.trim().uppercase())
                 }
                 is com.brainquest.game.net.PkEvent.SaveOk -> {
                     cloudAction = ""
-                    cloudStatus = "✅ 已上传（${e.size} 字节）"
+                    cloudStatus = "✅ 已上传（${e.size} 字节，密文存储）"
+                    cloudClient.close()
+                }
+                is com.brainquest.game.net.PkEvent.SaveDeleted -> {
+                    cloudAction = ""
+                    cloudStatus = "🗑 云端存档已删除"
                     cloudClient.close()
                 }
                 is com.brainquest.game.net.PkEvent.SaveData -> {
@@ -113,6 +122,10 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     }
 
     fun startCloudPut() {
+        if (cloudPassword.trim().length < 4) {
+            cloudStatus = "请先设置至少 4 位存档口令（口令是唯一凭证，丢失将无法恢复云端存档）"
+            return
+        }
         var code = cloudCodeInput.trim().uppercase()
         if (code.isBlank()) {
             code = vm.generateCloudCode()
@@ -194,7 +207,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
         ) {
             Column(Modifier.padding(14.dp)) {
                 Text("☁️ 云存档", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("跨设备恢复进度：原设备「上传存档」得到存档码 → 新设备在下方输入同一存档码 → 点「下载存档」恢复。",
+                Text("跨设备恢复进度：上传存档时设置口令（≥4 位，存档用口令加密后才上传）→ 新设备输入同一存档码与口令 → 「下载存档」恢复。口令不保存在本机也不上传，丢了无法找回存档，请牢记。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp))
@@ -205,10 +218,25 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     singleLine = true,
                 )
+                OutlinedTextField(
+                    value = cloudPassword,
+                    onValueChange = { cloudPassword = it.take(24) },
+                    label = { Text("存档口令（上传需 ≥4 位；下载旧存档可留空）") },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                    ),
+                )
                 Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { startCloudPut() }, enabled = cloudAction.isEmpty()) { Text("⬆️ 上传存档") }
                     OutlinedButton(onClick = { startCloudGet() }, enabled = cloudAction.isEmpty()) { Text("⬇️ 下载存档") }
                 }
+                androidx.compose.material3.TextButton(
+                    onClick = { pendingDelete = true },
+                    enabled = cloudAction.isEmpty() && cloudCodeInput.isNotBlank(),
+                ) { Text("🗑 删除云端存档") }
                 if (cloudStatus.isNotBlank()) {
                     Text(cloudStatus, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
@@ -216,14 +244,36 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
         pendingRestore?.let { data ->
+            val encrypted = com.brainquest.game.util.SaveCrypto.isEnvelope(data)
             AlertDialog(
                 onDismissRequest = { pendingRestore = null; cloudStatus = "已取消" },
                 title = { Text("恢复云存档？") },
-                text = { Text("将用云端存档覆盖本机当前进度，确定继续吗？") },
+                text = {
+                    Column {
+                        Text("将用云端存档覆盖本机当前进度，确定继续吗？")
+                        if (encrypted) {
+                            OutlinedTextField(
+                                value = cloudPassword,
+                                onValueChange = { cloudPassword = it.take(24) },
+                                label = { Text("该存档已加密，请输入口令") },
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                singleLine = true,
+                                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                                ),
+                            )
+                        }
+                    }
+                },
                 confirmButton = {
                     Button(onClick = {
-                        val ok = vm.importSaveJson(data)
-                        cloudStatus = if (ok) "✅ 已恢复云端存档" else "❌ 存档解析失败"
+                        val ok = vm.importCloudSave(data, cloudPassword.trim())
+                        cloudStatus = when {
+                            ok -> "✅ 已恢复云端存档"
+                            encrypted -> "❌ 口令错误或存档已损坏，未恢复"
+                            else -> "❌ 存档解析失败"
+                        }
                         pendingRestore = null
                     }) { Text("覆盖恢复") }
                 },
@@ -232,6 +282,57 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                 },
             )
         }
+
+        if (pendingDelete) {
+            AlertDialog(
+                onDismissRequest = { pendingDelete = false },
+                title = { Text("删除云端存档？") },
+                text = { Text("将删除服务器上存档码 ${cloudCodeInput.trim().uppercase()} 对应的云端存档，本机进度不受影响。此操作不可恢复。") },
+                confirmButton = {
+                    Button(onClick = {
+                        pendingDelete = false
+                        cloudAction = "del"
+                        cloudStatus = "连接服务器…"
+                        cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
+                    }) { Text("删除") }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { pendingDelete = false }) { Text("取消") }
+                },
+            )
+        }
+
+        if (showPrivacy) {
+            val privacyText = remember {
+                runCatching { context.assets.open("privacy_policy.txt").bufferedReader().use { it.readText() } }
+                    .getOrDefault("隐私政策文件缺失")
+            }
+            AlertDialog(
+                onDismissRequest = { showPrivacy = false },
+                title = { Text("隐私政策") },
+                text = {
+                    Text(
+                        privacyText,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = { showPrivacy = false }) { Text("我知道了") }
+                },
+            )
+        }
+
+        // 隐私政策
+        Text(
+            "🔒 隐私政策",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showPrivacy = true }
+                .padding(top = 12.dp),
+        )
 
         // 更新中心
         Card(

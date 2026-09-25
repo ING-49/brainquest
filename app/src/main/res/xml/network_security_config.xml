@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  明文流量白名单（v1.6.7 起，替代 usesCleartextTraffic="true"）：
+  - 8.148.192.129  联机对战/云存档服务器（ws://，纯 IP + 非标端口，暂无 TLS）
+  - 10.0.2.2       模拟器宿主机（开发中继 dev_relay.py 调试用）
+  其余域名一律强制 HTTPS。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">8.148.192.129</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.6 (versionCode 31)
+- **当前版本**：v1.6.7 (versionCode 32)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -65,7 +65,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | `tools/gomoku_undo_check.py` | 同上 | 五子棋悔棋语义 + 思考期取消 + 返回确认取证 |
 | `tools/ui.py` | 被上面几个脚本 import | uiautomator 文本定位/点击/滑动/截图（`tap_text`/`swipe`/`shot`） |
 | `tools/pk_guest.py` | `python tools/pk_guest.py --quick [答对数] [版本]` | 联机机器人对手（PK_URL 指定服务器） |
-| `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://8.148.192.129:8765` | PK 服务器冒烟（16 项断言） |
+| `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://8.148.192.129:8765` | PK 服务器冒烟（19 项断言） |
 | `tools/deploy_pk_server.py` | `PK_SSH_PASS='<密码>' python tools/deploy_pk_server.py` | 部署/更新公网 pk_server（systemd 常驻） |
 | `启动对战服务器.bat` | 双击 | 局域网 PC 端 PK 服务器 |
 | `tools/_oneshot/*.py`（20 个） | ⛔ **不要运行** | 历史一次性改写脚本（`fix_*`/`add_*`/`v1xx_*`/`upgrade_*` 等），改动已并入源码；重跑会二次改写源码或题库 JSON。见 `tools/_oneshot/README.md` |
@@ -159,7 +159,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - 大厅双页签：🌐 远程（默认，在线人数/快速匹配/科目选择/好友房间）+ 🏠 局域网（创建/搜索/手动直连，原样保留）
 - 服务器地址**不在界面显示**（默认公网唯一地址）；长按「在线人数」行弹出隐藏编辑对话框（调试/自建用），修改后 1.5s 防抖自动重连；旧默认（10.0.2.2）打开时自动迁移为公网地址
 - PK 战斗体验（v1.6.2 定稿）：答完题卡内显示对错与正确答案，停留 0.75s **自动进下一题**（无"下一题"按钮，最后一题自动交卷）；顶部双方进度「🧑 我 x/10」｜「对手 x/10」实时更新；我方完成页上下布局显示自己成绩+对手进度；双方完成出结算页
-- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/整局/取消/ELO/不计分/排行榜/云存档，16 项断言）
+- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/整局/取消/ELO/不计分/排行榜/云存档加密信封/明文拒绝/删除/限流，19 项断言）
 - 机器人对手：`python tools/pk_guest.py --quick [答对数] [版本]`（快速匹配可当房主）或 `python tools/pk_guest.py <房间码>`（好友房间）
 
 ### ELO 与排行榜（v1.6.3 起）
@@ -168,19 +168,18 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - 结算消息 `rating:{ranked,my,delta,peer}`；App 结算页显示「🏅 积分 xxx（±n）」
 - 排行榜：`{"t":"leaderboard","name":昵称}` → Top10 + 我的排名；联机页远程页签常驻「🏆 排行榜」入口
 
-### 云存档（v1.6.3 起）
-- 服务器：`save_put`/`save_get`，存档码 8 位（BQ+6 位大写字母数字，去除易混字符），存 `/opt/pk/saves/<码>.json`
-- App：设置页「☁️ 云存档」卡片——存档码为可编辑输入框；上传留空自动生成，换设备输入原设备存档码「下载存档」并确认覆盖本地
+### 云存档（v1.6.3 起；v1.6.7 加密加固）
+- 服务器：`save_put`/`save_get`/`save_del`，存 `/opt/pk/saves/<码>.json`；存档码 10 位（BQ+8 位大写字母数字，去除易混字符），旧 8 位码兼容（服务器接受 ≤24 位）
+- App：设置页「☁️ 云存档」卡片——存档码 + 口令两个输入框；上传**必须设口令（≥4 位）**，留空码自动生成；换设备输同一存档码与口令「下载存档」并确认覆盖本地
+- **加密（v1.6.7）**：`util/SaveCrypto.kt` 口令 PBKDF2WithHmacSHA256（盐 16B、6 万次迭代）→ AES-256-GCM，密文封装 `{"fmt":"BQENC1","salt","iters","iv","ct"}` 信封后上传；**服务器只见密文**，口令不落盘不上传，是唯一凭证（丢了无法恢复云端存档）
+- **兼容**：无 `fmt` 字段的旧明文存档仍可下载（App 端检测后免口令直接导入，导入会把 PlayerState 整体覆盖——**含 pkServerUrl 等设置**）；新上传一律信封，服务器 `save_put` **拒绝明文**
+- **服务器加固**：`save_get` 每连接 60s 限 6 次（防暴力试码，超限回 `error:"too many"`）；单档上限 256KB；`save_del` 删除云端存档（隐私政策的数据删除通道）
+- ⚠️ 部署注意：**旧版 App（≤1.6.6）对新服务器上传会被拒**（提示更新 App），下载不受影响；新版 App 对旧服务器完全正常（旧服务器原样存信封）
 - 独立短连接（`PkClient` idle 模式），操作完成即关闭
 
-### 云存档身份校验规划（v1.6.4 已规划，未实现）
-现状与风险：存档码即凭证，知道码即可下载覆盖他人存档；服务器明文存储、`save_get` 无限流。
-规划（口令加密方案，不引入账号体系）：
-1. 上传时设置「存档口令」（≥4 位）→ PBKDF2 派生密钥 → AES-GCM 加密存档 JSON → 服务器只存密文+盐+迭代参数（防猜码盗档，同时解决服务器明文存储）
-2. 下载：输「存档码 + 口令」→ 拉密文本地解密 → 确认覆盖；口令错解密失败，不泄露任何数据
-3. 服务器加固：`save_get` 频次限流（每连接/IP 每分钟 N 次，防暴力试码）；存档码由 8 位升 10 位
-4. 可选：只读分享码（他人可查看/对照进度，不能覆盖）——低优先级
-5. 账号体系（手机号/邮箱登录）：成本高，等真实用户量再评估；如做，与云存档合并后存档码问题自然消失
+### 云存档身份校验（v1.6.7 已实现，原规划见 git 历史）
+实现要点：口令 PBKDF2→AES-GCM 信封加密 + `save_get` 限流 + 存档码 8→10 位 + `save_del`（见上节）。
+未做的备选：只读分享码（低优先级）；账号体系（成本高，等真实用户量再评估）。
 
 ### 排行榜按科目（v1.6.4 起）
 - 评分按科目分桶（`ratings[科目][昵称]`）；旧扁平数据自动迁移进「混合」桶
@@ -226,6 +225,8 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 26 | 华容道棋子拖完停在半格，重开也回不去 | 手势 `pointerInput(b.id, version)` 的 key 含 `version`：走子 `version++` → 手势协程被重启，`onDragEnd/onDragCancel` 永不执行，拖动偏移永久残留 | 手势 key 只绑棋子 id；拖动偏移用普通 state，位置 = 格位 + 偏移统一交给 `animateDpAsState` 一个动画值（不再另开动画协程） |
 | 27 | 五子棋悔棋撤错手（只撤电脑那颗 / 或连上轮自己那颗一起撤） | `undo()` 奇偶判断写反：玩家手是奇数手、AI 手是偶数手 | 偶数手（AI 刚应过）撤 2 手、奇数手撤 1 手 → 永远回到"玩家落子之前"，撤完必轮到玩家 |
 | 29 | 后来人误跑 `tools/fix_*.py` / `tools/v1xx_*.py`，源码或题库被二次改写 | 这些是历史一次性脚本（读源码→断言行→字符串替换→覆盖写回），改动早已并入源码，但当时和现役工具混放在 `tools/` 顶层，没有任何警示 | 统一移入 `tools/_oneshot/` 并加 README 警告；想追改动看 git 历史而不是重跑脚本 |
+| 30 | 新域名 http/ws 请求线上全部失败（模拟器/本地却正常） | v1.6.7 起 `usesCleartextTraffic` 已换成 `network_security_config.xml` 白名单（仅 8.148.192.129 与 10.0.2.2），白名单外域名明文流量被**静默拦截** | 新增 http/ws 域名同步改 `res/xml/network_security_config.xml`；或上 TLS |
+| 31 | 恢复云存档后联机/更新地址「莫名」变回默认 | 导入存档 = 整份 PlayerState 覆盖（含 pkServerUrl/updateServerUrl/cloudCode），旧档里的设置会一起回来 | 属既定语义（整档迁移）。受影响时到联机页长按在线人数行改回服务器地址 |
 | 28 | 改小游戏配色后像素识别脚本全失效 | 脚本按 RGB 阈值识别棋盘/棋子；且暂停时棋盘上有 40% 黑蒙层（观察色 = 原色 × 0.6） | 脚本改自适应：棋盘取屏幕最高频色的包围盒；棋子色同时匹配原色与 ×0.6 变体（见 tools/snake_autoeat.py） |
 
 ## 七、后续可做事项
@@ -235,6 +236,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - [x] 考研模式扩展到闯关、错题本艾宾浩斯复习（v1.6.0 完成）
 - [x] README 补充截图与 Release 链接
 - [ ] 打 tag 实战验证一次 Actions 发版流水线（workflow 已就绪；目前发版走 tools/publish_github.py 本地发布）
+- [ ] 部署 v1.6.7 服务器代码（pk_server.py 已带云存档加密校验/限流/save_del，冒烟 19 项过；`PK_SSH_PASS` 部署后线上重跑 smoke）
 - [ ] 真机两台实测（热点局域网互搜 / 公网 8.148.192.129 对战 / 应用内更新全流程）
 - [x] 联机随机匹配（v1.6.1）、ELO 排行榜 + 云存档（v1.6.3，仅快速匹配计分）
 - [x] 小游戏体验强化（v1.6.6：手势化/动效/配色/音效/悔棋语义/减速）

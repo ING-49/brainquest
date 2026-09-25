@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">脑力大冒险</string>
+    <!-- 主副名策略（上架决策 2026-09）：商店展示名「脑力大冒险」，副名「学海星槎」用于商店简介与宣传，包名不变 -->
+    <string name="app_subtitle">学海星槎 · 游戏化智能学习与对战平台</string>
 </resources>

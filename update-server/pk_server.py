@@ -9,8 +9,9 @@
     {"t":"cancel_match"}                            → 退出匹配队列
     {"t":"online"}                                  → 查询在线人数
     {"t":"leaderboard","name":"昵称","subject":"混合"} → 查询某科目排行榜（Top10 + 我的排名）
-    {"t":"save_put","code":"XXXX","data":"<json>"}  → 上传云存档
-    {"t":"save_get","code":"XXXX"}                  → 下载云存档
+    {"t":"save_put","code":"XXXX","data":"<BQENC1信封>"} → 上传云存档（必须为 App 端加密信封，服务器只见密文）
+    {"t":"save_get","code":"XXXX"}                  → 下载云存档（每连接 60s 内限 6 次）
+    {"t":"save_del","code":"XXXX"}                  → 删除云端存档（用户数据删除通道）
     {"t":"start","questions":[...]}                 （房主）开始并下发题目
     {"t":"answer","idx":0,"correct":true,"timeMs":1234}
     {"t":"finish","correct":3,"timeMs":9876}
@@ -43,6 +44,7 @@ import os
 import random
 import re
 import sys
+import time
 
 import websockets
 
@@ -54,10 +56,28 @@ K_FACTOR = 32          # ELO K 值
 DEFAULT_RATING = 1000  # 初始积分
 DEFAULT_SUBJECT = "混合"  # 排行榜默认科目（房主未选科目时）
 
+SAVE_ENVELOPE_FMT = "BQENC1"   # App 端 SaveCrypto 产出的信封格式（服务器当不透明字符串存，仅校验结构）
+SAVE_MAX_BYTES = 256 * 1024    # 单个云存档上限
+SAVE_GET_LIMIT = 6             # save_get 限流：每连接滑动窗口内最多次数（防暴力试码）
+SAVE_GET_WINDOW_S = 60
+
 rooms = {}   # code -> {"host": ws, "guest": ws, "names": {ws: name}, "versions": {ws: version}, "finish": {ws: (correct, timeMs)}, "ranked": bool, "subject": str}
 online = set()   # 当前所有连接
 queue = []   # 快速匹配等待队列：[{"ws","name","version","subject"}, ...]
 ratings = {}  # 科目 -> {name -> {"r": 1000, "w": 0, "l": 0, "g": 0}}（排行榜按科目分桶）
+save_get_hist = {}  # ws -> [time.time(), ...]（save_get 滑动窗口限流）
+
+
+def is_save_envelope(data):
+    """校验 data 是否为 BQENC1 加密信封（不验证密码学内容，App 端解密时自校验）"""
+    try:
+        obj = json.loads(data)
+    except (json.JSONDecodeError, ValueError):
+        return False
+    return (isinstance(obj, dict) and obj.get("fmt") == SAVE_ENVELOPE_FMT
+            and isinstance(obj.get("salt"), str) and obj.get("salt")
+            and isinstance(obj.get("iv"), str) and obj.get("iv")
+            and isinstance(obj.get("ct"), str) and obj.get("ct"))
 
 
 # ---------- 积分持久化（快速匹配 ELO，按科目分桶，仅计分局更新） ----------
@@ -309,14 +329,27 @@ async def handler(ws):
                 data = str(msg.get("data", ""))
                 if not code or not data:
                     send(ws, {"t": "error", "msg": "云存档参数不完整"})
+                elif not is_save_envelope(data):
+                    # 新上传必须是加密信封：防止客户端回退明文存储（旧明文文件仍可下载，直至被覆盖）
+                    send(ws, {"t": "error", "msg": "存档须为加密格式，请更新 App 后再上传"})
+                elif len(data.encode("utf-8")) > SAVE_MAX_BYTES:
+                    send(ws, {"t": "error", "msg": "存档过大"})
                 else:
                     os.makedirs(SAVES_DIR, exist_ok=True)
                     with open(os.path.join(SAVES_DIR, code + ".json"), "w", encoding="utf-8") as f:
                         f.write(data)
                     send(ws, {"t": "save_ok", "size": len(data.encode("utf-8"))})
-                    print(f"[save] {code} 上传 {len(data)} 字符")
+                    print(f"[save] {code} 上传 {len(data)} 字符（加密信封）")
 
             elif t == "save_get":
+                now = time.time()
+                hist = [ts for ts in save_get_hist.get(ws, []) if now - ts < SAVE_GET_WINDOW_S]
+                if len(hist) >= SAVE_GET_LIMIT:
+                    save_get_hist[ws] = hist
+                    send(ws, {"t": "error", "msg": "操作过于频繁，请稍后再试"})
+                    continue
+                hist.append(now)
+                save_get_hist[ws] = hist
                 code = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("code", "")))[:24]
                 path = os.path.join(SAVES_DIR, code + ".json")
                 if code and os.path.isfile(path):
@@ -326,6 +359,16 @@ async def handler(ws):
                     print(f"[save] {code} 下载 {len(data)} 字符")
                 else:
                     send(ws, {"t": "error", "msg": "云存档不存在，请先在上传过存档的设备上上传"})
+
+            elif t == "save_del":
+                code = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("code", "")))[:24]
+                path = os.path.join(SAVES_DIR, code + ".json")
+                if code and os.path.isfile(path):
+                    os.remove(path)
+                    send(ws, {"t": "save_del_ok"})
+                    print(f"[save] {code} 已删除")
+                else:
+                    send(ws, {"t": "error", "msg": "云存档不存在"})
 
             elif t in ("start", "question", "answer", "ready", "finish"):
                 # 在自己所在房间内转发（快速匹配与 create/join 统一按成员关系查）
@@ -358,6 +401,7 @@ async def handler(ws):
         pass
     finally:
         online.discard(ws)
+        save_get_hist.pop(ws, None)
         dequeue(ws)
         # 统一按成员关系清理房间（覆盖快速匹配/create/join 三种来源）
         for c in [c for c, room in rooms.items() if ws in (room["host"], room["guest"])]:
