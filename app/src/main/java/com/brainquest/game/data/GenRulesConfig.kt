@@ -1,6 +1,7 @@
 package com.brainquest.game.data
 
 import android.content.Context
+import android.util.Log
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -26,9 +27,10 @@ object GenRulesConfig {
     private val json = Json { ignoreUnknownKeys = true }
 
     fun load(context: Context) {
-        val packFile = File(context.filesDir, "content/packs/gen_rules.json")
-        val text = if (packFile.isFile) {
-            packFile.readText()
+        val packText = findPackedRules(File(context.filesDir, "content/packs"))
+        val text = if (packText != null) {
+            Log.i("GenRules", "命中热更 gen_rules（version=${current.version} → 应用热更版）")
+            packText
         } else {
             runCatching {
                 context.assets.open("config/gen_rules.json").bufferedReader().use { it.readText() }
@@ -36,4 +38,24 @@ object GenRulesConfig {
         }
         runCatching { current = json.decodeFromString<GenRules>(text) }
     }
+
+    /**
+     * 在 content/packs/ 下递归找 gen_rules.json（UpdateManager 把包解到 content/packs/<包id>/ 子目录，
+     * 故不能只查平铺路径）；多个包都带时取 version 最高的。
+     */
+    private fun findPackedRules(dir: File): String? {
+        if (!dir.isDirectory) return null
+        var best: Pair<Int, String>? = null
+        dir.walkTopDown().filter { it.isFile && it.name == "gen_rules.json" }.forEach { f ->
+            runCatching {
+                val v = json.parseToJsonElement(f.readText()).jsonObjectVersion()
+                if (best == null || v > best!!.first) best = v to f.readText()
+            }
+        }
+        return best?.second
+    }
+
+    private fun kotlinx.serialization.json.JsonElement.jsonObjectVersion(): Int =
+        (this as? kotlinx.serialization.json.JsonObject)
+            ?.get("version")?.let { (it as kotlinx.serialization.json.JsonPrimitive).content.toIntOrNull() } ?: 0
 }

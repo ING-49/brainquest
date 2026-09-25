@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.7 (versionCode 32)
+- **当前版本**：v1.6.8 (versionCode 33)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -96,6 +96,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **悔棋语义 = 回到我上一手之前**（对方应的那手一并撤销），撤完必轮到自己；AI"思考中"悔棋 = 取消那次落子
 - **对局中返回要确认**：先弹「退出这一局？」；华容道是两级返回（对局 → 选关 → 离开）
 - **已下线**：知识2048 / 记忆翻牌（v1.6.5 移除，`assets/pairs/` 一并删除；老存档里的 `g2048_*`/`memory_*` 记录保留但不再展示，无需迁移）
+- **出题规则热更（v1.6.8 修复）**：`GenRulesConfig` 递归扫 `content/packs/` 任意子目录的 gen_rules.json（UpdateManager 解包到 `<包id>/` 子目录，旧版只查平铺路径导致热更从未生效）；`PapersScreen` 同法支持 papers.json 热更
 - **科目注册**：`data/question/Question.kt` 里的 `object Subjects`（10 个科目的名称与 `all` 列表）+ `data/Achievements.kt` 的 `subjectKey()`（科目 → 存档 key 前缀）+ 科目卡颜色（`ui/LevelsScreen.kt` 的 `subjectColor`）
 - **存档**：DataStore 单键 JSON（PlayerState），换版本自动兼容（新字段有默认值）
 - **考研模式**：`PlayerState.hardMode` → 设置开关。每日挑战走 `pickDaily`（开=大学五科 60% 真题+40% 难度4，关=基础五科难度2）；闯关/战斗 v1.6.0 起同样联动（`BattleState(subject, level, hardMode=…)`，非数学/逻辑科目走 `pickKaoyanBattleExcluding` 真题+高难并去重），战斗页标题带 🎓 徽标
@@ -116,7 +117,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 `assets/config/gen_rules.json` 可由热更包同名文件覆盖（`filesDir/content/packs/gen_rules.json`），改手感无需发版：
 - `fillChance`：填空题出现概率（%）；`fillMaxDifficulty`：填空题最高难度
 - `baseDamage / perLevelDamage / comboDamage`：战斗伤害公式参数；`fillTimeBonus`：填空题加时（秒）
-发布方式：把 gen_rules.json（version+1）放进内容包 → `release.py --packs-only` → publish → App 内更新内容包即生效
+发布方式：把 gen_rules.json（version+1）放进内容包 → `release.py --packs-only` → publish → App 内更新内容包即生效（v1.6.8 起路径修复后才真正生效）
 
 ## 五之二、版本策略
 - **单机**：离线完全可玩，不做强制更新
@@ -236,7 +237,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - [x] 考研模式扩展到闯关、错题本艾宾浩斯复习（v1.6.0 完成）
 - [x] README 补充截图与 Release 链接
 - [ ] 打 tag 实战验证一次 Actions 发版流水线（workflow 已就绪；目前发版走 tools/publish_github.py 本地发布）
-- [x] v1.6.7 服务器代码已上线（2026-09-25，SSH 免密部署，线上冒烟 19 项全过）
+- [x] v1.6.7/1.6.8 服务器代码已上线（2026-09-25，SSH 免密部署，线上冒烟 19 项全过；systemd 用 `python3 -u` 使对局日志落 journalctl）
 - [ ] 真机两台实测（热点局域网互搜 / 公网 8.148.192.129 对战 / 应用内更新全流程）
 - [x] 联机随机匹配（v1.6.1）、ELO 排行榜 + 云存档（v1.6.3，仅快速匹配计分）
 - [x] 小游戏体验强化（v1.6.6：手势化/动效/配色/音效/悔棋语义/减速）

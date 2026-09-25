@@ -28,7 +28,26 @@ def arg(i, default):
 
 CODE = "" if QUICK else arg(0, "")
 TARGET_CORRECT = int(arg(1 if not QUICK else 0, 10))
-VERSION = arg(2 if not QUICK else 1, "1.6.1")
+
+
+def default_version():
+    """版本取 update-server/manifest.json 的 latestVersionName（与线上 App 一致才能配对），
+    读不到回落最后一次已知发版号；命令行显式传入的版本优先。"""
+    explicit = arg(2 if not QUICK else 1, "")
+    if explicit:
+        return explicit
+    m = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "update-server", "manifest.json")
+    try:
+        with open(m, encoding="utf-8") as f:
+            v = json.load(f).get("latestVersionName")
+            if v:
+                return v
+    except (OSError, ValueError):
+        pass
+    return "1.6.8"
+
+
+VERSION = default_version()
 URL = os.environ.get("PK_URL", "ws://localhost:8765")
 NAME = "机器人对手"
 

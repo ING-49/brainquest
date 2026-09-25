@@ -1,7 +1,8 @@
 """一键部署 pk_server.py 到阿里云服务器（SSH）。
 
-密码不再写在脚本里：从环境变量 PK_SSH_PASS 读取，缺省时交互输入。
-用法：PK_SSH_PASS=xxxx python tools/deploy_pk_server.py
+认证：优先用本机 SSH 密钥（~/.ssh/id_rsa，2026-09-25 起已装服务器 authorized_keys，免密）；
+密钥不可用时回退到环境变量 PK_SSH_PASS 或交互输入。
+用法：python tools/deploy_pk_server.py   （或 PK_SSH_PASS=xxxx python tools/deploy_pk_server.py）
 """
 import getpass
 import os
@@ -9,11 +10,23 @@ import os
 import paramiko
 
 HOST, USER = '8.148.192.129', 'root'
-PWD = os.environ.get('PK_SSH_PASS') or getpass.getpass(f'{HOST} 的 {USER} 密码: ')
 
-c = paramiko.SSHClient()
-c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-c.connect(HOST, username=USER, password=PWD, timeout=15)
+
+def connect():
+    c = paramiko.SSHClient()
+    c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        c.connect(HOST, username=USER, timeout=15)  # 密钥优先（look_for_keys 默认开）
+        print('[auth] SSH 密钥免密登录 OK')
+        return c
+    except paramiko.ssh_exception.AuthenticationException:
+        pwd = os.environ.get('PK_SSH_PASS') or getpass.getpass(f'{HOST} 的 {USER} 密码: ')
+        c.connect(HOST, username=USER, password=pwd, timeout=15)
+        print('[auth] 口令登录 OK')
+        return c
+
+
+c = connect()
 
 
 def run(cmd, label=''):
@@ -47,7 +60,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/pk
-ExecStart=/bin/bash -c 'python3 /opt/pk/pk_server.py 8765'
+ExecStart=/bin/bash -c 'python3 -u /opt/pk/pk_server.py 8765'
 Restart=always
 RestartSec=3
 User=root

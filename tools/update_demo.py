@@ -1,7 +1,12 @@
 """驱动 App 完成：检查更新 → 内容热更新 → 增量更新 → 系统安装，每步截图。"""
+import os
 import re
 import subprocess
+import sys
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ui as _ui  # dump 走 exec-out /dev/tty，Git Bash 下稳定（旧 /sdcard+cat 写法见坑 #13）
 
 ADB = r"E:/Tools/Android-Studio/Android/SDK/platform-tools/adb.exe"
 SHOTS = r"E:/PROJECT_CCC/ZCode_project/APP-learn/.shots"
@@ -12,8 +17,7 @@ def sh(*a):
 
 
 def dump():
-    subprocess.run([ADB, "shell", "uiautomator", "dump", "/sdcard/ui.xml"], capture_output=True)
-    return sh("shell", "cat", "/sdcard/ui.xml")
+    return _ui.dump()
 
 
 def tap(x, y):

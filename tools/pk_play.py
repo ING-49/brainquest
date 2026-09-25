@@ -3,6 +3,11 @@ import subprocess
 import re
 import time
 
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ui as _ui  # dump 走 exec-out /dev/tty，Git Bash 下稳定
+
 ADB = r"E:/Tools/Android-Studio/Android/SDK/platform-tools/adb.exe"
 
 
@@ -12,8 +17,7 @@ def sh(*a):
 
 def dump():
     for _ in range(4):
-        subprocess.run([ADB, "shell", "uiautomator", "dump", "/sdcard/ui.xml"], capture_output=True)
-        xml = sh("shell", "cat", "/sdcard/ui.xml")
+        xml = _ui.dump()
         if len(xml) > 900:
             return xml
         time.sleep(1)
