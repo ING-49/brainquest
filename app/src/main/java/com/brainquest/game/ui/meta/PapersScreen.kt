@@ -41,19 +41,39 @@ private data class Paper(
 )
 
 @Serializable
-private data class PapersFile(val papers: List<Paper> = emptyList())
+private data class PapersFile(val version: Int = 0, val papers: List<Paper> = emptyList())
 
 private val json = Json { ignoreUnknownKeys = true }
+
+/**
+ * 热更优先：内容包（filesDir/content/packs/ 递归，UpdateManager 把包解到 <包id>/ 子目录）
+ * 里的 papers.json，version 最高者胜；没有热更包回落 assets 内置。
+ */
+private fun loadPapers(context: android.content.Context): List<Paper> {
+    var best: PapersFile? = null
+    val packsDir = java.io.File(context.filesDir, "content/packs")
+    if (packsDir.isDirectory) {
+        packsDir.walkTopDown().filter { it.isFile && it.name == "papers.json" }.forEach { f ->
+            runCatching {
+                val parsed = json.decodeFromString<PapersFile>(f.readText())
+                if (best == null || parsed.version > best!!.version) best = parsed
+            }
+        }
+    }
+    val file = best ?: runCatching {
+        json.decodeFromString<PapersFile>(
+            context.assets.open("papers/papers.json").bufferedReader().use { it.readText() },
+        )
+    }.getOrNull()
+    return file?.papers ?: emptyList()
+}
 
 /** 真题试卷：按套浏览历年真题精选卷（题干 + 答案 + 解析的阅读模式） */
 @Composable
 fun PapersScreen(vm: com.brainquest.game.AppViewModel, nav: NavHostController) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val papers = remember {
-        runCatching {
-            context.assets.open("papers/papers.json").bufferedReader().use { it.readText() }
-                .let { json.decodeFromString<PapersFile>(it) }.papers
-        }.getOrDefault(emptyList())
+        runCatching { loadPapers(context) }.getOrDefault(emptyList())
     }
     var openPaper by remember { mutableStateOf<Paper?>(null) }
 

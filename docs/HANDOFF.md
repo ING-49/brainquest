@@ -11,7 +11,7 @@
 > 本篇是一屏速览。详细工程手册见 [`PLAYBOOK.md`](PLAYBOOK.md)，环境与坑见 [`../AGENTS.md`](../AGENTS.md)。
 
 ## 现状
-- **版本**：v1.6.7（versionCode 32）· 包名 `com.brainquest.game` · Android 单机 APK + 应用内增量更新
+- **版本**：v1.6.8（versionCode 33）· 包名 `com.brainquest.game` · Android 单机 APK + 应用内增量更新
 - **用户量**：公网对战服务器上已有真实玩家数据（积分记录 + 云存档），改动勿清库
 - **技术栈**：Kotlin 2.0 + Jetpack Compose(M3) + DataStore + OkHttp/WebSocket + kotlinx.serialization
 
@@ -31,6 +31,7 @@
 - **v1.6.4**：连续匹配第二局提前完成修复（房主路径未重置战斗状态）、排行榜按科目分桶（默认混合）、云存档补存档码输入框
 - **v1.6.5**：移除 知识2048/记忆翻牌，新增 华容道/五子棋/贪吃蛇（纯游戏化，靠金币经验接入成长线）
 - **v1.6.6**：三个小游戏体验强化——去掉屏幕方向键（改纯滑动+点选）、华容道移动改滑行动画与拖动跟手、棋盘/棋子重做高对比配色、五子棋悔棋语义修复（原来撤错手）、音效扩到 12 种音序（滑动/落子/吃豆/撞击/开局等）、贪吃蛇减速到 300ms/格、设置里的「震动反馈」开关真正生效（原来无一处调用）
+- **v1.6.8**：修复 gen_rules 热更路径失效（递归扫包，引入以来从未生效）、真题卷 papers.json 走热更、机器人/冒烟脚本版本号改读 manifest、pk_server 日志 python3 -u、老脚本（autoplay/update_demo/pk_play）dump 迁移 ui.py 且 autoplay 补填空题支持
 - **v1.6.7**：云存档身份校验（口令 PBKDF2→AES-GCM 信封加密、`save_get` 限流、存档码 8→10 位、`save_del` 删除通道）+ 大学五科热更题包 165 题（`*_p3`）+ 上架技术准备（应用内隐私政策、明文流量白名单、主副名「脑力大冒险 / 学海星槎」、商店图标导出、README 截图补齐）。公网服务器已于 2026-09-25 同步上线；SSH 免密（本机 id_rsa → 服务器 authorized_keys），详见移交 01/03。
 
 ## 待办

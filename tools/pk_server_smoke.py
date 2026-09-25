@@ -10,7 +10,27 @@ import sys
 import websockets
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "ws://127.0.0.1:8765"
-V = "1.6.1"
+
+
+def _default_version():
+    """配对用版本号：与 pk_guest.py 同源，优先取 update-server/manifest.json 的 latestVersionName，
+    显式传第二参可覆盖（python pk_server_smoke.py ws://host 1.6.8）。"""
+    if len(sys.argv) > 2:
+        return sys.argv[2]
+    import json as _json
+    import os as _os
+    m = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "update-server", "manifest.json")
+    try:
+        with open(m, encoding="utf-8") as f:
+            v = _json.load(f).get("latestVersionName")
+            if v:
+                return v
+    except (OSError, ValueError):
+        pass
+    return "1.6.8"
+
+
+V = _default_version()
 
 
 async def recv_until(ws, want, timeout=5):
