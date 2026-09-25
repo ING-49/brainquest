@@ -96,7 +96,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var onlinePlayers by remember { mutableIntStateOf(-1) }    // -1 = 尚未获取
     var onlineWaiting by remember { mutableIntStateOf(0) }
     var onlineRooms by remember { mutableIntStateOf(0) }
-    var matchSubject by remember { mutableStateOf<String?>(null) } // 房主出题科目，null = 混合
+    var matchSubject by remember { mutableStateOf<String?>(null) } // 对战出题科目，null = 混合
     var lanUrl by remember { mutableStateOf("") }              // 局域网手动直连地址
     var showServerEdit by remember { mutableStateOf(false) }   // 长按在线行弹出的服务器地址编辑框
     var showBoard by remember { mutableStateOf(false) }        // 排行榜对话框
@@ -372,7 +372,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
 
     androidx.activity.compose.BackHandler(enabled = phase != "lobby") { backToLobby() }
 
-    // 双方都点了准备 → 房主发题（内嵌广播/远程 sendStart），双方进倒计时
+    // 双方都点了准备 → 局域网：房主（内嵌）广播发题；远程：等服务器抽题下发
     // 对局中断线自动重连：成功后发 resume 恢复现场（服务器回 Resume 事件），三次失败放弃
     LaunchedEffect(reconnecting) {
         if (!reconnecting || embedded != null) return@LaunchedEffect
@@ -413,7 +413,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         if (phase == "matched" && myReady && peerReady) {
             delay(600)  // 让"匹配成功"动画呼吸一下
             if (embedded != null) {
-                embedded!!.broadcastStart()          // 房主(本机做服)：发题给乙方
+                embedded!!.broadcastStart()          // 局域网房主（本机做服）：发题给对手
                 resetBattleState()  // 连续对局：房主路径不经 Start 事件，这里必须清零
                 phase = "countdown"; countdown = 3
             }
@@ -566,7 +566,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     queryBoard("混合")   // 打开优先显示混合榜
                                 }, modifier = Modifier.fillMaxWidth()) { Text("🏆 排行榜（快速匹配积分）") }
                                 HorizontalDivider()
-                                Text("对战科目（房主出题用）", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("对战科目（出题用 · 快速匹配按先匹配者，好友房按创建者）", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     FilterChip(selected = matchSubject == null, onClick = { matchSubject = null }, label = { Text("🎲 混合") })
                                     Subjects.all.forEach { s ->
@@ -623,7 +623,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 title = { Text("🏆 排行榜 · $boardSubject") },
                                 text = {
                                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text("仅快速匹配计分 · 对战科目由房主选定",
+                                        Text("仅快速匹配计分 · 出题科目按先匹配者选定",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -761,8 +761,11 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     Text("匹配成功！", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
 
                     val iAmHost = embedded != null || !joinedAsGuest
+                    // v1.6.10：远程对战为服务器中立，无房主概念 → 标「你 / 对手」；
+                    // 局域网/热点对战内嵌服务器在房主本机 → 保留「房主 / 挑战者」真实角色
                     PlayerReadyCard(
-                        label = "甲方（房主）",
+                        label = if (embedded != null) "房主（本机做服务器）"
+                                else if (iAmHost) "你（先匹配）" else "对手（先匹配）",
                         name = if (iAmHost) player.nickname else peerName,
                         ready = if (iAmHost) myReady else peerReady,
                         accent = Color(0xFFEF5350),
@@ -770,7 +773,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     Text("VS", style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
                     PlayerReadyCard(
-                        label = "乙方（挑战者）",
+                        label = if (embedded != null) "挑战者"
+                                else if (iAmHost) "对手" else "你",
                         name = if (iAmHost) peerName else player.nickname,
                         ready = if (iAmHost) peerReady else myReady,
                         accent = Color(0xFF42A5F5),

@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.10 (versionCode 35)
+- **当前版本**：v1.6.11 (versionCode 36)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
