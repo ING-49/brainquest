@@ -73,27 +73,31 @@ async def main():
     rd = await recv_until(d, "joined", timeout=5)
     check("同版本自动配对（甲 created / 乙 joined）", rb is not None and rd is not None)
 
-    # 4. ready 互转
+    # 4. ready 互转 + 服务器自动出题（v1.6.9 服务器中立对战）
     await b.send(json.dumps({"t": "ready"}))
     await d.send(json.dumps({"t": "ready"}))
-    rbd = await recv_until(b, "ready", timeout=5)
-    check("ready 互转", rbd is not None)
+    rbd = await recv_until(b, "peer_ready", timeout=5)
+    rdb = await recv_until(d, "peer_ready", timeout=5)
+    check("ready 互转", rbd is not None and rdb is not None)
+    sb = await recv_until(b, "start", timeout=5)
+    sd = await recv_until(d, "start", timeout=5)
+    check("服务器自动出题（start 同发双方各 10 题）",
+          bool(sb and sd and len(sb.get("questions", [])) == 10 and len(sd.get("questions", [])) == 10))
+    QS_B = sb.get("questions", []) if sb else []
+    QS_D = sd.get("questions", []) if sd else []
 
-    # 5. 完整一局：start 下发 → 逐题 answer → finish → 判定
-    qs = [{"id": f"smoke{i}", "subject": "数学口算", "difficulty": 1, "type": "choice",
-           "question": f"{i}+{i}=?", "options": ["0", "1", "2", "3"], "answer": 0,
-           "explanation": "smoke", "tags": []} for i in range(10)]
-    await b.send(json.dumps({"t": "start", "questions": qs}))
-    rs = await recv_until(d, "start", timeout=5)
-    check("题目整包下发", rs is not None and len(rs.get("questions", [])) == 10)
+    # 5. 完整一局：choice 答题（服务器按题库判分）→ finish → 判定
     for i in range(10):
-        await b.send(json.dumps({"t": "answer", "idx": i, "correct": i < 7, "timeMs": 100}))
-        await d.send(json.dumps({"t": "answer", "idx": i, "correct": i < 5, "timeMs": 120}))
-    await b.send(json.dumps({"t": "finish", "correct": 7, "timeMs": 1000}))
-    await d.send(json.dumps({"t": "finish", "correct": 5, "timeMs": 1100}))
+        qb, qd = QS_B[i], QS_D[i]
+        cb = qb["answer"] if i < 7 else (qb["answer"] + 1) % len(qb["options"])
+        cd_ = qd["answer"] if i < 5 else (qd["answer"] + 1) % len(qd["options"])
+        await b.send(json.dumps({"t": "answer", "idx": i, "choice": cb, "timeMs": 100}))
+        await d.send(json.dumps({"t": "answer", "idx": i, "choice": cd_, "timeMs": 120}))
+    await b.send(json.dumps({"t": "finish", "timeMs": 1000}))
+    await d.send(json.dumps({"t": "finish", "timeMs": 1100}))
     rw = await recv_until(b, "result", timeout=5)
     rl = await recv_until(d, "result", timeout=5)
-    check("判定胜负（7:5 甲胜乙败）",
+    check("判定胜负（服务器判分 7:5 甲胜乙败）",
           rw is not None and rw["outcome"] == "win" and rl is not None and rl["outcome"] == "lose")
 
     # 6. 取消匹配：E 取消后不被后来者配对
@@ -126,13 +130,18 @@ async def main():
     rc = await recv_until(g, "created", timeout=5)
     await g2.send(json.dumps({"t": "join", "code": rc["code"], "name": "H", "version": V}))
     await recv_until(g2, "joined", timeout=5)
-    qs2 = [{"id": f"roomq{i}", "subject": "数学口算", "difficulty": 1, "type": "choice",
-            "question": f"{i}+1=?", "options": ["0", "1", "2", "3"], "answer": 1,
-            "explanation": "smoke", "tags": []} for i in range(10)]
-    await g.send(json.dumps({"t": "start", "questions": qs2}))
-    await recv_until(g2, "start", timeout=5)
-    await g.send(json.dumps({"t": "finish", "correct": 5, "timeMs": 500}))
-    await g2.send(json.dumps({"t": "finish", "correct": 3, "timeMs": 600}))
+    await g.send(json.dumps({"t": "ready"}))
+    await g2.send(json.dumps({"t": "ready"}))
+    sg = await recv_until(g, "start", timeout=5)
+    sg2 = await recv_until(g2, "start", timeout=5)
+    for i in range(10):
+        qg, qg2 = sg["questions"][i], sg2["questions"][i]
+        cg = qg["answer"] if i < 5 else (qg["answer"] + 1) % len(qg["options"])
+        cg2 = qg2["answer"] if i < 3 else (qg2["answer"] + 1) % len(qg2["options"])
+        await g.send(json.dumps({"t": "answer", "idx": i, "choice": cg, "timeMs": 100}))
+        await g2.send(json.dumps({"t": "answer", "idx": i, "choice": cg2, "timeMs": 100}))
+    await g.send(json.dumps({"t": "finish", "timeMs": 500}))
+    await g2.send(json.dumps({"t": "finish", "timeMs": 600}))
     rg = await recv_until(g, "result", timeout=5)
     check("好友房间不计分（ranked=false）",
           bool(rg and rg.get("rating") and rg["rating"].get("ranked") is False))
@@ -159,8 +168,18 @@ async def main():
     await j.send(json.dumps({"t": "quick_match", "name": "smokeJ", "version": V, "subject": "数学口算"}))
     ri = await recv_until(i, "created", timeout=5)
     await recv_until(j, "joined", timeout=5)
-    await i.send(json.dumps({"t": "finish", "correct": 6, "timeMs": 400}))
-    await j.send(json.dumps({"t": "finish", "correct": 2, "timeMs": 500}))
+    await i.send(json.dumps({"t": "ready"}))
+    await j.send(json.dumps({"t": "ready"}))
+    si = await recv_until(i, "start", timeout=5)
+    sj = await recv_until(j, "start", timeout=5)
+    for i2 in range(10):
+        qi, qj = si["questions"][i2], sj["questions"][i2]
+        ci = qi["answer"] if i2 < 6 else (qi["answer"] + 1) % len(qi["options"])
+        cj = qj["answer"] if i2 < 2 else (qj["answer"] + 1) % len(qj["options"])
+        await i.send(json.dumps({"t": "answer", "idx": i2, "choice": ci, "timeMs": 80}))
+        await j.send(json.dumps({"t": "answer", "idx": i2, "choice": cj, "timeMs": 90}))
+    await i.send(json.dumps({"t": "finish", "timeMs": 400}))
+    await j.send(json.dumps({"t": "finish", "timeMs": 500}))
     rsub = await recv_until(i, "result", timeout=5)
     check("数学口算局计分（ranked 且带积分）",
           bool(rsub and rsub.get("rating", {}).get("ranked")))
@@ -175,21 +194,36 @@ async def main():
     # 10. 云存档（v1.6.7 起必须为加密信封）：上传 → 下载一致
     envelope = json.dumps({"fmt": "BQENC1", "salt": "c2FsdHNhbHQ=", "iters": 60000,
                            "iv": "aXZpdml2aXZp", "ct": "Y2lwaGVydGV4dA=="}, ensure_ascii=False)
-    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "data": envelope}))
+    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "owner": "SMOKEOWN1", "data": envelope}))
     ok_ = await recv_until(b, "save_ok", timeout=5)
-    await b.send(json.dumps({"t": "save_get", "code": "SMOKE1"}))
+    await b.send(json.dumps({"t": "save_get", "code": "SMOKE1", "owner": "SMOKEOWN1"}))
     sd = await recv_until(b, "save_data", timeout=5)
     check("云存档信封上传+下载一致", bool(ok_ and sd and sd.get("data") == envelope))
 
     # 10b. 旧版明文存档不再接受上传（防回退明文存储；旧文件下载兼容在 App 端做）
-    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "data": '{"nickname":"明文"}'}))
+    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "owner": "SMOKEOWN1", "data": '{"nickname":"明文"}'}))
     plain_err = await recv_until(b, "error", timeout=5)
     check("明文存档上传被拒绝", bool(plain_err and "加密" in plain_err.get("msg", "")))
 
-    # 10c. save_del：删除后不可再下载（用户数据删除通道）
-    await b.send(json.dumps({"t": "save_del", "code": "SMOKE1"}))
+    # 10b-2. 他人身份下载/覆盖被拒（身份归属校验，v1.6.9）
+    await b.send(json.dumps({"t": "save_get", "code": "SMOKE1", "owner": "SMOKEOWN2"}))
+    own_err = await recv_until(b, "error", timeout=5)
+    check("他人身份下载被拒", bool(own_err and "身份不符" in own_err.get("msg", "")))
+    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "owner": "SMOKEOWN2", "data": envelope}))
+    own_err2 = await recv_until(b, "error", timeout=5)
+    check("他人身份覆盖被拒", bool(own_err2 and "身份" in own_err2.get("msg", "")))
+
+    # 10b-3. 归属转移（换设备恢复场景）：A 身份授权 → B 可接管
+    await b.send(json.dumps({"t": "save_get", "code": "SMOKE1", "owner": "SMOKEOWN1", "new_owner": "SMOKEOWN2"}))
+    sd2 = await recv_until(b, "save_data", timeout=5)
+    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "owner": "SMOKEOWN2", "data": envelope}))
+    ok2 = await recv_until(b, "save_ok", timeout=5)
+    check("归属转移后新身份可接管", bool(sd2 and ok2))
+
+    # 10c. save_del：删除后不可再下载（用户数据删除通道；需归属身份）
+    await b.send(json.dumps({"t": "save_del", "code": "SMOKE1", "owner": "SMOKEOWN2"}))
     del_ok = await recv_until(b, "save_del_ok", timeout=5)
-    await b.send(json.dumps({"t": "save_get", "code": "SMOKE1"}))
+    await b.send(json.dumps({"t": "save_get", "code": "SMOKE1", "owner": "SMOKEOWN1"}))
     gone = await recv_until(b, "error", timeout=5)
     check("云存档删除后不可下载", bool(del_ok and gone and "不存在" in gone.get("msg", "")))
 

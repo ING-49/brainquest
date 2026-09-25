@@ -213,24 +213,27 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 peerName = event.peer
                 status = "匹配成功！"
                 phase = "matched"   // 匹配成功动画 + 双方确认
-                runCatching {
-                    // 房主此刻就锁定题目（双方确认后才下发）
-                    val qs = buildList {
-                        val used = mutableSetOf<String>()
-                        var guard = 0
-                        while (size < PK_QUESTION_COUNT && guard < 150) {
-                            val subject = matchSubject ?: Subjects.all[guard % Subjects.all.size]
-                            val q = vm.bank.pick(subject, 2 + guard % 3)
-                            if (q != null && q.type != "fill" && q.id !in used) {
-                                add(q); used.add(q.id)
+                if (embedded != null) {
+                    // 仅局域网/热点对战（内嵌服务器无题库）：房主本地选题
+                    runCatching {
+                        val qs = buildList {
+                            val used = mutableSetOf<String>()
+                            var guard = 0
+                            while (size < PK_QUESTION_COUNT && guard < 150) {
+                                val subject = matchSubject ?: Subjects.all[guard % Subjects.all.size]
+                                val q = vm.bank.pick(subject, 2 + guard % 3)
+                                if (q != null && q.type != "fill" && q.id !in used) {
+                                    add(q); used.add(q.id)
+                                }
+                                guard++
                             }
-                            guard++
                         }
-                    }
-                    questions = qs
-                    embedded?.setQuestions(qs)
-                    PkDiscovery.stopBeacon()
-                }.onFailure { status = "发题失败：${it.message}" }
+                        questions = qs
+                        embedded?.setQuestions(qs)
+                    }.onFailure { status = "发题失败：${it.message}" }
+                }
+                // 远程对战：题目由服务器在双方 ready 后下发（v1.6.9 服务器中立对战）
+                PkDiscovery.stopBeacon()
             }
             is PkEvent.Start -> {
                 questions = event.questions
@@ -334,11 +337,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
             delay(600)  // 让"匹配成功"动画呼吸一下
             if (embedded != null) {
                 embedded!!.broadcastStart()          // 房主(本机做服)：发题给乙方
-            } else if (!joinedAsGuest) {
-                client.sendStart(questions)          // 远程服务器房主：发题
+                resetBattleState()  // 连续对局：房主路径不经 Start 事件，这里必须清零
+                phase = "countdown"; countdown = 3
             }
-            resetBattleState()  // 连续对局：房主路径不经 Start 事件，这里必须清零
-            phase = "countdown"; countdown = 3
+            // 远程对战：双方 ready 消息已到服务器，等服务器抽题下发 PkEvent.Start
         }
     }
     LaunchedEffect(phase) {
@@ -363,7 +365,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
 
     fun submit(idx: Int) {
         val q = questions.getOrNull(qIndex) ?: return
-        val correct = idx == q.answer
+        val correct = idx == q.answer          // 本机即时反馈；最终成绩以服务器判分为准（v1.6.9）
         val spent = System.currentTimeMillis() - qStartAt
         totalTime += spent
         if (correct) myCorrect++
@@ -374,7 +376,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         val peerMsg = buildJsonObject {
             put("t", "peer_answer"); put("idx", qIndex); put("correct", correct); put("timeMs", spent)
         }
-        if (embedded != null) embedded!!.relayHostMessage(peerMsg) else client.sendAnswer(qIndex, correct, spent)
+        if (embedded != null) embedded!!.relayHostMessage(peerMsg) else client.sendAnswer(qIndex, idx, spent)
     }
 
     fun nextOrFinish() {
@@ -383,7 +385,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 put("t", "peer_finish"); put("correct", myCorrect); put("timeMs", totalTime)
             }
             if (embedded != null) embedded!!.hostFinish(myCorrect, totalTime)
-            else client.sendFinish(myCorrect, totalTime)
+            else client.sendFinish(totalTime)
             phase = "mydone"
         } else {
             qIndex++
@@ -510,7 +512,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     OutlinedButton(onClick = {
                                         lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
-                                        client.connect(serverUrl, player.nickname, "create", version = BuildConfig.VERSION_NAME)
+                                        client.connect(serverUrl, player.nickname, "create", version = BuildConfig.VERSION_NAME, subject = matchSubject ?: "混合")
                                     }) { Text("🏠 创建房间") }
                                 }
                             }

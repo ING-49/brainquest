@@ -42,10 +42,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         bank.reload()
         viewModelScope.launch {
             _player.value = store.load()
+            ensureIdentity()
             // 上线默认发一点新手资源
             checkNewcomer()
         }
     }
+
+    /** 身份码：首次启动生成、永久固定不可改（云存档归属校验用） */
+    private fun ensureIdentity() {
+        if (_player.value.identity.isBlank()) {
+            val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+            val id = "QX" + (1..10).map { chars.random() }.joinToString("")
+            commit { it.copy(identity = id) }
+        }
+    }
+
+    val identity: String get() = _player.value.identity
 
     private suspend fun checkNewcomer() {
         if (_player.value.lastCheckIn.isEmpty()) {

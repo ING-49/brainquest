@@ -69,25 +69,28 @@ async def main():
         await ws.send(json.dumps(hello))
         print(f"[bot] 已连接 {URL}（{'快速匹配' if QUICK else '房间 ' + CODE}，v{VERSION}）")
 
-        state = {"questions": [], "am_host": False, "started": False}
+        state = {"questions": [], "started": False}
         t0 = time.time()
 
         async def answer_flow():
-            while not state["questions"] or (state["am_host"] and not state["started"]):
+            # v1.6.9 服务器中立对战：等待服务器抽题下发，按题库答案发 choice（前 TARGET_CORRECT 题答对）
+            while not state["started"]:
                 await asyncio.sleep(0.2)
-            print(f"[bot] 开始作答 {len(state['questions'])} 题")
-            for i in range(len(state["questions"])):
+            qs = state["questions"]
+            print(f"[bot] 收到服务器 {len(qs)} 题，开始作答")
+            for i, q in enumerate(qs):
                 await asyncio.sleep(1.0)
                 correct = i < TARGET_CORRECT
+                opts = q.get("options") or [""]
+                choice = q["answer"] if correct else (q["answer"] + 1) % len(opts)
                 await ws.send(json.dumps({
-                    "t": "answer", "idx": i, "correct": correct,
+                    "t": "answer", "idx": i, "choice": choice,
                     "timeMs": 1200 + i * 100,
                 }))
-                print(f"[bot] 第{i+1}题作答 correct={correct}")
+                print(f"[bot] 第{i+1}题 choice={choice}（目标{'答对' if correct else '答错'}）")
             await asyncio.sleep(0.5)
-            await ws.send(json.dumps({"t": "finish", "correct": TARGET_CORRECT,
-                                      "timeMs": int((time.time() - t0) * 1000)}))
-            print("[bot] 已提交成绩")
+            await ws.send(json.dumps({"t": "finish", "timeMs": int((time.time() - t0) * 1000)}))
+            print("[bot] 已交卷（判分以服务器为准）")
 
         task = asyncio.create_task(answer_flow())
         try:
@@ -95,23 +98,16 @@ async def main():
                 msg = json.loads(await asyncio.wait_for(ws.recv(), timeout=150))
                 t = msg.get("t")
                 if t == "created":
-                    state["am_host"] = True
-                    print(f"[bot] 配对成功 {msg['code']}，我是甲方（房主）")
+                    print(f"[bot] 配对成功 {msg['code']}，我是甲方")
+                    await ws.send(json.dumps({"t": "ready"}))
                 elif t == "peer_joined":
                     print(f"[bot] 对手加入: {msg.get('peer')}")
-                    await ws.send(json.dumps({"t": "ready"}))
-                    if state["am_host"]:
-                        state["questions"] = synth_questions()
                 elif t == "joined":
                     print(f"[bot] 已配对/加入 {msg['code']}，对手: {msg.get('peer')}，发送准备")
                     await ws.send(json.dumps({"t": "ready"}))
-                elif t == "ready":
-                    if state["am_host"] and state["questions"] and not state["started"]:
-                        await ws.send(json.dumps({"t": "start", "questions": state["questions"]}))
-                        state["started"] = True
-                        print(f"[bot] 双方已准备，房主下发 {len(state['questions'])} 题")
                 elif t == "start":
                     state["questions"] = msg["questions"]
+                    state["started"] = True
                 elif t == "peer_finish":
                     print("[bot] 对手已完成")
                 elif t == "result":

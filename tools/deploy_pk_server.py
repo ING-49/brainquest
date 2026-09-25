@@ -50,6 +50,15 @@ sftp = c.open_sftp()
 run('mkdir -p /opt/pk', 'mkdir')
 sftp.put('update-server/pk_server.py', '/opt/pk/pk_server.py')
 print('[upload] pk_server.py OK')
+
+# 2b. 上传题库（服务器中立对战：assets 内置题库 + 热更包源题库，含答案供服务器判分）
+sftp.mkdir('/opt/pk/questions')
+import glob
+n_q = 0
+for src in glob.glob('app/src/main/assets/questions/*.json') + glob.glob('update-server/packs/src/*.json'):
+    sftp.put(src, '/opt/pk/questions/' + os.path.basename(src))
+    n_q += 1
+print(f'[upload] 题库 {n_q} 个 JSON OK')
 sftp.close()
 
 # 3. systemd 服务（含 websockets 路径探测）
