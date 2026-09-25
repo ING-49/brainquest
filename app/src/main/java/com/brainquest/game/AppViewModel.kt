@@ -116,8 +116,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val saveJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
-    /** 导出当前存档 JSON（云存档上传用） */
+    /** 导出当前存档 JSON（明文，仅作加密前的原料） */
     fun exportSaveJson(): String = saveJson.encodeToString(PlayerState.serializer(), _player.value)
+
+    /** 导出加密云存档（口令 PBKDF2→AES-GCM 信封，服务器只见密文） */
+    fun encryptSaveJson(password: String): String =
+        com.brainquest.game.util.SaveCrypto.encrypt(exportSaveJson(), password)
 
     /** 导入云存档（覆盖本地），成功返回 true */
     fun importSaveJson(text: String): Boolean = runCatching {
@@ -126,10 +130,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { store.save(state) }
     }.isSuccess
 
-    /** 生成 8 位云存档码（大写字母数字，去除易混字符） */
+    /**
+     * 导入云端信封存档：新格式用口令解密后导入，口令错返回 false；
+     * 旧版明文存档（无 fmt 字段）免口令直接导入，老用户无损。
+     */
+    fun importCloudSave(envelope: String, password: String): Boolean {
+        if (!com.brainquest.game.util.SaveCrypto.isEnvelope(envelope)) return importSaveJson(envelope)
+        val plain = com.brainquest.game.util.SaveCrypto.decrypt(envelope, password) ?: return false
+        return importSaveJson(plain)
+    }
+
+    /** 生成 10 位云存档码（BQ + 8 位大写字母数字，去除易混字符；旧 8 位码仍可用） */
     fun generateCloudCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        return "BQ" + (1..6).map { chars.random() }.joinToString("")
+        return "BQ" + (1..8).map { chars.random() }.joinToString("")
     }
 
     // ---------- 答题结算 ----------

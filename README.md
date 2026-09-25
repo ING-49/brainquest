@@ -1,5 +1,7 @@
 # 🧠 脑力大冒险 — 益智学习手游合集
 
+> 副名：**学海星槎** · 游戏化智能学习与对战平台（主副名策略，2026-09 上架决策；商店展示名以主名为准，包名 `com.brainquest.game` 不变）
+
 > © 2026 ING-49 · 本项目未采用开源许可证，保留所有权利（All Rights Reserved）。
 > 📌 项目速览 / 待办 / 常用命令见 [`docs/HANDOFF.md`](docs/HANDOFF.md)。
 > ⏸ **项目暂停中（2026-09）**：完整交接包在 [`docs/移交/`](docs/移交/)，先读 [00-交接总览](docs/移交/00-交接总览.md)（现状 / 三条红线 / 恢复开发 5 步）。
@@ -19,6 +21,8 @@
 | ![大厅](docs/screens/home.png) | ![每日挑战](docs/screens/daily.png) | ![联机匹配](docs/screens/pk_matched.png) |
 | **战斗结算** | **真题试卷** | **联机结算** |
 | ![战斗](docs/screens/battle.png) | ![真题试卷](docs/screens/papers.png) | ![联机结算](docs/screens/pk_result.png) |
+| ![华容道](docs/screens/klotski.png) | ![五子棋](docs/screens/gomoku.png) | ![贪吃蛇](docs/screens/snake.png) |
+| ![排行榜](docs/screens/leaderboard.png) | ![云存档](docs/screens/cloud_save.png) | ![隐私政策](docs/screens/privacy.png) |
 
 ### 小游戏
 | 游戏 | 玩法 | 学习点 |

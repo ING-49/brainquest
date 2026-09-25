@@ -42,6 +42,7 @@ sealed class PkEvent {
     data class Leaderboard(val top: List<RankRow>, val me: RankRow?, val subject: String = "") : PkEvent()
     data class SaveOk(val size: Int) : PkEvent()          // 云存档上传成功
     data class SaveData(val data: String) : PkEvent()     // 云存档下载数据
+    data object SaveDeleted : PkEvent()                   // 云存档已删除
     data object PeerLeft : PkEvent()
     data class Error(val msg: String) : PkEvent()
     data class Connected(val hostMode: Boolean) : PkEvent()  // WebSocket 已连上
@@ -159,6 +160,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
             }
             "save_ok" -> onEvent(PkEvent.SaveOk(obj["size"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0))
             "save_data" -> onEvent(PkEvent.SaveData(obj["data"]?.jsonPrimitive?.content ?: ""))
+            "save_del_ok" -> onEvent(PkEvent.SaveDeleted)
             "peer_left" -> onEvent(PkEvent.PeerLeft)
             "online" -> onEvent(PkEvent.Online(
                 players = obj["players"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
@@ -227,6 +229,11 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
     /** 云存档：下载 */
     fun sendCloudGet(code: String) {
         send(buildJsonObject { put("t", "save_get"); put("code", code) }.toString())
+    }
+
+    /** 云存档：删除（用户数据删除通道） */
+    fun sendCloudDel(code: String) {
+        send(buildJsonObject { put("t", "save_del"); put("code", code) }.toString())
     }
 
     private fun send(text: String) {

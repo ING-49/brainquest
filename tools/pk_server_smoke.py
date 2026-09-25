@@ -150,14 +150,38 @@ async def main():
           bool(lbi and lbi.get("me") and lbi["me"].get("rank", 0) >= 1
                and lbm and lbm.get("me") is None))
 
-    # 10. 云存档：上传后下载一致
-    payload = '{"nickname":"冒烟测试","coins":321}'
-    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "data": payload}))
+    # 10. 云存档（v1.6.7 起必须为加密信封）：上传 → 下载一致
+    envelope = json.dumps({"fmt": "BQENC1", "salt": "c2FsdHNhbHQ=", "iters": 60000,
+                           "iv": "aXZpdml2aXZp", "ct": "Y2lwaGVydGV4dA=="}, ensure_ascii=False)
+    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "data": envelope}))
     ok_ = await recv_until(b, "save_ok", timeout=5)
     await b.send(json.dumps({"t": "save_get", "code": "SMOKE1"}))
     sd = await recv_until(b, "save_data", timeout=5)
-    check("云存档上传+下载一致",
-          bool(ok_ and sd and sd.get("data") == payload))
+    check("云存档信封上传+下载一致", bool(ok_ and sd and sd.get("data") == envelope))
+
+    # 10b. 旧版明文存档不再接受上传（防回退明文存储；旧文件下载兼容在 App 端做）
+    await b.send(json.dumps({"t": "save_put", "code": "SMOKE1", "data": '{"nickname":"明文"}'}))
+    plain_err = await recv_until(b, "error", timeout=5)
+    check("明文存档上传被拒绝", bool(plain_err and "加密" in plain_err.get("msg", "")))
+
+    # 10c. save_del：删除后不可再下载（用户数据删除通道）
+    await b.send(json.dumps({"t": "save_del", "code": "SMOKE1"}))
+    del_ok = await recv_until(b, "save_del_ok", timeout=5)
+    await b.send(json.dumps({"t": "save_get", "code": "SMOKE1"}))
+    gone = await recv_until(b, "error", timeout=5)
+    check("云存档删除后不可下载", bool(del_ok and gone and "不存在" in gone.get("msg", "")))
+
+    # 10d. save_get 限流：新连接连续下载超过阈值后被拒（防暴力试码）
+    rl_ws = await websockets.connect(URL)
+    limited = False
+    for _ in range(8):
+        await rl_ws.send(json.dumps({"t": "save_get", "code": "NOSUCH99"}))
+        r_ = await recv_until(rl_ws, "error", timeout=3)
+        if r_ and "频繁" in r_.get("msg", ""):
+            limited = True
+            break
+    check("save_get 超频被限流", limited)
+    await rl_ws.close()
 
     for ws in (b, d, e, g, g2, i, j):
         await ws.close()

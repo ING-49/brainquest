@@ -14,7 +14,7 @@
 | 模拟器 AVD | `BrainQuest`（Pixel 6, API 34）；**AVD home 目录 `E:/Tools/Android-Studio/avd-home`**（启动前需 `export ANDROID_AVD_HOME=E:/Tools/Android-Studio/avd-home`，否则报 Unknown AVD name）。headless 启动：`emulator -avd BrainQuest -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot`（需设 ANDROID_HOME/ANDROID_AVD_HOME 环境变量） |
 | gh CLI | `E:\Tools\gh-cli\bin\gh.exe`（已登录 GitHub 账号 ING-49，token 在系统 keyring） |
 | Gradle | wrapper 8.7；依赖走阿里云镜像（settings.gradle.kts，dl.google.com 被墙）；GRADLE_USER_HOME=`E:\Tools\Android-Studio\Gradle-home` |
-| Python | ⚠️ 本机 `python` 实测解析到 LibreOffice 自带 **3.13.15**，且**未装 numpy/websockets/pillow/scipy**。跑 `update-server/release.py`/`delta.py` 需 `python -m pip install numpy`；跑 pk_server/冒烟/机器人需 `websockets`；跑像素取证脚本需 numpy+pillow+scipy。`pip` 不在 PATH，用 `python -m pip`。（文档旧说法「3.8 + numpy」已过期）bsdiff4 已弃用（Windows 版有缺陷） |
+| Python | 本机 `python` 解析到 LibreOffice 自带 **3.13.15**；2026-09-25 已装 **numpy / websockets / pillow**（`scipy` 仍未装，像素取证脚本里用 scipy 的先跑 `python -m pip install scipy`）。`pip` 不在 PATH，用 `python -m pip`。bsdiff4 已弃用（Windows 版有缺陷） |
 
 ## 关键命令
 
@@ -48,7 +48,7 @@ adb exec-out screencap -p > screen.png
 | `tools/dev_relay.py` | 开发中继：模拟器 → 本机 → GitHub Releases |
 | `tools/publish_github.py` | 发布 update-server 产物到 GitHub Releases（latest 地址自校验） |
 | `tools/pk_guest.py` | 联机机器人对手：`--quick` 快速匹配（可当房主）/ 房间码模式；PK_URL 环境变量 |
-| `tools/pk_server_smoke.py` | PK 服务器冒烟测试（在线人数/版本隔离/配对/整局/ELO/排行榜/云存档，16 项断言） |
+| `tools/pk_server_smoke.py` | PK 服务器冒烟测试（在线人数/版本隔离/配对/整局/ELO/排行榜/云存档加密信封/明文拒绝/删除/限流，19 项断言） |
 | `tools/klotski_verify.py` | 华容道关卡校验（BFS 判可解性 + 最少步数） |
 | `tools/ui.py` | uiautomator 文本定位/点击/滑动/截图（`tap_text`/`swipe`/`shot`，验证脚本复用） |
 | `tools/snake_autoeat.py` | 贪吃蛇自动追豆（像素识别 + 暂停分步控制；v1.6.6 起转向改用棋盘内滑动） |
@@ -76,3 +76,5 @@ adb exec-out screencap -p > screen.png
 12. **更新后自动回游戏**：Android 后台启动限制（BAL）会拦截 Receiver 拉起 Activity → 先尝试拉起、失败发通知兜底；POST_NOTIFICATIONS 需运行时授权
 13. **`adb shell input text` 不支持中文**（会 NPE）；自动化测试用英文数字输入
 14. **CI（GitHub Actions ubuntu runner）**：Android SDK 预装（build-tools 34.0.0 可用）；需 `pip install numpy`；aapt2 无 .exe 后缀（release.py 已做跨平台）
+15. **明文流量白名单**（v1.6.7 起）：`network_security_config.xml` 只放行 `8.148.192.129` 与 `10.0.2.2`，新增 http/ws 域名要同步改，否则被静默拦截
+16. **云存档**：上传必须设 ≥4 位口令（PBKDF2→AES-GCM 信封，`util/SaveCrypto.kt`），口令不落盘；服务器拒绝明文 `save_put`；导入存档会整份覆盖 PlayerState（含服务器地址等设置）

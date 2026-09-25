@@ -1,0 +1,171 @@
+{
+  "subject": "高等数学",
+  "version": 1,
+  "questions": [
+    {
+      "id": "zt3_math_001",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】lim(x→0) (1 − cos x·cos 2x)/x² = ?",
+      "options": ["3/2", "5/2", "7/2", "2"],
+      "answer": 1,
+      "explanation": "cosx·cos2x = (1/2)(cos3x + cosx) ~ (1/2)(1 − 9x²/2 + 1 − x²/2) = 1 − (5/2)x²，故极限为 5/2。",
+      "tags": ["真题", "考研", "极限"]
+    },
+    {
+      "id": "zt3_math_002",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】∫₀^(π/2) cos⁴x dx = ?",
+      "options": ["π/8", "π/4", "3π/16", "3π/8"],
+      "answer": 2,
+      "explanation": "华里士公式：∫₀^(π/2) cos⁴x dx = (3/4)·(1/2)·(π/2) = 3π/16。",
+      "tags": ["真题", "考研", "积分"]
+    },
+    {
+      "id": "zt3_math_003",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】lim(x→0) (arctan x − x)/x³ = ?",
+      "options": ["−1/3", "1/3", "−1/6", "0"],
+      "answer": 0,
+      "explanation": "泰勒展开 arctanx = x − x³/3 + O(x⁵)，分子 ~ −x³/3，故极限为 −1/3。",
+      "tags": ["真题", "考研", "极限"]
+    },
+    {
+      "id": "zt3_math_004",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】级数 Σ(n=1..∞) (−1)^(n−1)·n/(n²+1) 的敛散性是？",
+      "options": ["绝对收敛", "条件收敛", "发散", "部分和数列无界"],
+      "answer": 1,
+      "explanation": "n/(n²+1) ≥ 1/(2n)，正项级数发散故非绝对收敛；n/(n²+1) 单调递减趋于 0，由莱布尼茨判别法知条件收敛。",
+      "tags": ["真题", "考研", "级数"]
+    },
+    {
+      "id": "zt3_math_005",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】微分方程 y″ − y = 0 满足 y(0)=0, y′(0)=1 的特解是？",
+      "options": ["(e^x+e^(−x))/2", "e^x−1", "sinx", "(e^x−e^(−x))/2"],
+      "answer": 3,
+      "explanation": "通解 y = C1e^x + C2e^(−x)，由 y(0)=0 得 C2=−C1，由 y′(0)=1 得 C1=1/2，故 y = (e^x−e^(−x))/2。",
+      "tags": ["真题", "考研", "微分方程"]
+    },
+    {
+      "id": "zt3_math_006",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】设 z = arctan(y/x)，则 ∂z/∂x = ?",
+      "options": ["y/(x²+y²)", "−x/(x²+y²)", "−y/(x²+y²)", "1/(x²+y²)"],
+      "answer": 2,
+      "explanation": "∂z/∂x = 1/(1+(y/x)²)·(−y/x²) = −y/(x²+y²)。",
+      "tags": ["真题", "考研", "多元微分"]
+    },
+    {
+      "id": "zt3_math_007",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】∫₋₁¹ (x² + x·cos x + 1) dx = ?",
+      "options": ["2/3", "8/3", "2", "4/3"],
+      "answer": 1,
+      "explanation": "x·cosx 为奇函数积分为 0；∫₋₁¹x²dx = 2/3，∫₋₁¹1dx = 2，合计 8/3。",
+      "tags": ["真题", "考研", "积分"]
+    },
+    {
+      "id": "zt3_math_008",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】lim(x→0) (e^(3x) − e^(−x))/(2x) = ?",
+      "options": ["1", "3/2", "2", "4"],
+      "answer": 2,
+      "explanation": "拆成 [(e^(3x)−1) + (1−e^(−x))]/(2x)，由 e^u−1~u 得 (3x + x)/(2x) = 2。",
+      "tags": ["真题", "考研", "极限"]
+    },
+    {
+      "id": "zt3_math_009",
+      "subject": "高等数学",
+      "difficulty": 5,
+      "type": "single",
+      "question": "【考研真题】反常积分 ∫₀^∞ x/(1+x²)² dx = ?",
+      "options": ["1", "1/4", "发散", "1/2"],
+      "answer": 3,
+      "explanation": "令 u=1+x²，du=2x dx，积分 = (1/2)∫₁^∞ u^(−2) du = (1/2)·[−1/u]₁^∞ = 1/2。",
+      "tags": ["真题", "考研", "积分"]
+    },
+    {
+      "id": "zt3_math_010",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】幂级数 Σ(n=0..∞) (−1)ⁿ·xⁿ/n! 的和函数为？",
+      "options": ["e^(−x)", "e^x", "1/(1+x)", "ln(1+x)"],
+      "answer": 0,
+      "explanation": "由 e^t = Σtⁿ/n!，取 t = −x 即得和函数 e^(−x)，且对一切 x 收敛。",
+      "tags": ["真题", "考研", "级数"]
+    },
+    {
+      "id": "zt3_math_011",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】微分方程 y″ + 4y′ + 5y = 0 的通解是？",
+      "options": ["y=(C1+C2x)e^(−2x)", "y=C1e^(−2x)+C2e^(−5x)", "y=e^(2x)(C1cosx+C2sinx)", "y=e^(−2x)(C1cosx+C2sinx)"],
+      "answer": 3,
+      "explanation": "特征方程 r²+4r+5=0，r = −2±i，共轭复根对应通解 y = e^(−2x)(C1cosx + C2sinx)。",
+      "tags": ["真题", "考研", "微分方程"]
+    },
+    {
+      "id": "zt3_math_012",
+      "subject": "高等数学",
+      "difficulty": 3,
+      "type": "single",
+      "question": "【考研真题】f(x) = x³ − 6x² + 9x 在 [0,3] 上的最大值为？",
+      "options": ["0", "3", "5", "4"],
+      "answer": 3,
+      "explanation": "f′ = 3(x−1)(x−3)，比较驻点与端点：f(0)=0, f(1)=4, f(3)=0，最大值为 4。",
+      "tags": ["真题", "考研", "导数应用"]
+    },
+    {
+      "id": "zt3_math_013",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】lim(n→∞) [(n²+1)/(n²−1)]^(n²) = ?",
+      "options": ["e", "e²", "2", "e³"],
+      "answer": 1,
+      "explanation": "底数 = 1 + 2/(n²−1)，取对数 n²·ln(1+2/(n²−1)) ~ n²·2/n² = 2，故极限为 e²。",
+      "tags": ["真题", "考研", "极限"]
+    },
+    {
+      "id": "zt3_math_014",
+      "subject": "高等数学",
+      "difficulty": 4,
+      "type": "single",
+      "question": "【考研真题】∫₀¹ ln(1+x)/(1+x) dx = ?",
+      "options": ["(ln2)²/2", "(ln2)/2", "ln2", "(ln2)²"],
+      "answer": 0,
+      "explanation": "凑微分 d(ln(1+x))，积分得 (1/2)ln²(1+x)|₀¹ = (ln2)²/2。",
+      "tags": ["真题", "考研", "积分"]
+    },
+    {
+      "id": "zt3_math_015",
+      "subject": "高等数学",
+      "difficulty": 5,
+      "type": "single",
+      "question": "【考研真题】函数 z = x² + y² − xy + x + y 的极小值为？",
+      "options": ["0", "1", "−1", "−2"],
+      "answer": 2,
+      "explanation": "由 ∂z/∂x = 2x−y+1=0 与 ∂z/∂y = 2y−x+1=0 解得 x=y=−1；AC−B² = 3>0 且 A=2>0 为极小值，z = 1+1−1−1−1 = −1。",
+      "tags": ["真题", "考研", "多元微分"]
+    }
+  ]
+}
