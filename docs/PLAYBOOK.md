@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.9 (versionCode 34)
+- **当前版本**：v1.6.10 (versionCode 35)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -65,7 +65,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | `tools/gomoku_undo_check.py` | 同上 | 五子棋悔棋语义 + 思考期取消 + 返回确认取证 |
 | `tools/ui.py` | 被上面几个脚本 import | uiautomator 文本定位/点击/滑动/截图（`tap_text`/`swipe`/`shot`） |
 | `tools/pk_guest.py` | `python tools/pk_guest.py --quick [答对数] [版本]` | 联机机器人对手（PK_URL 指定服务器） |
-| `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://8.148.192.129:8765` | PK 服务器冒烟（22 项断言） |
+| `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://8.148.192.129:8765` | PK 服务器冒烟（31 项断言） |
 | `tools/deploy_pk_server.py` | `PK_SSH_PASS='<密码>' python tools/deploy_pk_server.py` | 部署/更新公网 pk_server（systemd 常驻） |
 | `启动对战服务器.bat` | 双击 | 局域网 PC 端 PK 服务器 |
 | `tools/_oneshot/*.py`（20 个） | ⛔ **不要运行** | 历史一次性改写脚本（`fix_*`/`add_*`/`v1xx_*`/`upgrade_*` 等），改动已并入源码；重跑会二次改写源码或题库 JSON。见 `tools/_oneshot/README.md` |
@@ -154,13 +154,18 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - 运维：`systemctl status/restart pk-server`；服务无状态，换机迁移=改 App 联机页地址
 - App 联机页填：`ws://8.148.192.129:8765`
 
-### 远程模式（v1.6.9 起服务器中立：服务器出题+判分，见下）
+### 远程模式（v1.6.9 起服务器中立；v1.6.10 断线韧性）
+- **断线韧性（v1.6.10）**：对局开始后一方掉线 → 房间保留（不拆不判），对手收 `peer_lost` 后可继续作答；掉线方 App 自动重连（2/4/8s 三次）后发 resume，按身份码找回挂起房间，恢复原题/进度/双方得分继续；**在场玩家交卷即结算**（对手缺席：在场方得分 ≥ 缺席方 → 在场方胜，全对必胜；缺席方分更高只判平——掉线无利可图），结算页标注「对手掉线」；迟到重连收到「没有可恢复的对局」
+- **单局约束**：同一身份码有未结束对局（含挂起）时不可快速匹配/建房/加房，客户端收到拒绝自动发 resume 回原局；排队队列同身份去重
+- **检测与提示**：ping 10s/10s（真断线 ~20 秒检出）；排队 >15s 未配对提示版本可能不同；版本不同排队收显式 error；matched >60s 未就绪提示对手可能断开；双方都掉线 60s 静默拆房（`PK_EMPTY_ROOM_LIFE_S` 可调）
+
+### 远程模式（v1.6.9 服务器出题+判分）
 - **在线人数**：服务器实时广播 `{"t":"online","players":N,"waiting":K,"rooms":M}`（连接/断开/入队/出队时触发）；App 联机页远程页签维持空闲长连接显示「🟢 在线 N 人」
 - **快速匹配**：`quick_match` 入队，服务器只配对**同版本**玩家；甲方收 `created`+`peer_joined`、乙方收 `joined` —— 客户端状态机零改动，复用现有确认→倒计时→对战→结算全流程
 - 大厅双页签：🌐 远程（默认，在线人数/快速匹配/科目选择/好友房间）+ 🏠 局域网（创建/搜索/手动直连，原样保留）
 - 服务器地址**不在界面显示**（默认公网唯一地址）；长按「在线人数」行弹出隐藏编辑对话框（调试/自建用），修改后 1.5s 防抖自动重连；旧默认（10.0.2.2）打开时自动迁移为公网地址
 - PK 战斗体验（v1.6.2 定稿）：答完题卡内显示对错与正确答案，停留 0.75s **自动进下一题**（无"下一题"按钮，最后一题自动交卷）；顶部双方进度「🧑 我 x/10」｜「对手 x/10」实时更新；我方完成页上下布局显示自己成绩+对手进度；双方完成出结算页
-- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/服务器出题/服务器判分/整局/取消/ELO/不计分/排行榜/云存档加密信封/身份归属/明文拒绝/删除/限流，22 项断言）
+- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/服务器出题/服务器判分/整局/取消/ELO/不计分/排行榜/云存档加密信封/身份归属/明文拒绝/删除/限流/断线重连/缺席结算/单局约束，31 项断言）
 - 机器人对手：`python tools/pk_guest.py --quick [答对数] [版本]` 或 `python tools/pk_guest.py <房间码>`（版本默认读 manifest；PK_URL 指定服务器）
 
 ### ELO 与排行榜（v1.6.3 起）

@@ -64,8 +64,9 @@ def synth_questions(n=10):
 
 async def main():
     async with websockets.connect(URL) as ws:
-        hello = ({"t": "quick_match", "name": NAME, "version": VERSION} if QUICK else
-                 {"t": "join", "code": CODE, "name": NAME, "version": VERSION})
+        bot_id = f"BOT{time.time_ns() % 10 ** 10}"   # 每次运行独立身份，避免单局约束误伤
+        hello = ({"t": "quick_match", "name": NAME, "version": VERSION, "identity": bot_id} if QUICK else
+                 {"t": "join", "code": CODE, "name": NAME, "version": VERSION, "identity": bot_id})
         await ws.send(json.dumps(hello))
         print(f"[bot] 已连接 {URL}（{'快速匹配' if QUICK else '房间 ' + CODE}，v{VERSION}）")
 

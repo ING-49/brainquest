@@ -58,20 +58,27 @@ async def main():
     check("online 查询返回统计", r is not None and r.get("players", 0) >= 1)
     await a.close()
 
-    # 2. 版本不一致不配对
+    # 2. 版本不一致不配对 + 排队版本提示
     b = await websockets.connect(URL)
     c = await websockets.connect(URL)
-    await b.send(json.dumps({"t": "quick_match", "name": "B", "version": V}))
-    await c.send(json.dumps({"t": "quick_match", "name": "C", "version": "9.9.9"}))
-    r = await recv_until(c, "created", timeout=2)
+    await b.send(json.dumps({"t": "quick_match", "name": "B", "version": V, "identity": "SMOKE_B"}))
+    await c.send(json.dumps({"t": "quick_match", "name": "C", "version": "9.9.9", "identity": "SMOKE_C"}))
+    hint = await recv_until(c, "error", timeout=3)
+    check("排队版本不同有明确提示", bool(hint and "版本" in hint.get("msg", "")))
+    r = await recv_until(c, "created", timeout=1)
     check("版本不一致不配对", r is None)
 
     # 3. 同版本自动配对：先入队 B 为甲方
     d = await websockets.connect(URL)
-    await d.send(json.dumps({"t": "quick_match", "name": "D", "version": V}))
+    await d.send(json.dumps({"t": "quick_match", "name": "D", "version": V, "identity": "SMOKE_D"}))
     rb = await recv_until(b, "created", timeout=5)
     rd = await recv_until(d, "joined", timeout=5)
     check("同版本自动配对（甲 created / 乙 joined）", rb is not None and rd is not None)
+
+    # 3b. 单局约束：对局未结束，同身份不能再开新局（v1.6.10）
+    await b.send(json.dumps({"t": "quick_match", "name": "B", "version": V, "identity": "SMOKE_B"}))
+    busy_err = await recv_until(b, "error", timeout=3)
+    check("对局未结束不可加新局", bool(busy_err and "未结束的对局" in busy_err.get("msg", "")))
 
     # 4. ready 互转 + 服务器自动出题（v1.6.9 服务器中立对战）
     await b.send(json.dumps({"t": "ready"}))
@@ -190,6 +197,84 @@ async def main():
     check("科目桶独立（数学口算榜有我、混合榜无我）",
           bool(lbi and lbi.get("me") and lbi["me"].get("rank", 0) >= 1
                and lbm and lbm.get("me") is None))
+
+    # 9d. 断线韧性（v1.6.10）：peer_lost → resume 恢复进度 → 正常完赛；缺席立即结算
+    m = await websockets.connect(URL)
+    n = await websockets.connect(URL)
+    await m.send(json.dumps({"t": "quick_match", "name": "smokeM", "version": V, "identity": "SMOKE_M"}))
+    await n.send(json.dumps({"t": "quick_match", "name": "smokeN", "version": V, "identity": "SMOKE_N"}))
+    rm_ = await recv_until(m, "created", timeout=5)
+    await recv_until(n, "joined", timeout=5)
+    await m.send(json.dumps({"t": "ready"}))
+    await n.send(json.dumps({"t": "ready"}))
+    sm_ = await recv_until(m, "start", timeout=5)
+    sn_ = await recv_until(n, "start", timeout=5)
+    check("断线场景服务器正常出题", bool(sm_ and sn_ and len(sm_.get("questions", [])) == 10))
+    # m 答前 3 题后断线
+    for i2 in range(3):
+        qm_ = sm_["questions"][i2]
+        await m.send(json.dumps({"t": "answer", "idx": i2, "choice": qm_["answer"], "timeMs": 100}))
+    await m.close()
+    pl = await recv_until(n, "peer_lost", timeout=5)
+    check("对局中断线对手收到 peer_lost（房间保留）", pl is not None)
+    # n 继续答题（不受对手掉线影响）
+    for i2 in range(3):
+        qn_ = sn_["questions"][i2]
+        await n.send(json.dumps({"t": "answer", "idx": i2, "choice": qn_["answer"], "timeMs": 100}))
+    # m 重连 resume：进度 3 / 自己 3 分 / 对手 3 分
+    m2 = await websockets.connect(URL)
+    await m2.send(json.dumps({"t": "resume", "name": "smokeM", "version": V, "identity": "SMOKE_M"}))
+    rs_ = await recv_until(m2, "resume", timeout=5)
+    check("重连恢复进度（idx/双方得分正确）",
+          bool(rs_ and rs_.get("idx") == 3 and rs_.get("my") == 3 and rs_.get("peer") == 3
+               and len(rs_.get("questions", [])) == 10))
+    pb = await recv_until(n, "peer_back", timeout=5)
+    check("对手收到 peer_back", pb is not None)
+    # 双方答完剩余题并交卷 → 正常结算
+    for i2 in range(3, 10):
+        qm_ = sm_["questions"][i2]
+        qn_ = sn_["questions"][i2]
+        await m2.send(json.dumps({"t": "answer", "idx": i2, "choice": qm_["answer"], "timeMs": 100}))
+        await n.send(json.dumps({"t": "answer", "idx": i2, "choice": qn_["answer"], "timeMs": 100}))
+    await m2.send(json.dumps({"t": "finish", "timeMs": 3000}))
+    await n.send(json.dumps({"t": "finish", "timeMs": 3100}))
+    rm2 = await recv_until(m2, "result", timeout=5)
+    rn2 = await recv_until(n, "result", timeout=5)
+    check("重连后完赛正常结算（10:10 平分，用时短者胜）",
+          bool(rm2 and rn2 and rm2["outcome"] in ("win", "draw") and rm2["my"]["correct"] == 10
+               and rn2["my"]["correct"] == 10))
+    await m2.close()
+    await n.close()
+
+    # 9e. 对局中掉线不回归 → 在场玩家交卷立即结算（全对立胜，标注对手掉线）
+    m = await websockets.connect(URL)
+    n = await websockets.connect(URL)
+    await m.send(json.dumps({"t": "quick_match", "name": "smokeM", "version": V, "identity": "SMOKE_M"}))
+    await n.send(json.dumps({"t": "quick_match", "name": "smokeN", "version": V, "identity": "SMOKE_N"}))
+    await recv_until(m, "created", timeout=5)
+    await recv_until(n, "joined", timeout=5)
+    await m.send(json.dumps({"t": "ready"}))
+    await n.send(json.dumps({"t": "ready"}))
+    sm_ = await recv_until(m, "start", timeout=5)
+    sn_ = await recv_until(n, "start", timeout=5)
+    await m.close()   # m 开局即断线
+    pl = await recv_until(n, "peer_lost", timeout=5)
+    # n 全部答对后交卷 → 立即结算（不等待）
+    for i2 in range(10):
+        qn_ = sn_["questions"][i2]
+        await n.send(json.dumps({"t": "answer", "idx": i2, "choice": qn_["answer"], "timeMs": 100}))
+    await n.send(json.dumps({"t": "finish", "timeMs": 4000}))
+    rn_ = await recv_until(n, "result", timeout=5)
+    check("对手缺席交卷立即结算（全对立胜 + 标注掉线）",
+          bool(rn_ and rn_["outcome"] == "win" and rn_.get("reason") == "对手掉线"
+               and rn_["my"]["correct"] == 10))
+    await n.close()
+    # 迟到的重连：对局已结束
+    m3 = await websockets.connect(URL)
+    await m3.send(json.dumps({"t": "resume", "name": "smokeM", "version": V, "identity": "SMOKE_M"}))
+    late = await recv_until(m3, "error", timeout=5)
+    check("迟到重连得到明确反馈", bool(late and "没有可恢复" in late.get("msg", "")))
+    await m3.close()
 
     # 10. 云存档（v1.6.7 起必须为加密信封）：上传 → 下载一致
     envelope = json.dumps({"fmt": "BQENC1", "salt": "c2FsdHNhbHQ=", "iters": 60000,

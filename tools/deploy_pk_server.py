@@ -52,7 +52,10 @@ sftp.put('update-server/pk_server.py', '/opt/pk/pk_server.py')
 print('[upload] pk_server.py OK')
 
 # 2b. 上传题库（服务器中立对战：assets 内置题库 + 热更包源题库，含答案供服务器判分）
-sftp.mkdir('/opt/pk/questions')
+try:
+    sftp.mkdir('/opt/pk/questions')
+except IOError:
+    pass  # 目录已存在
 import glob
 n_q = 0
 for src in glob.glob('app/src/main/assets/questions/*.json') + glob.glob('update-server/packs/src/*.json'):
