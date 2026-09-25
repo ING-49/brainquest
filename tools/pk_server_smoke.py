@@ -131,10 +131,12 @@ async def main():
           bool(lb_sub and lb_sub.get("subject") == "数学口算" and lb_sub.get("me") is None))
 
     # 9c. 带科目的快速匹配计分进对应科目桶
+    # 注意：两人必须声明同一科目——配对双方谁先入队谁当房主（房主科目=计分桶），
+    # 跨连接的发送顺序有竞态，同科目可消除对入队顺序的依赖
     i = await websockets.connect(URL)
     j = await websockets.connect(URL)
     await i.send(json.dumps({"t": "quick_match", "name": "smokeI", "version": V, "subject": "数学口算"}))
-    await j.send(json.dumps({"t": "quick_match", "name": "smokeJ", "version": V}))
+    await j.send(json.dumps({"t": "quick_match", "name": "smokeJ", "version": V, "subject": "数学口算"}))
     ri = await recv_until(i, "created", timeout=5)
     await recv_until(j, "joined", timeout=5)
     await i.send(json.dumps({"t": "finish", "correct": 6, "timeMs": 400}))

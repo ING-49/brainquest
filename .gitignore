@@ -26,3 +26,6 @@ update-server/packs/*.zip
 # PK 服务器运行时数据（本地测试产生）
 update-server/ratings.json
 update-server/saves/
+
+# 服务器玩家数据本地备份（真实玩家数据，不入公共仓库）
+backup/
