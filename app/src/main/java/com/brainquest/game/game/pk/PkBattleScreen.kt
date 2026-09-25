@@ -127,6 +127,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     var peerReady by remember { mutableStateOf(false) }
     var countdown by remember { mutableIntStateOf(0) }
     var peerAnswered by remember { mutableIntStateOf(0) }  // 对手已作答题数（含未判分提交）
+    var peerLost by remember { mutableStateOf(false) }     // 对手对局中断线（房间挂起等其重连）
+    var reconnecting by remember { mutableStateOf(false) } // 自己断线自动重连中
     val myIps = remember { com.brainquest.game.net.PkDiscovery.localIps() }
 
     // 连续对局：每局开打前必须清零上一局残留（房主路径不经 Start 事件，此前漏重置）
@@ -159,7 +161,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
             delay(1500)  // 地址输入防抖：输完再连
             if (phase != "lobby") return@LaunchedEffect
             if (!remoteConnected || connectedUrl != serverUrl) {
-                if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)) {
+                if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME, identity = player.identity)) {
                     connectedUrl = serverUrl
                 }
             }
@@ -186,7 +188,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     else -> "已连接"
                 }
                 if (pendingMatch) {
-                    client.sendQuickMatch(player.nickname, BuildConfig.VERSION_NAME, matchSubject ?: "混合")
+                    client.sendQuickMatch(player.nickname, BuildConfig.VERSION_NAME, matchSubject ?: "混合", player.identity)
                     pendingMatch = false
                 }
                 if (pendingBoard) {
@@ -253,8 +255,31 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 peerCorrect = event.correct
                 status = "对手已完成 ${event.correct} 题，等待你完成…"
             }
+            is PkEvent.PeerLost -> {
+                peerLost = true
+                status = "对手连接中断，对局继续（等待其重连）"
+            }
+            is PkEvent.PeerBack -> {
+                peerLost = false
+                status = "对手已重连"
+            }
+            is PkEvent.Resume -> {
+                // 自己断线重连：服务器回发原题与进度，还原现场继续作答（v1.6.10）
+                questions = event.questions
+                qIndex = event.idx.coerceAtMost(questions.size)
+                myCorrect = event.my
+                peerCorrect = event.peer
+                peerAnswered = event.peer
+                peerLost = false
+                reconnecting = false
+                answered = false; chosen = -1
+                myReady = true; peerReady = true
+                phase = if (qIndex >= questions.size) "mydone" else "battle"
+                status = "已恢复对局（第 ${event.idx + 1} 题）"
+            }
             is PkEvent.Result -> {
                 result = event
+                reconnecting = false
                 phase = "result"
                 vm.recordPkResult(event.outcome == "win", event.outcome == "draw")
                 Sfx.play(context, player.soundOn, SfxType.WIN)
@@ -275,11 +300,27 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
             is PkEvent.Disconnected -> {
                 remoteConnected = false
                 if (matching) matching = false
+                if (!reconnecting && embedded == null &&
+                    phase in listOf("countdown", "battle", "mydone")) {
+                    // 对局中断线：不清现场，自动重连后发 resume 恢复（v1.6.10）
+                    reconnecting = true
+                    status = "网络中断，重连中…"
+                }
             }
             is PkEvent.Error -> {
-                // 大厅里后台空闲连接的失败不打扰用户（地址没输完/网络抖动），战斗与匹配中的错误仍显示
-                if (!(event.msg.startsWith("连接") && phase == "lobby" && !matching)) {
-                    status = event.msg
+                if (event.msg.contains("未结束的对局")) {
+                    // 单局约束触发：上一局还没完，直接回原局（v1.6.10）
+                    status = "正在为你恢复未完成的对局…"
+                    client.sendResume(player.nickname, BuildConfig.VERSION_NAME, player.identity)
+                } else if (reconnecting && event.msg.contains("没有可恢复")) {
+                    reconnecting = false
+                    status = "对局已结束"
+                    phase = "lobby"
+                } else {
+                    // 大厅里后台空闲连接的失败不打扰用户（地址没输完/网络抖动），战斗与匹配中的错误仍显示
+                    if (!(event.msg.startsWith("连接") && phase == "lobby" && !matching)) {
+                        status = event.msg
+                    }
                 }
                 android.util.Log.w("PkDebug", "服务器消息: ${event.msg}")
             }
@@ -323,7 +364,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         board = null; boardMe = null
         if (remoteConnected && connectedUrl == serverUrl) {
             client.sendLeaderboard(player.nickname, subject)
-        } else if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)) {
+        } else if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME, identity = player.identity)) {
             connectedUrl = serverUrl
             pendingBoard = true
         }
@@ -332,6 +373,42 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
     androidx.activity.compose.BackHandler(enabled = phase != "lobby") { backToLobby() }
 
     // 双方都点了准备 → 房主发题（内嵌广播/远程 sendStart），双方进倒计时
+    // 对局中断线自动重连：成功后发 resume 恢复现场（服务器回 Resume 事件），三次失败放弃
+    LaunchedEffect(reconnecting) {
+        if (!reconnecting || embedded != null) return@LaunchedEffect
+        for (d in listOf(2000L, 4000L, 8000L)) {
+            delay(d)
+            if (!reconnecting) return@LaunchedEffect
+            if (client.connect(serverUrl, player.nickname, "idle",
+                    version = BuildConfig.VERSION_NAME, identity = player.identity)) {
+                client.sendResume(player.nickname, BuildConfig.VERSION_NAME, player.identity)
+                return@LaunchedEffect  // 等服务器 Resume 事件
+            }
+        }
+        reconnecting = false
+        status = "网络中断，本局按掉线处理"
+        phase = "lobby"
+        client.close()
+    }
+
+    // 快速匹配排队超时提示（对方可能版本不同）
+    LaunchedEffect(matching) {
+        if (matching) {
+            delay(15000)
+            if (matching) status = "排队中…对方可能版本不同（联机需双方同为最新版），请确认对方已更新"
+        }
+    }
+
+    // 匹配成功后长时间未双方就绪提示（对手可能断开）
+    LaunchedEffect(phase) {
+        if (phase == "matched") {
+            delay(60000)
+            if (phase == "matched" && !(myReady && peerReady)) {
+                status = "对手长时间未准备，可能已断开，可返回重新匹配"
+            }
+        }
+    }
+
     LaunchedEffect(myReady, peerReady) {
         if (phase == "matched" && myReady && peerReady) {
             delay(600)  // 让"匹配成功"动画呼吸一下
@@ -463,8 +540,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                         vm.setSettings(pkServer = serverUrl)
                                         val subject = matchSubject ?: "混合"
                                         if (remoteConnected && connectedUrl == serverUrl) {
-                                            client.sendQuickMatch(player.nickname, BuildConfig.VERSION_NAME, subject)
-                                        } else if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)) {
+                                            client.sendQuickMatch(player.nickname, BuildConfig.VERSION_NAME, subject, player.identity)
+                                        } else if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME, identity = player.identity)) {
                                             connectedUrl = serverUrl
                                             pendingMatch = true
                                         }
@@ -507,12 +584,12 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     Button(onClick = {
                                         lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
-                                        client.connect(serverUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME)
+                                        client.connect(serverUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME, identity = player.identity)
                                     }, enabled = serverUrl.isNotBlank()) { Text("🚪 加入房间") }
                                     OutlinedButton(onClick = {
                                         lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
-                                        client.connect(serverUrl, player.nickname, "create", version = BuildConfig.VERSION_NAME, subject = matchSubject ?: "混合")
+                                        client.connect(serverUrl, player.nickname, "create", version = BuildConfig.VERSION_NAME, subject = matchSubject ?: "混合", identity = player.identity)
                                     }) { Text("🏠 创建房间") }
                                 }
                             }
@@ -779,8 +856,9 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                             Text("第 ${qIndex + 1}/${questions.size} 题 · ⏳ ${timeLeftMs / 1000}s",
                                 color = if (timeLeftMs < 5000) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelLarge)
-                            Text("对手 ${peerAnswered.coerceAtMost(questions.size)}/${questions.size}",
-                                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            Text(if (peerLost) "⛓ 对手掉线" else "对手 ${peerAnswered.coerceAtMost(questions.size)}/${questions.size}",
+                                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
+                                color = if (peerLost) Color(0xFFC62828) else Color.Unspecified)
                         }
                         LinearProgressIndicator(
                             progress = { (timeLeftMs.toFloat() / QUESTION_TIME_MS).coerceIn(0f, 1f) },
@@ -819,6 +897,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 ) {
                     Text(if (outcome == "win") "🏆 胜利！" else if (outcome == "lose") "💀 惜败" else "🤝 平局",
                         style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+                    if (result!!.reason.isNotBlank()) {
+                        Text("（${result!!.reason}）", style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Text("我 $myC 题 ｜ 对手 $peerC 题", style = MaterialTheme.typography.titleMedium)
                     if (result!!.ranked) {
                         Text("🏅 积分 ${result!!.myRating}（${if (result!!.ratingDelta >= 0) "+" else ""}${result!!.ratingDelta}）",

@@ -24,6 +24,9 @@ sealed class PkEvent {
     data class PeerJoined(val peer: String, val version: String = "?") : PkEvent()
     data class Start(val questions: List<com.brainquest.game.data.question.Question>) : PkEvent()
     data object PeerReady : PkEvent()
+    data object PeerLost : PkEvent()                      // 对手连接中断（对局挂起，等待其重连）
+    data object PeerBack : PkEvent()                      // 对手已重连
+    data class Resume(val questions: List<com.brainquest.game.data.question.Question>, val idx: Int, val my: Int, val peer: Int, val peerDone: Boolean) : PkEvent()  // 自己重连后的现场恢复
     data class PeerAnswer(val idx: Int, val correct: Boolean) : PkEvent()
     data class PeerFinish(val correct: Int, val timeMs: Long) : PkEvent()
     data class Result(
@@ -36,6 +39,7 @@ sealed class PkEvent {
         val myRating: Int = 0,         // 我的积分（计分局）
         val ratingDelta: Int = 0,      // 本局积分变化
         val peerRating: Int = 0,
+        val reason: String = "",         // 结算原因说明（如「对手掉线」）
     ) : PkEvent()
     /** 排行榜条目 */
     data class RankRow(val name: String, val rating: Int, val wins: Int, val losses: Int, val games: Int = 0, val rank: Int = 0)
@@ -71,7 +75,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
     }
 
     /** @return 是否成功发起连接（地址无效时返回 false 并发 Error 事件） */
-    fun connect(url: String, name: String, mode: String, code: String = "", version: String = "", subject: String = ""): Boolean {
+    fun connect(url: String, name: String, mode: String, code: String = "", version: String = "", subject: String = "", identity: String = ""): Boolean {
         if (!validPkUrl(url)) {
             onEvent(PkEvent.Error("服务器地址需形如 ws://主机:端口"))
             onEvent(PkEvent.Disconnected)
@@ -91,6 +95,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
                         put("version", version)
                         if (mode == "join") put("code", code)
                         if (subject.isNotBlank()) put("subject", subject)   // 好友房/快速匹配的出题科目
+                        if (identity.isNotBlank()) put("identity", identity) // 身份码：单局约束与断线重连的匹配键
                     }
                     webSocket.send(msg.toString())
                 }
@@ -130,6 +135,20 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
                 onEvent(PkEvent.Start(qs))
             }
             "peer_ready", "ready" -> onEvent(PkEvent.PeerReady)
+            "peer_lost" -> onEvent(PkEvent.PeerLost)
+            "peer_back" -> onEvent(PkEvent.PeerBack)
+            "resume" -> {
+                val rqs = json.decodeFromString<List<com.brainquest.game.data.question.Question>>(
+                    obj["questions"]!!.jsonArray.toString(),
+                )
+                onEvent(PkEvent.Resume(
+                    questions = rqs,
+                    idx = obj["idx"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                my = obj["my"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                peer = obj["peer"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    peerDone = obj["peerDone"]?.jsonPrimitive?.content?.toBoolean() ?: false,
+                ))
+            }
             "peer_answer" -> onEvent(PkEvent.PeerAnswer(obj["idx"]!!.jsonPrimitive.content.toInt(), obj["correct"]!!.jsonPrimitive.content.toBoolean()))
             "peer_finish" -> onEvent(PkEvent.PeerFinish(obj["correct"]!!.jsonPrimitive.content.toInt(), obj["timeMs"]!!.jsonPrimitive.content.toLong()))
             "result" -> {
@@ -144,6 +163,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
                     myRating = rating?.get("my")?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
                     ratingDelta = rating?.get("delta")?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
                     peerRating = rating?.get("peer")?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    reason = obj["reason"]?.jsonPrimitive?.content ?: "",
                 ))
             }
             "leaderboard" -> {
@@ -203,9 +223,17 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
     }
 
     /** 发起快速匹配（连接已建立时用；未连接时先 connect(mode="idle") 再调用） */
-    fun sendQuickMatch(name: String, version: String, subject: String = "混合") {
+    fun sendQuickMatch(name: String, version: String, subject: String = "混合", identity: String = "") {
         send(buildJsonObject {
             put("t", "quick_match"); put("name", name); put("version", version); put("subject", subject)
+            if (identity.isNotBlank()) put("identity", identity)
+        }.toString())
+    }
+
+    /** 对局中断线重连：按身份码找回挂起中的对局，服务器回 start+resume 恢复现场 */
+    fun sendResume(name: String, version: String, identity: String) {
+        send(buildJsonObject {
+            put("t", "resume"); put("name", name); put("version", version); put("identity", identity)
         }.toString())
     }
 

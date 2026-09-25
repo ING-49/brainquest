@@ -63,10 +63,13 @@ SAVE_ENVELOPE_FMT = "BQENC1"   # App 端 SaveCrypto 产出的信封格式（服�
 SAVE_MAX_BYTES = 256 * 1024    # 单个云存档上限
 SAVE_GET_LIMIT = 6             # save_get 限流：每连接滑动窗口内最多次数（防暴力试码）
 SAVE_GET_WINDOW_S = 60
+EMPTY_ROOM_LIFE_S = int(os.environ.get("PK_EMPTY_ROOM_LIFE_S", "60"))  # 双方都掉线后静默拆房延迟
 
-rooms = {}   # code -> {"host","guest","names","versions","ranked","subject","ready":set,"questions":list,"score":{ws:int},"finish":{ws:timeMs}}
+rooms = {}   # code -> {"host","guest","names","versions","identities","ranked","subject",
+             #            "ready":set,"questions":list,"score":{ws:int},"progress":{ws:int},
+             #            "finish":{ws:timeMs},"gone_slots":set("host"/"guest"),"teardown":task|None}
 online = set()   # 当前所有连接
-queue = []   # 快速匹配等待队列：[{"ws","name","version","subject"}, ...]
+queue = []   # 快速匹配等待队列：[{"ws","name","version","subject","identity"}, ...]
 ratings = {}  # 科目 -> {name -> {"r": 1000, "w": 0, "l": 0, "g": 0}}（排行榜按科目分桶）
 save_get_hist = {}  # ws -> [time.time(), ...]（save_get 滑动窗口限流）
 save_owners = {}  # 存档码 -> 身份码（云存档归属；无记录 = 旧存档，首次操作时认领）
@@ -339,11 +342,11 @@ def new_code():
     return c
 
 
-def enqueue(ws, name, version, subject):
+def enqueue(ws, name, version, subject, identity=""):
     if any(e["ws"] == ws for e in queue):
         return
-    queue.append({"ws": ws, "name": name, "version": version, "subject": subject})
-    print(f"[match] {name} v{version} 科目[{subject}] 入队（等待 {len(queue)}）")
+    queue.append({"ws": ws, "name": name, "version": version, "subject": subject, "identity": identity})
+    print(f"[match] {name} v{version} 科目[{subject}] 入队（等待 {len(queue)}）", flush=True)
 
 
 def dequeue(ws):
@@ -353,7 +356,7 @@ def dequeue(ws):
 
 
 def try_match():
-    """队列里找版本号相同的两人配对建房；成功返回 True"""
+    """队列里找版本号相同的两人配对建房；成功返回 True；仅版本不同的等待者给新入队者明确提示"""
     for i in range(len(queue)):
         for j in range(i + 1, len(queue)):
             a, b = queue[i], queue[j]
@@ -362,6 +365,10 @@ def try_match():
                 queue.pop(i)
                 pair(a, b)
                 return True
+    if len(queue) >= 2:
+        new = queue[-1]
+        if any(e["version"] != new["version"] for e in queue[:-1]):
+            send(new["ws"], {"t": "error", "msg": "排队中的玩家版本与你不同，联机需双方同为最新版，请确认对方已更新"})
     return False
 
 
@@ -370,7 +377,9 @@ def pair(a, b):
     rooms[code] = {"host": a["ws"], "guest": b["ws"],
                    "names": {a["ws"]: a["name"], b["ws"]: b["name"]},
                    "versions": {a["ws"]: a["version"], b["ws"]: b["version"]},
-                   "finish": {}, "score": {}, "ready": set(), "questions": None,
+                   "identities": {a["ws"]: a.get("identity", ""), b["ws"]: b.get("identity", "")},
+                   "finish": {}, "score": {}, "progress": {}, "ready": set(),
+                   "gone_slots": set(), "teardown": None, "questions": None,
                    "ranked": True,          # 快速匹配 = 计分局
                    "subject": a.get("subject") or DEFAULT_SUBJECT}  # 甲方选定科目 = 计分桶与出题科目
     # 甲方走房主路径：created → peer_joined（收到后本地选题并发 start）
@@ -389,21 +398,82 @@ def peer_of(code, ws):
     return room["guest"] if room["host"] == ws else room["host"]
 
 
-def try_result(code):
-    """结算：对错计数用服务器判分累计（room["score"]，防客户端虚报），timeMs 用客户端交卷值"""
+def slot_of(code, ws):
+    """返回 ws 在房间中的槽位名（"host"/"guest"），不在则 None"""
     room = rooms.get(code)
-    if not room or len(room["finish"]) < 2:
+    if not room:
+        return None
+    if room["host"] == ws:
+        return "host"
+    if room["guest"] == ws:
+        return "guest"
+    return None
+
+
+def active_room_of_identity(identity):
+    """该身份码是否有未结束的对局（含挂起中）；identity 为空返回 None"""
+    if not identity:
+        return None
+    for c, room in rooms.items():
+        if identity in (room.get("identities") or {}).values():
+            return c
+    return None
+
+
+def identity_in_queue(identity):
+    return bool(identity) and any(e.get("identity") == identity for e in queue)
+
+
+def schedule_teardown(code):
+    """双方都掉线：延迟静默拆房（无观众，无需判罚）"""
+    room = rooms.get(code)
+    if not room or room.get("teardown"):
+        return
+
+    async def _teardown():
+        await asyncio.sleep(EMPTY_ROOM_LIFE_S)
+        r = rooms.get(code)
+        if r and len(r.get("gone_slots") or ()) >= 2:
+            rooms.pop(code, None)
+            print(f"[room] {code} 双方离线，静默拆房", flush=True)
+
+    room["teardown"] = asyncio.get_event_loop().create_task(_teardown())
+
+
+def try_result(code, forfeit=False):
+    """结算：对错计数用服务器判分累计（room["score"]），timeMs 用客户端交卷值。
+
+    forfeit=True：一方掉线且在场玩家已交卷 → 立即结算。掉线方优势不保留：
+    在场方得分 >= 缺席方得分 → 在场方胜（含全对）；否则判平（防掉线保胜局）。
+    平局比时只比在场方用时（默认胜）。
+    """
+    room = rooms.get(code)
+    if not room:
         return
     host, guest = room["host"], room["guest"]
+    gone_slots = room.get("gone_slots") or set()
+    host_gone, guest_gone = "host" in gone_slots, "guest" in gone_slots
+    if not forfeit and len(room["finish"]) < 2:
+        return
+    if forfeit and host_gone and guest_gone:
+        return  # 双方都不在，无人可通知
     hc, gc = room.get("score", {}).get(host, 0), room.get("score", {}).get(guest, 0)
-    ht, gt = room["finish"][host], room["finish"][guest]
+    ht = room["finish"].get(host, None)
+    gt = room["finish"].get(guest, None)
     # 判定（先算双方 outcome，再按需结算 ELO）
-    if hc != gc:
-        host_score = 1.0 if hc > gc else 0.0
-    elif ht != gt:
-        host_score = 1.0 if ht < gt else 0.0
+    if forfeit:
+        # 掉线方优势不保留：在场方得分 >= 缺席方 → 在场方胜；缺席方分更高也只判平（防掉线保胜局）
+        if host_gone:      # host 缺席，guest 在场
+            host_score = 0.0 if gc >= hc else 0.5
+        else:              # guest 缺席，host 在场
+            host_score = 1.0 if hc >= gc else 0.5
     else:
-        host_score = 0.5
+        if hc != gc:
+            host_score = 1.0 if hc > gc else 0.0
+        elif ht != gt:
+            host_score = 1.0 if ht < gt else 0.0
+        else:
+            host_score = 0.5
     rating = None
     if room.get("ranked"):
         h_name = room["names"].get(host, "玩家")
@@ -414,25 +484,29 @@ def try_result(code):
             host: {"ranked": True, "my": h_r, "delta": delta, "peer": g_r},
             guest: {"ranked": True, "my": g_r, "delta": -delta, "peer": h_r},
         }
-        print(f"[elo] [{subject}] {h_name}({h_r}) vs {g_name}({g_r}) delta={delta:+d}")
-    for ws, my, other in (
-        (host, (hc, ht), (gc, gt)),
-        (guest, (gc, gt), (hc, ht)),
-    ):
-        if my[0] != other[0]:
-            outcome = "win" if my[0] > other[0] else "lose"
-        elif my[1] != other[1]:
-            outcome = "win" if my[1] < other[1] else "lose"
+        print(f"[elo] [{subject}] {h_name}({h_r}) vs {g_name}({g_r}) delta={delta:+d}", flush=True)
+    for ws in (host, guest):
+        if ws not in online:
+            continue  # 缺席方收不到，跳过
+        my = (hc, ht) if ws == host else (gc, gt)
+        other = (gc, gt) if ws == host else (hc, ht)
+        if ws == host:
+            outcome = "win" if host_score == 1.0 else ("draw" if host_score == 0.5 else "lose")
         else:
-            outcome = "draw"
+            outcome = "win" if host_score == 0.0 else ("draw" if host_score == 0.5 else "lose")
         msg = {"t": "result", "outcome": outcome,
-               "my": {"correct": my[0], "timeMs": my[1]},
-               "peer": {"correct": other[0], "timeMs": other[1]}}
+               "my": {"correct": my[0], "timeMs": my[1] or 0},
+               "peer": {"correct": other[0], "timeMs": other[1] or 0}}
+        if forfeit:
+            msg["reason"] = "对手掉线"
         if rating:
             msg["rating"] = rating[ws]
         else:
             msg["rating"] = {"ranked": False}
         send(ws, msg)
+    t = room.pop("teardown", None)
+    if t:
+        t.cancel()
     rooms.pop(code, None)  # 一局结束，房间关闭
 
 
@@ -447,11 +521,18 @@ async def handler(ws):
                 continue
             t = msg.get("t")
             if t == "create":
+                identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
+                busy = active_room_of_identity(identity) or (identity_in_queue(identity) if identity else None)
+                if busy:
+                    send(ws, {"t": "error", "msg": "你有未结束的对局，正在为你恢复…"})
+                    continue
                 code = new_code()
                 rooms[code] = {"host": ws, "guest": None,
                                "names": {ws: msg.get("name", "玩家")},
-                               "versions": {ws: msg.get("version", "?")}, "finish": {},
-                               "score": {}, "ready": set(), "questions": None,
+                               "versions": {ws: msg.get("version", "?")},
+                               "identities": {ws: identity},
+                               "finish": {}, "score": {}, "progress": {}, "ready": set(),
+                               "gone_slots": set(), "teardown": None, "questions": None,
                                "subject": str(msg.get("subject") or DEFAULT_SUBJECT),
                                "ranked": False}   # 好友房间不计分
                 send(ws, {"t": "created", "code": code})
@@ -459,6 +540,11 @@ async def handler(ws):
                 print(f"[room] {code} created by {msg.get('name')} 科目[{rooms[code]['subject']}]", flush=True)
 
             elif t == "join":
+                identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
+                busy = active_room_of_identity(identity) or (identity_in_queue(identity) if identity else None)
+                if busy:
+                    send(ws, {"t": "error", "msg": "你有未结束的对局，正在为你恢复…"})
+                    continue
                 c = str(msg.get("code", ""))
                 room = rooms.get(c)
                 if not room or room["guest"] is not None:
@@ -468,18 +554,69 @@ async def handler(ws):
                 room["names"][ws] = msg.get("name", "玩家")
                 room["versions"] = room.get("versions", {})
                 room["versions"][ws] = msg.get("version", "?")
+                room.setdefault("identities", {})[ws] = identity
                 send(ws, {"t": "joined", "code": c, "peer": room["names"][room["host"]],
                           "peer_version": room["versions"].get(room["host"], "?")})
                 send(room["host"], {"t": "peer_joined", "peer": room["names"][ws],
                                     "version": room["versions"].get(ws, "?")})
                 broadcast_presence()
-                print(f"[room] {c} joined by {msg.get('name')}")
+                print(f"[room] {c} joined by {msg.get('name')}", flush=True)
 
             elif t == "quick_match":
+                identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
+                busy = active_room_of_identity(identity) or (identity_in_queue(identity) if identity else None)
+                if busy:
+                    send(ws, {"t": "error", "msg": "你有未结束的对局，正在为你恢复…"})
+                    continue
                 enqueue(ws, msg.get("name", "玩家"), msg.get("version", "?"),
-                        str(msg.get("subject") or DEFAULT_SUBJECT))
+                        str(msg.get("subject") or DEFAULT_SUBJECT), identity)
                 if not try_match():
                     broadcast_presence()
+
+            elif t == "resume":
+                # 对局中断线重连：按身份码找到挂起中的对局，换绑连接并恢复现场
+                identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
+                version = str(msg.get("version", "?"))
+                target = slot = old_ws = None
+                for c, room in rooms.items():
+                    if room.get("questions") is None:
+                        continue
+                    ids = room.get("identities") or {}
+                    for s, w in (("host", room["host"]), ("guest", room["guest"])):
+                        if ids.get(w) == identity and identity and w not in online:
+                            target, slot, old_ws = c, s, w
+                            break
+                    if target:
+                        break
+                if not target:
+                    send(ws, {"t": "error", "msg": "没有可恢复的对局（可能已结束）"})
+                    continue
+                room = rooms[target]
+                if room["versions"].get(old_ws) != version:
+                    send(ws, {"t": "error", "msg": "版本与对局不一致，无法恢复"})
+                    continue
+                # 状态按 ws 迁移到新连接
+                for d in ("score", "progress", "finish", "versions", "names", "identities"):
+                    if isinstance(room.get(d), dict) and old_ws in room[d]:
+                        room[d][ws] = room[d].pop(old_ws)
+                room.get("ready", set()).discard(old_ws)
+                room["gone_slots"] = set(s for s in room.get("gone_slots", set()) if s != slot)
+                if slot == "host":
+                    room["host"] = ws
+                else:
+                    room["guest"] = ws
+                tsk = room.pop("teardown", None)
+                if tsk:
+                    tsk.cancel()
+                peer_ws = room["guest"] if slot == "host" else room["host"]
+                send(ws, {"t": "resume", "questions": room["questions"],
+                          "idx": room.get("progress", {}).get(ws, 0),
+                          "my": room.get("score", {}).get(ws, 0),
+                          "peer": room.get("score", {}).get(peer_ws, 0),
+                          "peerDone": peer_ws in room.get("finish", {})})
+                if peer_ws in online:
+                    send(peer_ws, {"t": "peer_back"})
+                print(f"[match] {target} {msg.get('name')} 重连恢复（{slot}，进度 {room.get('progress', {}).get(ws, 0)}/10）", flush=True)
 
             elif t == "cancel_match":
                 if dequeue(ws):
@@ -614,6 +751,8 @@ async def handler(ws):
                         correct = (msg.get("choice") == qs[idx]["answer"])
                     room.setdefault("score", {room["host"]: 0, room["guest"]: 0})
                     room["score"][ws] = room["score"].get(ws, 0) + (1 if correct else 0)
+                    room.setdefault("progress", {})
+                    room["progress"][ws] = max(room["progress"].get(ws, 0), idx + 1)
                     if peer:
                         send(peer, {"t": "peer_answer", "idx": idx,
                                     "correct": correct, "timeMs": msg.get("timeMs", 0)})
@@ -623,7 +762,12 @@ async def handler(ws):
                     if peer:
                         send(peer, {"t": "peer_finish", "correct": room.get("score", {}).get(peer, 0),
                                     "timeMs": msg.get("timeMs", 0)})
-                    try_result(target)
+                    if slot_of(target, peer) in (room.get("gone_slots") or set()):
+                        # 对手掉线中 → 立即结算（在场方答完不必等待，v1.6.10）
+                        print(f"[match] {target} 对手掉线，交卷立即结算", flush=True)
+                        try_result(target, forfeit=True)
+                    else:
+                        try_result(target)
 
             elif t == "ping":
                 send(ws, {"t": "pong"})
@@ -633,10 +777,25 @@ async def handler(ws):
         online.discard(ws)
         save_get_hist.pop(ws, None)
         dequeue(ws)
-        # 统一按成员关系清理房间（覆盖快速匹配/create/join 三种来源）
+        # 统一按成员关系处理房间退出（快速匹配/create/join 三种来源）
         for c in [c for c, room in rooms.items() if ws in (room["host"], room["guest"])]:
             room = rooms[c]
-            peer = room["guest"] if room["host"] == ws else room["host"]
+            slot = "host" if room["host"] == ws else "guest"
+            peer = room["guest"] if slot == "host" else room["host"]
+            if room.get("questions") is not None:
+                # 对局已开始：房间保留可重连（v1.6.10），通知对手后按缺席处理
+                room.setdefault("gone_slots", set()).add(slot)
+                if peer and peer in online:
+                    send(peer, {"t": "peer_lost"})
+                    print(f"[room] {c} {slot} 对局中掉线，房间挂起等重连", flush=True)
+                if all(("host" in room.get("gone_slots", set()), "guest" in room.get("gone_slots", set()))):
+                    schedule_teardown(c)          # 双方都掉线 → 延迟静默拆房
+                elif slot_of(c, peer) and peer in room.get("finish", {}):
+                    # 对手已交卷且我不在 → 立即结算（在场方不必等待）
+                    try_result(c, forfeit=True)
+                # 对手未交卷 → 对手答完自然触发 forfeit 结算；期间重连可恢复
+                continue
+            # 对局未开始（排队/配对/准备阶段）：维持原清理行为
             if peer:
                 send(peer, {"t": "peer_left"})
             room["names"].pop(ws, None)
@@ -644,7 +803,7 @@ async def handler(ws):
                 rooms.pop(c, None)
             elif room["guest"] == ws:
                 room["guest"] = None
-            print(f"[room] {c} member left")
+            print(f"[room] {c} member left（未开始）", flush=True)
         broadcast_presence()
 
 
@@ -652,7 +811,7 @@ async def main(port):
     load_ratings()
     load_owners()
     load_bank()
-    async with websockets.serve(handler, "0.0.0.0", port, ping_interval=20):
+    async with websockets.serve(handler, "0.0.0.0", port, ping_interval=10, ping_timeout=10):
         print(f"PK 服务器已启动: ws://0.0.0.0:{port}（数据目录 {DATA_DIR}）")
         print("模拟器连接: ws://10.0.2.2:%d | 手机(同Wi-Fi): ws://<电脑IP>:%d" % (port, port))
         await asyncio.Future()
