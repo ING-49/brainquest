@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.8 (versionCode 33)
+- **当前版本**：v1.6.9 (versionCode 34)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -65,7 +65,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | `tools/gomoku_undo_check.py` | 同上 | 五子棋悔棋语义 + 思考期取消 + 返回确认取证 |
 | `tools/ui.py` | 被上面几个脚本 import | uiautomator 文本定位/点击/滑动/截图（`tap_text`/`swipe`/`shot`） |
 | `tools/pk_guest.py` | `python tools/pk_guest.py --quick [答对数] [版本]` | 联机机器人对手（PK_URL 指定服务器） |
-| `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://8.148.192.129:8765` | PK 服务器冒烟（19 项断言） |
+| `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://8.148.192.129:8765` | PK 服务器冒烟（22 项断言） |
 | `tools/deploy_pk_server.py` | `PK_SSH_PASS='<密码>' python tools/deploy_pk_server.py` | 部署/更新公网 pk_server（systemd 常驻） |
 | `启动对战服务器.bat` | 双击 | 局域网 PC 端 PK 服务器 |
 | `tools/_oneshot/*.py`（20 个） | ⛔ **不要运行** | 历史一次性改写脚本（`fix_*`/`add_*`/`v1xx_*`/`upgrade_*` 等），改动已并入源码；重跑会二次改写源码或题库 JSON。见 `tools/_oneshot/README.md` |
@@ -154,14 +154,14 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - 运维：`systemctl status/restart pk-server`；服务无状态，换机迁移=改 App 联机页地址
 - App 联机页填：`ws://8.148.192.129:8765`
 
-### 远程模式（v1.6.1 起，公网服务器专属）
+### 远程模式（v1.6.9 起服务器中立：服务器出题+判分，见下）
 - **在线人数**：服务器实时广播 `{"t":"online","players":N,"waiting":K,"rooms":M}`（连接/断开/入队/出队时触发）；App 联机页远程页签维持空闲长连接显示「🟢 在线 N 人」
 - **快速匹配**：`quick_match` 入队，服务器只配对**同版本**玩家；甲方收 `created`+`peer_joined`、乙方收 `joined` —— 客户端状态机零改动，复用现有确认→倒计时→对战→结算全流程
 - 大厅双页签：🌐 远程（默认，在线人数/快速匹配/科目选择/好友房间）+ 🏠 局域网（创建/搜索/手动直连，原样保留）
 - 服务器地址**不在界面显示**（默认公网唯一地址）；长按「在线人数」行弹出隐藏编辑对话框（调试/自建用），修改后 1.5s 防抖自动重连；旧默认（10.0.2.2）打开时自动迁移为公网地址
 - PK 战斗体验（v1.6.2 定稿）：答完题卡内显示对错与正确答案，停留 0.75s **自动进下一题**（无"下一题"按钮，最后一题自动交卷）；顶部双方进度「🧑 我 x/10」｜「对手 x/10」实时更新；我方完成页上下布局显示自己成绩+对手进度；双方完成出结算页
-- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/整局/取消/ELO/不计分/排行榜/云存档加密信封/明文拒绝/删除/限流，19 项断言）
-- 机器人对手：`python tools/pk_guest.py --quick [答对数] [版本]`（快速匹配可当房主）或 `python tools/pk_guest.py <房间码>`（好友房间）
+- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/服务器出题/服务器判分/整局/取消/ELO/不计分/排行榜/云存档加密信封/身份归属/明文拒绝/删除/限流，22 项断言）
+- 机器人对手：`python tools/pk_guest.py --quick [答对数] [版本]` 或 `python tools/pk_guest.py <房间码>`（版本默认读 manifest；PK_URL 指定服务器）
 
 ### ELO 与排行榜（v1.6.3 起）
 - **仅快速匹配计分**：配对房间 `ranked=true`；好友房间（create/join）与局域网/热点对战不计分（结算页标注「不计分」）
@@ -169,12 +169,13 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - 结算消息 `rating:{ranked,my,delta,peer}`；App 结算页显示「🏅 积分 xxx（±n）」
 - 排行榜：`{"t":"leaderboard","name":昵称}` → Top10 + 我的排名；联机页远程页签常驻「🏆 排行榜」入口
 
-### 云存档（v1.6.3 起；v1.6.7 加密加固）
+### 云存档（v1.6.3 起；v1.6.7 加密；v1.6.9 身份归属）
 - 服务器：`save_put`/`save_get`/`save_del`，存 `/opt/pk/saves/<码>.json`；存档码 10 位（BQ+8 位大写字母数字，去除易混字符），旧 8 位码兼容（服务器接受 ≤24 位）
 - App：设置页「☁️ 云存档」卡片——存档码 + 口令两个输入框；上传**必须设口令（≥4 位）**，留空码自动生成；换设备输同一存档码与口令「下载存档」并确认覆盖本地
 - **加密（v1.6.7）**：`util/SaveCrypto.kt` 口令 PBKDF2WithHmacSHA256（盐 16B、6 万次迭代）→ AES-256-GCM，密文封装 `{"fmt":"BQENC1","salt","iters","iv","ct"}` 信封后上传；**服务器只见密文**，口令不落盘不上传，是唯一凭证（丢了无法恢复云端存档）
 - **兼容**：无 `fmt` 字段的旧明文存档仍可下载（App 端检测后免口令直接导入，导入会把 PlayerState 整体覆盖——**含 pkServerUrl 等设置**）；新上传一律信封，服务器 `save_put` **拒绝明文**
 - **服务器加固**：`save_get` 每连接 60s 限 6 次（防暴力试码，超限回 `error:"too many"`）；单档上限 256KB；`save_del` 删除云端存档（隐私政策的数据删除通道）
+- **身份归属（v1.6.9）**：App 首启生成身份码 `QX`+10 位（`PlayerState.identity`，永久固定不可改）；服务器 `save_owners.json` 绑定 存档码↔身份码——put/get/del 均校验归属，猜中存档码也拿不到/覆盖不了；换设备恢复输「原存档码+原身份码+口令」即完成归属转移；无归属记录的旧存档首次操作自动认领
 - ⚠️ 部署注意：**旧版 App（≤1.6.6）对新服务器上传会被拒**（提示更新 App），下载不受影响；新版 App 对旧服务器完全正常（旧服务器原样存信封）
 - 独立短连接（`PkClient` idle 模式），操作完成即关闭
 

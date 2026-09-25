@@ -48,7 +48,7 @@ adb exec-out screencap -p > screen.png
 | `tools/dev_relay.py` | 开发中继：模拟器 → 本机 → GitHub Releases |
 | `tools/publish_github.py` | 发布 update-server 产物到 GitHub Releases（latest 地址自校验） |
 | `tools/pk_guest.py` | 联机机器人对手：`--quick` 快速匹配（可当房主）/ 房间码模式；PK_URL 环境变量 |
-| `tools/pk_server_smoke.py` | PK 服务器冒烟测试（在线人数/版本隔离/配对/整局/ELO/排行榜/云存档加密信封/明文拒绝/删除/限流，19 项断言） |
+| `tools/pk_server_smoke.py` | PK 服务器冒烟测试（配对/服务器出题判分/整局/ELO/排行榜/云存档加密+身份归属/删除/限流，22 项断言） |
 | `tools/klotski_verify.py` | 华容道关卡校验（BFS 判可解性 + 最少步数） |
 | `tools/ui.py` | uiautomator 文本定位/点击/滑动/截图（`tap_text`/`swipe`/`shot`，验证脚本复用） |
 | `tools/snake_autoeat.py` | 贪吃蛇自动追豆（像素识别 + 暂停分步控制；v1.6.6 起转向改用棋盘内滑动） |

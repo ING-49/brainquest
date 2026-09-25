@@ -71,7 +71,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
     }
 
     /** @return 是否成功发起连接（地址无效时返回 false 并发 Error 事件） */
-    fun connect(url: String, name: String, mode: String, code: String = "", version: String = ""): Boolean {
+    fun connect(url: String, name: String, mode: String, code: String = "", version: String = "", subject: String = ""): Boolean {
         if (!validPkUrl(url)) {
             onEvent(PkEvent.Error("服务器地址需形如 ws://主机:端口"))
             onEvent(PkEvent.Disconnected)
@@ -90,6 +90,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
                         put("name", name)
                         put("version", version)
                         if (mode == "join") put("code", code)
+                        if (subject.isNotBlank()) put("subject", subject)   // 好友房/快速匹配的出题科目
                     }
                     webSocket.send(msg.toString())
                 }
@@ -183,15 +184,16 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
         send(msg.toString())
     }
 
-    fun sendAnswer(idx: Int, correct: Boolean, timeMs: Long) {
+    fun sendAnswer(idx: Int, choice: Int, timeMs: Long) {
+        // v1.6.9 服务器中立对战：上报所选项，由服务器按题库判分（correct 字段不再自报）
         send(buildJsonObject {
-            put("t", "answer"); put("idx", idx); put("correct", correct); put("timeMs", timeMs)
+            put("t", "answer"); put("idx", idx); put("choice", choice); put("timeMs", timeMs)
         }.toString())
     }
 
-    fun sendFinish(correct: Int, timeMs: Long) {
+    fun sendFinish(timeMs: Long) {
         send(buildJsonObject {
-            put("t", "finish"); put("correct", correct); put("timeMs", timeMs)
+            put("t", "finish"); put("timeMs", timeMs)
         }.toString())
     }
 
@@ -219,21 +221,26 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
         }.toString())
     }
 
-    /** 云存档：上传 */
-    fun sendCloudPut(code: String, data: String) {
+    /** 云存档：上传（owner = 本机身份码，服务器做归属绑定） */
+    fun sendCloudPut(code: String, owner: String, data: String) {
         send(buildJsonObject {
-            put("t", "save_put"); put("code", code); put("data", data)
+            put("t", "save_put"); put("code", code); put("owner", owner); put("data", data)
         }.toString())
     }
 
-    /** 云存档：下载 */
-    fun sendCloudGet(code: String) {
-        send(buildJsonObject { put("t", "save_get"); put("code", code) }.toString())
+    /** 云存档：下载（owner 校验归属；换设备恢复时传原设备身份码 + new_owner = 本机身份码完成转移） */
+    fun sendCloudGet(code: String, owner: String, newOwner: String = "") {
+        send(buildJsonObject {
+            put("t", "save_get"); put("code", code); put("owner", owner)
+            if (newOwner.isNotBlank()) put("new_owner", newOwner)
+        }.toString())
     }
 
-    /** 云存档：删除（用户数据删除通道） */
-    fun sendCloudDel(code: String) {
-        send(buildJsonObject { put("t", "save_del"); put("code", code) }.toString())
+    /** 云存档：删除（用户数据删除通道，需归属身份） */
+    fun sendCloudDel(code: String, owner: String) {
+        send(buildJsonObject {
+            put("t", "save_del"); put("code", code); put("owner", owner)
+        }.toString())
     }
 
     private fun send(text: String) {
