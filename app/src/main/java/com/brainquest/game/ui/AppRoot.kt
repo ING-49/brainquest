@@ -59,6 +59,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val PAPERS = "papers"
     const val PK = "pk"
+    const val CLOUD_SAVE = "cloud_save"
 
     fun levels(subjectKey: String) = "levels/$subjectKey"
     fun battle(subjectKey: String, level: Int) = "battle/$subjectKey/$level"
@@ -97,7 +98,6 @@ fun AppRoot(vm: AppViewModel) {
                                 nav.navigate(tab.route) {
                                     popUpTo(Routes.HOME) { saveState = true }
                                     launchSingleTop = true
-                                    restoreState = true
                                 }
                             },
                             icon = { Icon(tab.icon, contentDescription = tab.label) },
@@ -133,6 +133,7 @@ fun AppRoot(vm: AppViewModel) {
             composable(Routes.SHOP) { ShopScreen(vm, nav) }
             composable(Routes.ACHIEVEMENTS) { AchievementsScreen(vm, nav) }
             composable(Routes.SETTINGS) { SettingsScreen(vm, nav) }
+            composable(Routes.CLOUD_SAVE) { com.brainquest.game.ui.meta.CloudSaveScreen(vm, nav) }
             composable(Routes.PAPERS) { com.brainquest.game.ui.meta.PapersScreen(vm, nav) }
             composable(Routes.PK) { com.brainquest.game.game.pk.PkBattleScreen(vm, nav) }
         }

@@ -29,3 +29,9 @@ update-server/saves/
 
 # 服务器玩家数据本地备份（真实玩家数据，不入公共仓库）
 backup/
+
+# v1.6.13 会话取证产物与本地测试运行时数据（不入库）
+tools/_shots_*/
+tools/_ui_raw.xml
+tools/_cloud_flow_*
+update-server/save_owners.json

@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.12 (versionCode 37)
+- **当前版本**：v1.6.13 (versionCode 38)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -101,6 +101,11 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **小游戏操作上移（v1.6.12）**：五子棋/贪吃蛇/华容道的 悔棋·重开·暂停 按钮移到棋盘上方（手在下方滑动不挡按钮）；`gomoku_undo_check.py` 导航已适配模式选择页
 - **联机版本门控（v1.6.12）**：服务器读 `/opt/pk/manifest.json` 的 latestVersionName（deploy 上传，mtime 缓存免重启），非最新版 quick_match/create/join 直接拒绝并提示更新；本地无 manifest 自动跳过
 - **云存档身份保护（v1.6.12）**：导入存档强制保留本机 identity（旧实现会被存档覆盖导致归属校验失败）
+- **Tab 导航不带 restoreState（v1.6.13）**：底部 Tab onClick 与速算英雄入口统一为 `popUpTo(HOME){saveState=true}+launchSingleTop`；带 `restoreState=true` 会把深层栈（小游戏页）原样复活，导致「点大厅回不到大厅」
+- **五子棋会话保留（v1.6.13）**：`GomokuSession` 单例存 难度/棋局/战绩/rewarded（进程死才清）；对局返回改弹「回到模式选择？」（棋局保留），模式页多「▶️ 回到上一局」卡片；每次进入必落模式选择页；两模式棋盘都 `weight(1f)+Center+clipToBounds()` 居中
+- **华容道单步+门式出口（v1.6.13）**：块级拖动加 `stepped` 锁——一次手势只走一步（走过即忽略后续拖动，松手重置）；出口改为「墙上开的门」：底边框在出口两格断开（DOOR_GROUND 缺口）+ 门柱探出板外 + 门外地面延伸
+- **云存档独立页（v1.6.13）**：设置页只留一行入口 → `CloudSaveScreen`（存档码/身份码+📋复制/上传/下载恢复/删除）；口令改为上传/下载时弹窗输入、不落盘；**弹窗每次打开必须清空口令/恢复输入**（screen 级 remember 跨弹窗残留曾致口令累加 test1234test1234 的事故）
+- **自动化经验（v1.6.13）**：掩码口令框回读的是 • 点串，不能按明文比对校验输入落点（按「非空点串且长度≥输入值」判）；`release.py` 实际输出前缀为 `[pack]/[patch]/[manifest]`（无 "[verify]" 字样）
 - **科目注册**：`data/question/Question.kt` 里的 `object Subjects`（10 个科目的名称与 `all` 列表）+ `data/Achievements.kt` 的 `subjectKey()`（科目 → 存档 key 前缀）+ 科目卡颜色（`ui/LevelsScreen.kt` 的 `subjectColor`）
 - **存档**：DataStore 单键 JSON（PlayerState），换版本自动兼容（新字段有默认值）
 - **考研模式**：`PlayerState.hardMode` → 设置开关。每日挑战走 `pickDaily`（开=大学五科 60% 真题+40% 难度4，关=基础五科难度2）；闯关/战斗 v1.6.0 起同样联动（`BattleState(subject, level, hardMode=…)`，非数学/逻辑科目走 `pickKaoyanBattleExcluding` 真题+高难并去重），战斗页标题带 🎓 徽标
