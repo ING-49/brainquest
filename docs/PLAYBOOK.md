@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.11 (versionCode 36)
+- **当前版本**：v1.6.12 (versionCode 37)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -97,6 +97,10 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **对局中返回要确认**：先弹「退出这一局？」；华容道是两级返回（对局 → 选关 → 离开）
 - **已下线**：知识2048 / 记忆翻牌（v1.6.5 移除，`assets/pairs/` 一并删除；老存档里的 `g2048_*`/`memory_*` 记录保留但不再展示，无需迁移）
 - **出题规则热更（v1.6.8 修复）**：`GenRulesConfig` 递归扫 `content/packs/` 任意子目录的 gen_rules.json（UpdateManager 解包到 `<包id>/` 子目录，旧版只查平铺路径导致热更从未生效）；`PapersScreen` 同法支持 papers.json 热更
+- **五子棋双模式（v1.6.12）**：进入先显示居中模式选择页——人机对战（简单/普通/困难，有奖励）/ 好友同机对战（`GomokuGame.vsAi` 分支：双人对坐布局，白方信息条旋转 180° 供对面阅读，轮次高亮，悔棋只撤一手，不结算奖励防互刷，胜负弹窗标黑方/白方）
+- **小游戏操作上移（v1.6.12）**：五子棋/贪吃蛇/华容道的 悔棋·重开·暂停 按钮移到棋盘上方（手在下方滑动不挡按钮）；`gomoku_undo_check.py` 导航已适配模式选择页
+- **联机版本门控（v1.6.12）**：服务器读 `/opt/pk/manifest.json` 的 latestVersionName（deploy 上传，mtime 缓存免重启），非最新版 quick_match/create/join 直接拒绝并提示更新；本地无 manifest 自动跳过
+- **云存档身份保护（v1.6.12）**：导入存档强制保留本机 identity（旧实现会被存档覆盖导致归属校验失败）
 - **科目注册**：`data/question/Question.kt` 里的 `object Subjects`（10 个科目的名称与 `all` 列表）+ `data/Achievements.kt` 的 `subjectKey()`（科目 → 存档 key 前缀）+ 科目卡颜色（`ui/LevelsScreen.kt` 的 `subjectColor`）
 - **存档**：DataStore 单键 JSON（PlayerState），换版本自动兼容（新字段有默认值）
 - **考研模式**：`PlayerState.hardMode` → 设置开关。每日挑战走 `pickDaily`（开=大学五科 60% 真题+40% 难度4，关=基础五科难度2）；闯关/战斗 v1.6.0 起同样联动（`BattleState(subject, level, hardMode=…)`，非数学/逻辑科目走 `pickKaoyanBattleExcluding` 真题+高难并去重），战斗页标题带 🎓 徽标

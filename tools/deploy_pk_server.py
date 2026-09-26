@@ -62,6 +62,11 @@ for src in glob.glob('app/src/main/assets/questions/*.json') + glob.glob('update
     sftp.put(src, '/opt/pk/questions/' + os.path.basename(src))
     n_q += 1
 print(f'[upload] 题库 {n_q} 个 JSON OK')
+
+# 2c. 上传更新清单（版本门控：非最新版不能联机）
+if os.path.isfile('update-server/manifest.json'):
+    sftp.put('update-server/manifest.json', '/opt/pk/manifest.json')
+    print('[upload] manifest.json OK（版本门控用）')
 sftp.close()
 
 # 3. systemd 服务（含 websockets 路径探测）

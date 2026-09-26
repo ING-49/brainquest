@@ -115,6 +115,17 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
             subtitle = if (lv == null) "选一关，把曹操滑到底部出口" else "滑动棋子 · 把曹操移到底部出口",
         )
 
+        // 操作按钮在上方（v1.6.12）：棋盘在下方，滑动棋子时手不挡按钮
+        if (g != null && lv != null) {
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    g.reset(); rewarded = false; showWin = false; newRecord = false
+                    Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
+                }) { Text("🔄 重新开始") }
+                OutlinedButton(onClick = { game = null; level = null }) { Text("🗺️ 换一关") }
+            }
+        }
+
         if (g == null || lv == null) {
             // 选关
             Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 8.dp)) {
@@ -247,13 +258,6 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = {
-                g.reset(); rewarded = false; showWin = false; newRecord = false
-                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
-            }) { Text("🔄 重新开始") }
-            OutlinedButton(onClick = { game = null; level = null }) { Text("🗺️ 换一关") }
-        }
         Text(
             "💡 提示：曹操（红块）需滑到下方出口；把挡路的竖将上下腾挪、横将左右移动来开路。" +
                 "大块不好滑时，先点一下棋子，再在棋盘任意位置滑动即可。",
