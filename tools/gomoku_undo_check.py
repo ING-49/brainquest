@@ -139,20 +139,24 @@ def main():
     if b5 or w5:
         fails.append("思考期悔棋未能取消电脑落子")
 
-    # ---- 用例 3：对局中（棋盘上有子）按返回键应弹确认框 ----
+    # ---- 用例 3：对局中（棋盘上有子）按返回键应弹确认框（v1.6.13：回到模式选择，棋局保留） ----
     ui.tap(*cell_center(box, 7, 7), delay=0.4)
     ui.key("BACK", delay=0.8)
     labels = ui.texts()
-    has_dialog = any("退出这一局" in t for t in labels)
+    has_dialog = any("回到模式选择" in t for t in labels)
     print(f"[3] 返回键确认框：{'出现 ✓' if has_dialog else '未出现'}")
     if not has_dialog:
         fails.append("对局中返回未弹确认框")
     else:
-        ui.tap_text("继续下", delay=0.5)
+        ui.tap_text("回到选页", delay=0.5)
+        # 回到模式选择页后应出现「回到上一局」入口，点了能恢复棋局
+        resumed = ui.tap_text("回到上一局", exact=True, wait=4)
         kept = stone_cells(shot("gomoku_4_back_continue.png"), box, BLACK, 26)
-        print(f"    继续下后保留棋局：{sorted(kept)}")
+        print(f"    回到选页→回到上一局：{'恢复 ✓' if resumed else '❌ 无入口'}  保留棋局：{sorted(kept)}")
+        if not resumed:
+            fails.append("模式选择页没有「回到上一局」入口")
         if not kept:
-            fails.append("继续下后棋局丢失")
+            fails.append("回到上一局后棋局丢失")
 
     print("✅ 五子棋悔棋语义与返回确认 全部通过" if not fails else f"❌ 未通过：{fails}")
     return 0 if not fails else 1

@@ -23,10 +23,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -46,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -73,19 +72,29 @@ private val TURN_GLOW = Color(0xFF2E7D32)
 
 private const val AI_DELAY_MS = 350L
 
+/** 会话级棋局：退出页面后棋盘与战绩保留（模式选择页可「回到上一局」），进程被杀才清空 */
+private object GomokuSession {
+    var difficulty: Int = 1
+    var game: GomokuGame? = null
+    var sessionWins: Int = 0
+    var sessionLosses: Int = 0
+    var streak: Int = 0
+    var rewarded: Boolean = false
+}
+
 /** 五子棋：模式选择（人机 / 好友同机双人）→ 对局。好友模式为两人对坐布局（顶条倒置）。 */
 @Composable
 fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     val context = LocalContext.current
 
-    var mode by remember { mutableStateOf<String?>(null) }   // null = 模式选择页 / "ai" / "friend"
-    var difficulty by remember { mutableIntStateOf(1) }
-    var game by remember { mutableStateOf(GomokuGame(15, 1)) }
-    var sessionWins by remember { mutableIntStateOf(0) }
-    var sessionLosses by remember { mutableIntStateOf(0) }
-    var streak by remember { mutableIntStateOf(0) }
-    var rewarded by remember { mutableStateOf(false) }
+    var mode by remember { mutableStateOf<String?>(null) }   // 每次进入都先落在模式选择页
+    var difficulty by remember { mutableIntStateOf(GomokuSession.difficulty) }
+    var game by remember { mutableStateOf(GomokuSession.game ?: GomokuGame(15, difficulty)) }
+    var sessionWins by remember { mutableIntStateOf(GomokuSession.sessionWins) }
+    var sessionLosses by remember { mutableIntStateOf(GomokuSession.sessionLosses) }
+    var streak by remember { mutableIntStateOf(GomokuSession.streak) }
+    var rewarded by remember { mutableStateOf(GomokuSession.rewarded) }
     var showResult by remember { mutableStateOf(false) }
     var confirmExit by remember { mutableStateOf(false) }
 
@@ -93,9 +102,17 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
         mode = m
         game = GomokuGame(15, difficulty, vsAi = m != "friend")
         rewarded = false; showResult = false
+        GomokuSession.game = game
+        GomokuSession.difficulty = difficulty
+        GomokuSession.rewarded = false
     }
 
-    val inGame = mode != null && game.moves > 0 && !game.finished
+    // 回模式选择页：棋局保留在 GomokuSession，选页可「回到上一局」
+    fun backToModeSelect() {
+        mode = null
+        showResult = false
+        confirmExit = false
+    }
 
     // 新落的子弹入一下，落子更有实感
     val pop = remember { Animatable(1f) }
@@ -127,6 +144,8 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                 if (game.winner == 1) {
                     sessionWins++
                     streak++
+                    GomokuSession.sessionWins = sessionWins
+                    GomokuSession.streak = streak
                     vm.reportBest("gomoku_wins", (player.bestScores["gomoku_wins"] ?: 0) + 1)
                     vm.reportBest("gomoku_best_streak", streak)
                     vm.addCoins(40 + streak * 5)
@@ -135,42 +154,56 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                 } else {
                     sessionLosses++
                     streak = 0
+                    GomokuSession.sessionLosses = sessionLosses
+                    GomokuSession.streak = 0
                     Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.LOSE)
                 }
             } else {
                 Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.WIN)
             }
+            GomokuSession.rewarded = true
             showResult = true
         }
     }
 
-    // ---------- 模式选择页（内容居中） ----------
+    // ---------- 模式选择页：标题固定顶部，模式卡片在剩余空间居中 ----------
     if (mode == null) {
-        Column(
-            Modifier.fillMaxSize().padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
+        Column(Modifier.fillMaxSize().padding(16.dp)) {
             PageHeader("⚫ 五子棋", onBack = { nav.popBackStack() },
                 subtitle = "先连成五子者胜 · 选择对战模式")
-            Spacer(Modifier.height(24.dp))
-            ModeCard(
-                emoji = "🤖", title = "人机对战",
-                desc = "挑战本地 AI：简单 / 普通 / 困难三档，胜负有金币与成就奖励",
-                onClick = {
-                    Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
-                    startGame("ai")
-                },
-            )
-            Spacer(Modifier.height(14.dp))
-            ModeCard(
-                emoji = "👥", title = "好友对战（同机双人）",
-                desc = "两人对坐同一部手机轮流落子，上方信息倒置显示，轮到谁一目了然",
-                onClick = {
-                    Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
-                    startGame("friend")
-                },
-            )
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (game.moves > 0) {
+                        ModeCard(
+                            emoji = "▶️", title = "回到上一局",
+                            desc = if (game.finished) "上局已分出胜负（${game.moves} 手），可复盘或重开"
+                                   else "继续上局残留的棋盘（已下 ${game.moves} 手）",
+                            onClick = {
+                                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
+                                mode = if (game.vsAi) "ai" else "friend"
+                            },
+                        )
+                        Spacer(Modifier.height(14.dp))
+                    }
+                    ModeCard(
+                        emoji = "🤖", title = "人机对战",
+                        desc = "挑战本地 AI：简单 / 普通 / 困难三档，胜负有金币与成就奖励",
+                        onClick = {
+                            Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
+                            startGame("ai")
+                        },
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    ModeCard(
+                        emoji = "👥", title = "好友对战（同机双人）",
+                        desc = "两人对坐同一部手机轮流落子，上方信息倒置显示，轮到谁一目了然",
+                        onClick = {
+                            Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
+                            startGame("friend")
+                        },
+                    )
+                }
+            }
         }
         return
     }
@@ -178,34 +211,39 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
     val friendMode = mode == "friend"
     val undoEnabled = game.moves > 0 && !game.finished
 
-    Column(Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
-        // 对局中按返回先确认，避免一按就丢掉棋局
-        androidx.activity.compose.BackHandler(enabled = inGame) { confirmExit = true }
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        // 对局中按返回先回到模式选择页（棋局保留），不直接丢掉
+        androidx.activity.compose.BackHandler(enabled = mode != null) { confirmExit = true }
         PageHeader(
             "⚫ 五子棋",
-            onBack = { if (inGame) confirmExit = true else nav.popBackStack() },
+            onBack = { if (mode != null) confirmExit = true else nav.popBackStack() },
             subtitle = if (friendMode) "好友对战 · 黑先白后 · 两人对坐轮流落子"
                        else "你执黑先手 · 先连成五子者胜",
         )
 
         if (friendMode) {
-            // ---------- 好友对战：对坐布局（白方条倒置在顶部，黑方条在底部） ----------
+            // ---------- 好友对战：对坐布局（白方条倒置在顶部，黑方条在底部，棋盘居中） ----------
             FriendBar(
                 sideLabel = "⚪ 白方", stoneColor = WHITE_STONE, stoneEdge = WHITE_STONE_EDGE,
                 active = !game.finished && game.turnSide == "白",
                 undoEnabled = undoEnabled,
-                onUndo = { game.undo(); rewarded = false; showResult = false },
+                onUndo = { game.undo(); rewarded = false; GomokuSession.rewarded = false; showResult = false },
                 onReset = { startGame("friend") },
                 rotated = true,
             )
             Spacer(Modifier.height(6.dp))
-            GomokuBoard(game, pop, context, player, friendMode)
+            Box(
+                Modifier.weight(1f).fillMaxWidth().clipToBounds(),
+                contentAlignment = Alignment.Center,
+            ) {
+                GomokuBoard(game, pop, context, player, friendMode)
+            }
             Spacer(Modifier.height(6.dp))
             FriendBar(
                 sideLabel = "⚫ 黑方", stoneColor = BLACK_STONE, stoneEdge = BLACK_STONE_EDGE,
                 active = !game.finished && game.turnSide == "黑",
                 undoEnabled = undoEnabled,
-                onUndo = { game.undo(); rewarded = false; showResult = false },
+                onUndo = { game.undo(); rewarded = false; GomokuSession.rewarded = false; showResult = false },
                 onReset = { startGame("friend") },
                 rotated = false,
             )
@@ -240,7 +278,7 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
             Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
-                        game.undo(); rewarded = false; showResult = false
+                        game.undo(); rewarded = false; GomokuSession.rewarded = false; showResult = false
                         Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
                     },
                     enabled = undoEnabled,
@@ -258,7 +296,12 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                 )
             }
 
-            GomokuBoard(game, pop, context, player, friendMode)
+            Box(
+                Modifier.weight(1f).fillMaxWidth().clipToBounds(),
+                contentAlignment = Alignment.Center,
+            ) {
+                GomokuBoard(game, pop, context, player, friendMode)
+            }
             Text(
                 "💡 电脑棋力：简单（会走神）/ 普通（攻守均衡）/ 困难（带两步预判）。" +
                     "悔棋会回到你上一手落子之前（电脑应的那手一并撤销）。",
@@ -271,10 +314,10 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
         if (confirmExit) {
             AlertDialog(
                 onDismissRequest = { confirmExit = false },
-                title = { Text("退出这一局？") },
-                text = { Text("当前棋局不会保存，退出后需要重新开始。") },
+                title = { Text("回到模式选择？") },
+                text = { Text("当前棋局会保留，稍后可在模式选择页点「回到上一局」继续。") },
                 confirmButton = {
-                    Button(onClick = { confirmExit = false; nav.popBackStack() }) { Text("退出") }
+                    Button(onClick = { backToModeSelect() }) { Text("回到选页") }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = { confirmExit = false }) { Text("继续下") }

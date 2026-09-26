@@ -23,8 +23,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,97 +58,8 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     var busy by remember { mutableStateOf(false) }
     var pendingApk by remember { mutableStateOf<java.io.File?>(null) }
     var showDevUrl by remember { mutableStateOf(false) }
-    var cloudStatus by remember { mutableStateOf("") }
-    var cloudAction by remember { mutableStateOf("") }        // put / get / del，"正在操作中"防重复点击
-    var pendingRestore by remember { mutableStateOf<String?>(null) }
-    var cloudPassword by remember { mutableStateOf("") }   // 口令只在本机内存，不落盘不上服务器
-    var showRestoreInputs by remember { mutableStateOf(false) }  // 从原设备恢复（跨设备时输入原存档码+身份码）
-    var restoreCodeInput by remember { mutableStateOf("") }  // 原设备存档码（可选）
-    var restoreOwnerInput by remember { mutableStateOf("") } // 原设备身份码（可选）
     var showPrivacy by remember { mutableStateOf(false) }
-    var pendingDelete by remember { mutableStateOf(false) }
 
-    fun effectiveCode(): String =
-        (if (showRestoreInputs && restoreCodeInput.isNotBlank()) restoreCodeInput else player.cloudCode).trim().uppercase()
-
-    fun effectiveOwner(): String =
-        (if (showRestoreInputs && restoreOwnerInput.isNotBlank()) restoreOwnerInput else vm.identity).trim().uppercase()
-
-    // 云存档：独立短连（连接成功后按 cloudAction 发对应请求）
-    val cloudEvents = remember { kotlinx.coroutines.flow.MutableSharedFlow<com.brainquest.game.net.PkEvent>(extraBufferCapacity = 8) }
-    val cloudClient = remember { com.brainquest.game.net.PkClient { cloudEvents.tryEmit(it) } }
-    DisposableEffect(Unit) { onDispose { cloudClient.close() } }
-    LaunchedEffect(Unit) {
-        cloudEvents.collect { e ->
-            when (e) {
-                is com.brainquest.game.net.PkEvent.Connected -> when (cloudAction) {
-                    "put" -> {
-                        cloudStatus = "正在加密并上传…"
-                        cloudClient.sendCloudPut(effectiveCode(), vm.identity, vm.encryptSaveJson(cloudPassword.trim()))
-                    }
-                    "get" -> {
-                        cloudStatus = "正在下载…"
-                        cloudClient.sendCloudGet(effectiveCode(), effectiveOwner(), vm.identity)
-                    }
-                    "del" -> cloudClient.sendCloudDel(effectiveCode(), vm.identity)
-                }
-                is com.brainquest.game.net.PkEvent.SaveOk -> {
-                    cloudAction = ""
-                    cloudStatus = "✅ 已上传（${e.size} 字节，密文存储，归属 ${vm.identity}）"
-                    cloudClient.close()
-                }
-                is com.brainquest.game.net.PkEvent.SaveDeleted -> {
-                    cloudAction = ""
-                    cloudStatus = "🗑 云端存档已删除"
-                    cloudClient.close()
-                }
-                is com.brainquest.game.net.PkEvent.SaveData -> {
-                    cloudAction = ""
-                    pendingRestore = e.data
-                    cloudStatus = "已取到云端存档，确认后覆盖本地（归属将转移到本机身份码）"
-                    cloudClient.close()
-                }
-                is com.brainquest.game.net.PkEvent.Error -> {
-                    // 操作已完成后是我们主动关连接，关闭事件不算错误
-                    if (cloudAction.isNotEmpty()) {
-                        cloudAction = ""
-                        cloudStatus = "❌ ${e.msg}"
-                        cloudClient.close()
-                    }
-                }
-                is com.brainquest.game.net.PkEvent.Disconnected -> {
-                    if (cloudAction.isNotEmpty()) {
-                        cloudAction = ""
-                        cloudStatus = "❌ 连接失败，请检查网络后重试"
-                    }
-                }
-                else -> {}
-            }
-        }
-    }
-
-    fun startCloudPut() {
-        if (cloudPassword.trim().length < 4) {
-            cloudStatus = "请先设置至少 4 位存档口令（口令是唯一凭证，丢失将无法恢复云端存档）"
-            return
-        }
-        if (player.cloudCode.isBlank()) {
-            vm.setSettings(cloudCode = vm.generateCloudCode())
-        }
-        cloudAction = "put"
-        cloudStatus = "连接服务器…"
-        cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
-    }
-
-    fun startCloudGet() {
-        if (effectiveCode().isBlank()) {
-            cloudStatus = "请先输入原设备的存档码与身份码"
-            return
-        }
-        cloudAction = "get"
-        cloudStatus = "连接服务器…"
-        cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
-    }
     val notifPermission = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) { }
@@ -203,143 +112,24 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             checked = player.hardMode,
         ) { vm.setSettings(hard = it) }
 
-        // 云存档
+        // 云存档：独立一层页面（口令等属隐私操作）
         Card(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .clickable { nav.navigate(com.brainquest.game.ui.Routes.CLOUD_SAVE) },
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         ) {
-            Column(Modifier.padding(14.dp)) {
-                Text("☁️ 云存档", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("跨设备恢复进度：存档码与身份码自动生成、不可修改（存档用口令加密后才上传，且与身份码绑定）。换新设备：在下方展开「从原设备恢复」，输入原设备的存档码 + 身份码 + 口令即可。口令不保存在本机也不上传，丢了无法找回存档，请牢记。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp))
-                Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("存档码：", style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        player.cloudCode.ifBlank { "首次上传时自动生成" },
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("身份码：", style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        vm.identity,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable {
-                            val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            cm.setPrimaryClip(android.content.ClipData.newPlainText("identity", vm.identity))
-                            cloudStatus = "🪪 身份码已复制到剪贴板"
-                        },
-                    )
-                    Text("（点击复制，归属校验用，不可修改）", style = MaterialTheme.typography.bodySmall,
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("☁️ 云存档", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("上传 / 恢复进度 · 身份码与存档码管理",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                OutlinedTextField(
-                    value = cloudPassword,
-                    onValueChange = { cloudPassword = it.take(24) },
-                    label = { Text("存档口令（上传需 ≥4 位；下载旧存档可留空）") },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    singleLine = true,
-                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
-                    ),
-                )
-                androidx.compose.material3.TextButton(
-                    onClick = { showRestoreInputs = !showRestoreInputs },
-                ) { Text(if (showRestoreInputs) "▲ 收起跨设备恢复" else "▼ 换新设备？从原设备恢复存档") }
-                if (showRestoreInputs) {
-                    OutlinedTextField(
-                        value = restoreCodeInput,
-                        onValueChange = { restoreCodeInput = it.uppercase().take(12) },
-                        label = { Text("原设备的存档码") },
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = restoreOwnerInput,
-                        onValueChange = { restoreOwnerInput = it.uppercase().take(14) },
-                        label = { Text("原设备的身份码（在原设备设置页查看）") },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        singleLine = true,
-                    )
-                }
-                Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { startCloudPut() }, enabled = cloudAction.isEmpty()) { Text("⬆️ 上传存档") }
-                    OutlinedButton(onClick = { startCloudGet() }, enabled = cloudAction.isEmpty()) { Text("⬇️ 下载存档") }
-                }
-                androidx.compose.material3.TextButton(
-                    onClick = { pendingDelete = true },
-                    enabled = cloudAction.isEmpty() && player.cloudCode.isNotBlank(),
-                ) { Text("🗑 删除云端存档") }
-                if (cloudStatus.isNotBlank()) {
-                    Text(cloudStatus, style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
-                }
+                Text("›", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
         }
-        pendingRestore?.let { data ->
-            val encrypted = com.brainquest.game.util.SaveCrypto.isEnvelope(data)
-            AlertDialog(
-                onDismissRequest = { pendingRestore = null; cloudStatus = "已取消" },
-                title = { Text("恢复云存档？") },
-                text = {
-                    Column {
-                        Text("将用云端存档覆盖本机当前进度，确定继续吗？")
-                        if (encrypted) {
-                            OutlinedTextField(
-                                value = cloudPassword,
-                                onValueChange = { cloudPassword = it.take(24) },
-                                label = { Text("该存档已加密，请输入口令") },
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                singleLine = true,
-                                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
-                                ),
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        val ok = vm.importCloudSave(data, cloudPassword.trim())
-                        cloudStatus = when {
-                            ok -> "✅ 已恢复云端存档"
-                            encrypted -> "❌ 口令错误或存档已损坏，未恢复"
-                            else -> "❌ 存档解析失败"
-                        }
-                        pendingRestore = null
-                    }) { Text("覆盖恢复") }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { pendingRestore = null; cloudStatus = "已取消" }) { Text("取消") }
-                },
-            )
-        }
-
-        if (pendingDelete) {
-            AlertDialog(
-                onDismissRequest = { pendingDelete = false },
-                title = { Text("删除云端存档？") },
-                text = { Text("将删除服务器上存档码 ${player.cloudCode} 对应的云端存档，本机进度不受影响。此操作不可恢复。") },
-                confirmButton = {
-                    Button(onClick = {
-                        pendingDelete = false
-                        cloudAction = "del"
-                        cloudStatus = "连接服务器…"
-                        cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
-                    }) { Text("删除") }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { pendingDelete = false }) { Text("取消") }
-                },
-            )
-        }
-
         if (showPrivacy) {
             val privacyText = remember {
                 runCatching { context.assets.open("privacy_policy.txt").bufferedReader().use { it.readText() } }

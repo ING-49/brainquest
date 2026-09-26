@@ -115,7 +115,12 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
             ElevatedCard(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { nav.navigate(Routes.SUBJECTS) },
+                    .clickable {
+                        nav.navigate(Routes.SUBJECTS) {
+                            popUpTo(Routes.HOME) { saveState = true }
+                            launchSingleTop = true
+                        }
+                    },
             ) {
                 Column(Modifier.padding(14.dp)) {
                     Text("⚔️", style = MaterialTheme.typography.headlineLarge)

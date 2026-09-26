@@ -65,6 +65,7 @@ private val CELL_WELL = Color(0x14000000)
 private val EXIT_BG = Color(0x33FFB300)
 private val EXIT_EDGE = Color(0xFFFB8C00)
 private val EXIT_TEXT = Color(0xFFE65100)
+private val DOOR_GROUND = Color(0xFFFBEDCB)   // 门外地面：不透明浅暖色，用于门洞缺口与板外延伸
 private val PIECE_EDGE = Color(0x40FFFFFF)
 private val SELECT_RING = Color(0xFFFFB300)
 private val CAO_COLOR = Color(0xFFD32F2F)
@@ -256,6 +257,39 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                 }
             }
+
+            // ---------- 门式出口：底边框在出口处断开，配门柱与门外地面，像墙上开的门 ----------
+            val doorX = cell * KlotskiLevels.EXIT_COL
+            val doorW = cell * 2
+            val boardBottom = cell * KlotskiLevels.ROWS
+            val postW = 5.dp
+            // 门柱：立在出口两侧，向下探出板外一点
+            Box(
+                Modifier
+                    .offset(x = doorX, y = boardBottom - 13.dp)
+                    .size(postW, 22.dp)
+                    .background(EXIT_EDGE, RoundedCornerShape(2.dp)),
+            )
+            Box(
+                Modifier
+                    .offset(x = doorX + doorW - postW, y = boardBottom - 13.dp)
+                    .size(postW, 22.dp)
+                    .background(EXIT_EDGE, RoundedCornerShape(2.dp)),
+            )
+            // 墙体缺口：盖掉门洞范围内的底边框，出口看起来是"开"的
+            Box(
+                Modifier
+                    .offset(x = doorX + postW, y = boardBottom - 4.dp)
+                    .size(doorW - postW * 2, 8.dp)
+                    .background(DOOR_GROUND),
+            )
+            // 门外地面：从缺口向外延伸一小截，指向"从这里出去"
+            Box(
+                Modifier
+                    .offset(x = doorX + postW + 5.dp, y = boardBottom + 1.dp)
+                    .size(doorW - postW * 2 - 10.dp, 9.dp)
+                    .background(DOOR_GROUND, RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)),
+            )
         }
 
         Text(
@@ -322,6 +356,7 @@ private fun KlotskiBlock(
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var acc = remember { Offset.Zero }
     var dragging by remember { mutableStateOf(false) }
+    var stepped by remember { mutableStateOf(false) }   // 一次手势只走一步：走过即忽略后续拖动
 
     fun clampAxis(o: Offset): Offset = if (abs(o.x) > abs(o.y)) {
         Offset(o.x.coerceIn(-cellPx, cellPx), 0f)
@@ -375,27 +410,36 @@ private fun KlotskiBlock(
                     onDragStart = {
                         acc = Offset.Zero
                         dragging = true
+                        stepped = false
                     },
                     onDragEnd = {
                         acc = Offset.Zero
                         dragging = false
+                        stepped = false
                         dragOffset = Offset.Zero
                     },
                     onDragCancel = {
                         acc = Offset.Zero
                         dragging = false
+                        stepped = false
                         dragOffset = Offset.Zero
                     },
                     onDrag = { change, delta ->
                         change.consume()
+                        if (stepped) return@detectDragGestures
                         acc += delta
                         dragOffset = clampAxis(acc)
                         if (acc.getDistance() > thresholdPx) {
                             val horizontal = abs(acc.x) > abs(acc.y)
                             val dr = if (horizontal) 0 else if (acc.y > 0) 1 else -1
                             val dc = if (horizontal) (if (acc.x > 0) 1 else -1) else 0
-                            // 走成一格：格位加一格、偏移减一格 → 画面连续，可继续拖第二格
-                            if (onTryMove(dr, dc)) acc -= Offset(dc * cellPx, dr * cellPx) else acc = Offset.Zero
+                            // 一次手势只滑一步：走完即锁住，累计位移清零（松手后才能走下一步）
+                            if (onTryMove(dr, dc)) {
+                                stepped = true
+                                acc = Offset.Zero
+                            } else {
+                                acc = Offset.Zero
+                            }
                             dragOffset = clampAxis(acc)
                         }
                     },
