@@ -68,8 +68,9 @@ def cell_center(box, r, c):
 
 def status():
     for t in ui.texts():
-        if t in ("轮到你", "电脑思考中…", "本局结束"):
-            return t
+        if "轮到你" in t or "电脑思考中" in t or "本局结束" in t:
+            return ("轮到你" if "轮到你" in t else
+                    "电脑思考中…" if "电脑思考中" in t else "本局结束")
     return None
 
 
@@ -78,6 +79,9 @@ def main():
     ui.start()
     if not ui.tap_text("五子棋", exact=False, wait=6):
         print("❌ 未找到五子棋入口"); return 1
+    time.sleep(0.6)
+    if not ui.tap_text("人机对战", exact=True, wait=4):
+        print("❌ 未找到人机对战入口"); return 1
     time.sleep(0.6)
 
     img = shot("gomoku_1_board.png")

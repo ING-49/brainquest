@@ -224,6 +224,34 @@ def draw_questions(subject, n=PK_QUESTION_COUNT):
     return [_gen_math(2 + i % 3, rng) for i in range(n)]  # 兜底
 
 
+# ---------- 版本门控（v1.6.12：非最新版不能联机，提示更新） ----------
+
+_manifest_path = os.path.join(DATA_DIR, "manifest.json")
+_manifest_cache = {"mtime": None, "latest": None}
+
+
+def latest_version():
+    """最新版本名（来自更新清单）；清单不存在/无字段返回 None（本地开发跳过门控）"""
+    try:
+        m = os.path.getmtime(_manifest_path)
+        if _manifest_cache["mtime"] != m:
+            with open(_manifest_path, encoding="utf-8") as f:
+                _manifest_cache["latest"] = json.load(f).get("latestVersionName")
+            _manifest_cache["mtime"] = m
+        return _manifest_cache["latest"]
+    except (OSError, ValueError):
+        return None
+
+
+def version_gate(version):
+    """联机需最新版；通过返回 None，否则返回提示消息"""
+    latest = latest_version()
+    if not latest or version == latest:
+        return None
+    return (f"联机需最新版 v{latest}（你当前 v{version}），"
+            "请到「我的 → 设置与更新 → 检查更新」升级后再来")
+
+
 def is_save_envelope(data):
     """校验 data 是否为 BQENC1 加密信封（不验证密码学内容，App 端解密时自校验）"""
     try:
@@ -521,6 +549,10 @@ async def handler(ws):
                 continue
             t = msg.get("t")
             if t == "create":
+                gate = version_gate(str(msg.get("version", "?")))
+                if gate:
+                    send(ws, {"t": "error", "msg": gate})
+                    continue
                 identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
                 busy = active_room_of_identity(identity) or (identity_in_queue(identity) if identity else None)
                 if busy:
@@ -540,6 +572,10 @@ async def handler(ws):
                 print(f"[room] {code} created by {msg.get('name')} 科目[{rooms[code]['subject']}]", flush=True)
 
             elif t == "join":
+                gate = version_gate(str(msg.get("version", "?")))
+                if gate:
+                    send(ws, {"t": "error", "msg": gate})
+                    continue
                 identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
                 busy = active_room_of_identity(identity) or (identity_in_queue(identity) if identity else None)
                 if busy:
@@ -563,6 +599,10 @@ async def handler(ws):
                 print(f"[room] {c} joined by {msg.get('name')}", flush=True)
 
             elif t == "quick_match":
+                gate = version_gate(str(msg.get("version", "?")))
+                if gate:
+                    send(ws, {"t": "error", "msg": gate})
+                    continue
                 identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
                 busy = active_room_of_identity(identity) or (identity_in_queue(identity) if identity else None)
                 if busy:

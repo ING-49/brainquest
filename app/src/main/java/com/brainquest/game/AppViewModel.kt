@@ -135,9 +135,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun encryptSaveJson(password: String): String =
         com.brainquest.game.util.SaveCrypto.encrypt(exportSaveJson(), password)
 
-    /** 导入云存档（覆盖本地），成功返回 true */
+    /** 导入云存档（覆盖本地），成功返回 true。
+     *  身份码永不随导入改变（v1.6.12 修复：旧实现会把本机身份码覆盖成存档里的或空，
+     *  导致之后上传归属校验失败——身份码只属于本机，与存档内容无关）。 */
     fun importSaveJson(text: String): Boolean = runCatching {
         val state = saveJson.decodeFromString(PlayerState.serializer(), text)
+            .copy(identity = _player.value.identity)
         _player.value = state
         viewModelScope.launch { store.save(state) }
     }.isSuccess

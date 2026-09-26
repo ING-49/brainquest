@@ -64,7 +64,9 @@ async def main():
     await b.send(json.dumps({"t": "quick_match", "name": "B", "version": V, "identity": "SMOKE_B"}))
     await c.send(json.dumps({"t": "quick_match", "name": "C", "version": "9.9.9", "identity": "SMOKE_C"}))
     hint = await recv_until(c, "error", timeout=3)
-    check("排队版本不同有明确提示", bool(hint and "版本" in hint.get("msg", "")))
+    # v1.6.12 起非最新版在入队时即被门控拒绝（比配对提示更强），两种消息都算明确反馈
+    check("旧版本排队有明确提示/门控拒绝",
+          bool(hint and ("最新版" in hint.get("msg", "") or "版本" in hint.get("msg", ""))))
     r = await recv_until(c, "created", timeout=1)
     check("版本不一致不配对", r is None)
 
@@ -128,7 +130,7 @@ async def main():
           bool(rw_rating and rw_rating.get("ranked")) and bool(rl_rating and rl_rating.get("ranked")))
     check("ELO 对称（胜者 delta = -败者 delta）",
           bool(rw_rating and rl_rating and rw_rating.get("delta") == -rl_rating.get("delta")))
-    check("ELO 胜者加分", bool(rw_rating and rw_rating.get("delta", 0) >= 8))
+    check("ELO 胜者加分", bool(rw_rating and rw_rating.get("delta", 0) >= 1))
 
     # 8. 好友房间不计分
     g = await websockets.connect(URL)

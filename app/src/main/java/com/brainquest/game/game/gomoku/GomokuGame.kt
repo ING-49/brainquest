@@ -6,10 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 /**
- * 五子棋（人机对战）：玩家执黑先手，AI 执白。
+ * 五子棋：人机对战（玩家执黑先手，AI 执白）或好友同机对战（双人对坐轮流落子）。
  * AI 为本地启发式评估（棋型打分 + 攻守加权，困难档加 2 层前瞻），完全离线。
  */
-class GomokuGame(val size: Int = 15, var difficulty: Int = 1) {
+class GomokuGame(val size: Int = 15, var difficulty: Int = 1, val vsAi: Boolean = true) {
 
     var version by mutableIntStateOf(0)
         private set
@@ -19,7 +19,7 @@ class GomokuGame(val size: Int = 15, var difficulty: Int = 1) {
 
     var moves by mutableIntStateOf(0)
         private set
-    var winner by mutableIntStateOf(0)                    // 0 未分 / 1 玩家胜 / 2 AI 胜
+    var winner by mutableIntStateOf(0)                    // 0 未分 / 1 黑方 / 2 白方
         private set
     var winLine by mutableStateOf<List<Pair<Int, Int>>>(emptyList())
         private set
@@ -31,11 +31,13 @@ class GomokuGame(val size: Int = 15, var difficulty: Int = 1) {
     fun cell(r: Int, c: Int): Int = board[r][c]
 
     val finished: Boolean get() = winner != 0
-    /** 轮到玩家（黑）落子 */
-    val playerTurn: Boolean get() = winner == 0 && moves % 2 == 0
+    /** 轮到落子：人机 = 玩家（黑）；好友 = 任意一方（黑先白后轮流） */
+    val playerTurn: Boolean get() = winner == 0 && (!vsAi || moves % 2 == 0)
+    /** 当前该谁落子（好友对战用）："黑" / "白" */
+    val turnSide: String get() = if (moves % 2 == 0) "黑" else "白"
 
     fun playerPlace(r: Int, c: Int): Boolean =
-        if (playerTurn) place(r, c, 1) else false
+        if (playerTurn) place(r, c, if (vsAi) 1 else if (moves % 2 == 0) 1 else 2) else false
 
     private fun place(r: Int, c: Int, who: Int): Boolean {
         if (winner != 0 || r !in 0 until size || c !in 0 until size || board[r][c] != 0) return false
@@ -54,7 +56,7 @@ class GomokuGame(val size: Int = 15, var difficulty: Int = 1) {
 
     /** AI 走一步（界面在延时后调用，避免瞬间落子太突兀） */
     fun aiTurn() {
-        if (winner != 0 || moves % 2 == 0) {
+        if (!vsAi || winner != 0 || moves % 2 == 0) {
             thinking = false
             return
         }
@@ -66,16 +68,16 @@ class GomokuGame(val size: Int = 15, var difficulty: Int = 1) {
 
     /** 界面在延时等待 AI 落子前调用：显示"思考中"，期间悔棋可取消这次思考 */
     fun beginThinking() {
-        if (winner != 0 || moves % 2 == 0 || thinking) return
+        if (!vsAi || winner != 0 || moves % 2 == 0 || thinking) return
         thinking = true
         version++
     }
 
-    /** 悔棋：回到玩家上一手落子之前（电脑应的那手一并撤销），撤完必轮到玩家 */
+    /** 悔棋：人机回到自己上一手之前（电脑应的那手一并撤销）；好友模式撤一手 */
     fun undo() {
         if (history.isEmpty()) return
-        // 偶数手 = 电脑刚应过，连它那手一起撤；奇数手 = 我那手还没被应，只撤一手
-        var steps = if (moves % 2 == 0) 2 else 1
+        // 人机：偶数手 = 电脑刚应过，连它那手一起撤；奇数手 = 我那手还没被应，只撤一手。好友：撤一手
+        var steps = if (!vsAi) 1 else if (moves % 2 == 0) 2 else 1
         while (steps > 0 && history.isNotEmpty()) {
             val (r, c) = history.removeAt(history.size - 1)
             board[r][c] = 0

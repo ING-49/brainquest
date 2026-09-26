@@ -139,6 +139,17 @@ fun SnakeScreen(vm: AppViewModel, nav: NavHostController) {
             subtitle = "滑动屏幕转向 · 吃到豆子变长",
         )
 
+        // 操作按钮在上方（v1.6.12）：游戏区在下方，拇指滑动不挡按钮
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { paused = !paused },
+                enabled = !game.gameOver && game.started,
+            ) { Text(if (paused) "▶️ 继续" else "⏸ 暂停") }
+            OutlinedButton(onClick = {
+                game = SnakeGame(); rewarded = false; showResult = false; paused = false; newRecord = false
+            }) { Text("🔄 重开一局") }
+        }
+
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("🍎 得分 ${game.score}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             Text("速度 ${game.speedLabel}", style = MaterialTheme.typography.titleSmall)
@@ -261,15 +272,6 @@ fun SnakeScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = { paused = !paused },
-                enabled = !game.gameOver && game.started,
-            ) { Text(if (paused) "▶️ 继续" else "⏸ 暂停") }
-            OutlinedButton(onClick = {
-                game = SnakeGame(); rewarded = false; showResult = false; paused = false; newRecord = false
-            }) { Text("🔄 重开一局") }
-        }
         Text(
             "💡 滑动屏幕转向（禁止 180° 掉头）；分数越高速度越快，撞墙或咬到自己即结束。",
             style = MaterialTheme.typography.bodySmall,

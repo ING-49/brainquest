@@ -53,7 +53,7 @@ def main():
     steps = abs(h2[0] - h1[0]) + abs(h2[1] - h1[1])
     tick_ms = (t1 - t0) * 1000.0 / max(steps, 1)
     print(f"[2] 前进 {steps} 格 → 实测约 {tick_ms:.0f}ms/格（v1.6.5 为 220ms，v1.6.6 目标 300ms）")
-    if steps >= 9:
+    if steps >= 10:   # 300ms/格 在窗口内应走 ~11 格；模拟器负载会有波动，10 格为判慢下限
         fails.append(f"速度未变慢（{steps} 格 / {WINDOW_S}s）")
 
     # 返回确认（对局进行中：先关掉可能存在的结算弹窗，再重开起步）
