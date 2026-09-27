@@ -101,7 +101,7 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     Column(Modifier.padding(start = 14.dp).weight(1f).clickable { showRename = true }) {
                         Text(player.nickname, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Lv.${levelForXp(player.xp)} · 累计经验 ${player.xp} · 点头像换装，点昵称改名", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Lv.${levelForXp(player.xp)} · 累计经验 ${player.xp}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text(
                         "🪙 ${player.coins}",

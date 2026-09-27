@@ -272,12 +272,6 @@ fun SnakeScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        Text(
-            "💡 滑动屏幕转向（禁止 180° 掉头）；分数越高速度越快，撞墙或咬到自己即结束。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp),
-        )
 
         if (confirmExit) {
             AlertDialog(

@@ -184,12 +184,6 @@ fun ShopScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        Text(
-            "💡 经典表情头像在「我的 → 换装」免费更换；照片头像上传免费。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 10.dp),
-        )
     }
 
     pending?.let { p ->

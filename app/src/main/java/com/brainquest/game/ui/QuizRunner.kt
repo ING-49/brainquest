@@ -31,6 +31,7 @@ import com.brainquest.game.data.question.Question
 import com.brainquest.game.data.question.Subjects
 import com.brainquest.game.util.Sfx
 import com.brainquest.game.util.SfxType
+import com.brainquest.game.ui.BqProgressBar
 
 /**
  * 通用答题流：逐题作答、即时判分并展示解析。
@@ -74,8 +75,8 @@ fun QuizRunner(
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
             )
-            LinearProgressIndicator(
-                progress = { (index + 1).toFloat() / questions.size },
+            BqProgressBar(
+                progress = (index + 1).toFloat() / questions.size,
                 modifier = Modifier.weight(1f).padding(start = 10.dp).fillMaxWidth().padding(end = 8.dp).weight(1f, fill = false),
             )
         }

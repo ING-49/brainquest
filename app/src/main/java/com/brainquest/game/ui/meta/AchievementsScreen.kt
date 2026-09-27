@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +25,7 @@ import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.data.Achievements
 import com.brainquest.game.ui.PageHeader
+import com.brainquest.game.ui.BqProgressBar
 
 @Composable
 fun AchievementsScreen(vm: AppViewModel, nav: NavHostController) {
@@ -57,9 +57,10 @@ fun AchievementsScreen(vm: AppViewModel, nav: NavHostController) {
                         )
                     }
                 }
-                LinearProgressIndicator(
-                    progress = { if (total == 0) 0f else unlockedCount.toFloat() / total },
-                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(8.dp).clip(RoundedCornerShape(4.dp)),
+                BqProgressBar(
+                    progress = if (total == 0) 0f else unlockedCount.toFloat() / total,
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                    trackColor = MaterialTheme.colorScheme.surface,
                 )
             }
         }
@@ -91,9 +92,10 @@ fun AchievementsScreen(vm: AppViewModel, nav: NavHostController) {
                             if (!unlocked) {
                                 val p = def.progress?.invoke(player)
                                 if (p != null && p.second > 0 && p.first < p.second) {
-                                    LinearProgressIndicator(
-                                        progress = { (p.first.toFloat() / p.second).coerceIn(0f, 1f) },
-                                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                    BqProgressBar(
+                                        progress = (p.first.toFloat() / p.second).coerceIn(0f, 1f),
+                                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                        height = 6.dp,
                                     )
                                     Text(
                                         "${p.first.coerceAtMost(p.second)} / ${p.second}",

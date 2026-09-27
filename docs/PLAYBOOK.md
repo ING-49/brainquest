@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.14 (versionCode 39)
+- **当前版本**：v1.6.15 (versionCode 40)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -108,6 +108,9 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **自动化经验（v1.6.13）**：掩码口令框回读的是 • 点串，不能按明文比对校验输入落点（按「非空点串且长度≥输入值」判）；`release.py` 实际输出前缀为 `[pack]/[patch]/[manifest]`（无 "[verify]" 字样）
 - **商店改版（v1.6.14）**：三区（道具/主题/Q版头像）+ 购买确认弹窗 + vm.events 成功/金币不足 toast + 已拥有「使用中」徽标；主题 2 列色卡网格；头像区改卖 8 款 kawaii（120/枚，`kawaii_0` 体验款免费），经典 emoji 在「我的」免费（经济修正：Q 版需拥有才能装备）
 - **华容道出门动画（v1.6.14）**：移除旧出口高亮框（与门式出口重复）；胜利走纯 UI 路径——`solved` 后先 `exitAnim` 让曹操 `rowBias=1` 用 450ms 慢速滑出门洞（棋盘 clip 裁掉板外部分=钻门效果），650ms 后才结算弹窗；KlotskiGame 逻辑与 par 不动，`_klotski_solve_replay.py` 可 BFS 回放整关实测
+- **统一进度条（v1.6.15）**：material3 1.3 的 LinearProgressIndicator 未满时有 4dp 缺口+起点圆点（「分离感」）→ Common.kt 自绘 `BqProgressBar`（药丸 clip+轨道+按比例填充），全项目确定态进度条统一换用（血条/计时/经验/成就/下载），不定态加载条保留 M3
+- **华容道出门两段式（v1.6.15）**：solved → 原地停顿 550ms → 450ms 滑出门洞 → 结算弹窗（节奏三拍：到达确认→出门→结算）
+- **成品化精简（v1.6.15）**：删 华容道/五子棋×2/贪吃蛇 的 💡 提示段与商店底部说明，我的页副文案缩短；一话副标题保留
 - **成就进度可视化（v1.6.14）**：`AchievementDef` 加可选 `progress: (PlayerState)->Pair<Int,Int>`（注意尾随 lambda 会绑到最后一个参数，多行闭包须写 `check = {}` 命名参数）；成就墙顶部解锁率头卡 + 未解锁成就进度条
 - **科目注册**：`data/question/Question.kt` 里的 `object Subjects`（10 个科目的名称与 `all` 列表）+ `data/Achievements.kt` 的 `subjectKey()`（科目 → 存档 key 前缀）+ 科目卡颜色（`ui/LevelsScreen.kt` 的 `subjectColor`）
 - **存档**：DataStore 单键 JSON（PlayerState），换版本自动兼容（新字段有默认值）
