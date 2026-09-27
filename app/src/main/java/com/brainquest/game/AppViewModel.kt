@@ -286,22 +286,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun buyItem(id: String): Boolean {
         val def = Items.byId(id)
-        if (!spendCoins(def.price)) return false
+        if (!spendCoins(def.price)) {
+            _events.tryEmit("🪙 金币不足，还差 ${def.price - _player.value.coins}")
+            return false
+        }
         addItem(id)
+        _events.tryEmit("✅ 已购入 ${def.name}（持有 ${_player.value.items[def.id] ?: 1}）")
         return true
     }
 
     fun buyTheme(id: String, price: Int): Boolean {
         if (_player.value.ownedThemes.contains(id)) return false
-        if (!spendCoins(price)) return false
+        if (!spendCoins(price)) {
+            _events.tryEmit("🪙 金币不足，还差 ${price - _player.value.coins}")
+            return false
+        }
         commit { it.copy(ownedThemes = it.ownedThemes + id) }
+        _events.tryEmit("✅ 主题已购入，点击卡片即可启用")
         return true
     }
 
-    fun buyAvatar(emoji: String, price: Int): Boolean {
+    fun buyAvatar(emoji: String, price: Int, label: String = emoji): Boolean {
         if (_player.value.ownedAvatars.contains(emoji)) return false
-        if (!spendCoins(price)) return false
+        if (!spendCoins(price)) {
+            _events.tryEmit("🪙 金币不足，还差 ${price - _player.value.coins}")
+            return false
+        }
         commit { it.copy(ownedAvatars = it.ownedAvatars + emoji) }
+        _events.tryEmit("✅ 已购入头像「$label」并装备")
         return true
     }
 

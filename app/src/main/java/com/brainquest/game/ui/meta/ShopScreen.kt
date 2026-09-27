@@ -1,42 +1,65 @@
 package com.brainquest.game.ui.meta
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.data.Items
 import com.brainquest.game.ui.PageHeader
+import com.brainquest.game.ui.coinColor
+import com.brainquest.game.ui.components.KawaiiAvatar
 import com.brainquest.game.ui.theme.AppThemes
 
-private val avatars = listOf("🧑‍🎓", "🐻", "🐱", "🦊", "🐼", "🦁", "🐸", "🐵", "🦉", "🤖", "👻", "🧙")
+private const val KAWAII_PRICE = 120
 
+private val KAWAII_NAMES = listOf("樱粉", "蓝蓝", "香芋", "抹茶", "奶黄", "薄荷", "草莓", "奶咖")
+
+private data class PendingPurchase(val kind: String, val id: String, val label: String, val price: Int)
+
+/** 商店：道具 / 主题 / Q 版头像。购买先弹确认框，成功走 vm.events toast，已拥有走「使用中」徽标。 */
 @Composable
 fun ShopScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
+    var pending by remember { mutableStateOf<PendingPurchase?>(null) }
+
+    fun onConfirm(p: PendingPurchase) {
+        when (p.kind) {
+            "item" -> vm.buyItem(p.id)
+            "theme" -> if (vm.buyTheme(p.id, p.price)) vm.setTheme(p.id)
+            "avatar" -> if (vm.buyAvatar(p.id, p.price, p.label)) vm.setAvatar(p.id)
+        }
+    }
 
     Column(
         Modifier
@@ -46,9 +69,10 @@ fun ShopScreen(vm: AppViewModel, nav: NavHostController) {
     ) {
         PageHeader("🛒 商店", onBack = { nav.popBackStack() }, subtitle = "持有金币 ${player.coins}")
 
-        // 道具
-        Text("🎒 道具", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 6.dp))
+        // ---------- 道具 ----------
+        Text("🧰 道具", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 6.dp))
         Items.all.forEach { def ->
+            val shortage = player.coins < def.price
             Card(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -58,68 +82,137 @@ fun ShopScreen(vm: AppViewModel, nav: NavHostController) {
                     Column(Modifier.weight(1f).padding(start = 10.dp)) {
                         Text("${def.name}（持有 ${player.items[def.id] ?: 0}）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(def.desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (shortage) {
+                            Text("🪙 金币不足，还差 ${def.price - player.coins}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                        }
                     }
-                    Button(onClick = { vm.buyItem(def.id) }, enabled = player.coins >= def.price) {
-                        Text("🪙 ${def.price}")
-                    }
+                    OutlinedButton(
+                        onClick = { pending = PendingPurchase("item", def.id, def.name, def.price) },
+                        enabled = !shortage,
+                    ) { Text("🪙 ${def.price}") }
                 }
             }
         }
 
-        // 主题
+        // ---------- 主题（2 列网格，色卡预览） ----------
         Text("🎨 主题", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AppThemes.all.forEach { theme ->
-                val owned = player.ownedThemes.contains(theme.id)
-                val active = player.activeTheme == theme.id
-                OutlinedButton(
-                    onClick = {
-                        if (owned) vm.setTheme(theme.id) else if (vm.buyTheme(theme.id, theme.price)) vm.setTheme(theme.id)
-                    },
-                ) {
-                    Text(
-                        if (active) "✅${theme.name}" else if (owned) theme.name else "${theme.name} ${theme.price}",
-                    )
+        AppThemes.all.chunked(2).forEach { rowThemes ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowThemes.forEach { theme ->
+                    val owned = player.ownedThemes.contains(theme.id)
+                    val active = player.activeTheme == theme.id
+                    Card(
+                        onClick = {
+                            if (owned) vm.setTheme(theme.id)
+                            else pending = PendingPurchase("theme", theme.id, theme.name, theme.price)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (active) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
+                    ) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier
+                                    .size(28.dp)
+                                    .background(theme.seed, CircleShape)
+                                    .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                            )
+                            Column(Modifier.padding(start = 10.dp).weight(1f)) {
+                                Text(theme.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                Text(
+                                    when {
+                                        active -> "✅ 使用中"
+                                        owned -> "点击启用"
+                                        else -> "🪙 ${theme.price}"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
                 }
+                if (rowThemes.size == 1) Box(Modifier.weight(1f))
             }
         }
 
-        // 头像
-        Text("😀 头像", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(6),
-            modifier = Modifier.fillMaxWidth().height(((avatars.size / 6 + 1) * 74).dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            items(avatars) { emoji ->
-                val owned = player.ownedAvatars.contains(emoji)
-                val active = player.avatar == emoji
-                Card(
-                    onClick = {
-                        if (owned) vm.setAvatar(emoji) else if (vm.buyAvatar(emoji, 100)) vm.setAvatar(emoji)
-                    },
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (active) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
-                ) {
-                    Column(
-                        Modifier.padding(6.dp).fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+        // ---------- Q 版头像（kawaii_0 体验款免费，其余 120） ----------
+        Text("👤 Q 版头像", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp, bottom = 2.dp))
+        Text(
+            "8 款马卡龙 Q 版，购买后在「我的 → 换装」里随时切换",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        KAWAII_NAMES.indices.chunked(4).forEach { rowIds ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                rowIds.forEach { v ->
+                    val id = "kawaii_$v"
+                    val owned = player.ownedAvatars.contains(id) || v == 0   // kawaii_0 体验款
+                    val active = player.avatar == id
+                    Card(
+                        onClick = {
+                            if (owned) vm.setAvatar(id)
+                            else pending = PendingPurchase("avatar", id, KAWAII_NAMES[v], KAWAII_PRICE)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (active) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
                     ) {
-                        Text(emoji, style = MaterialTheme.typography.headlineSmall)
-                        Text(
-                            when {
-                                active -> "使用中"
-                                owned -> "点击"
-                                else -> "🪙100"
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                        Column(
+                            Modifier.padding(8.dp).fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            KawaiiAvatar(variant = v, size = 44.dp)
+                            Text(KAWAII_NAMES[v], style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            Text(
+                                when {
+                                    active -> "使用中"
+                                    owned -> "免费"
+                                    else -> "🪙$KAWAII_PRICE"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
+                repeat(4 - rowIds.size) { Box(Modifier.weight(1f)) }
             }
         }
+
+        Text(
+            "💡 经典表情头像在「我的 → 换装」免费更换；照片头像上传免费。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 10.dp),
+        )
+    }
+
+    pending?.let { p ->
+        AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { Text("确认购买") },
+            text = {
+                Column {
+                    Text("「${p.label}」", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("价格：🪙 ${p.price}", modifier = Modifier.padding(top = 6.dp))
+                    Text("余额：🪙 ${player.coins}", color = if (player.coins >= p.price) coinColor else MaterialTheme.colorScheme.error)
+                    if (player.coins < p.price) {
+                        Text("🪙 金币不足，还差 ${p.price - player.coins}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { onConfirm(p); pending = null },
+                    enabled = player.coins >= p.price,
+                ) { Text("确认购买") }
+            },
+            dismissButton = { TextButton(onClick = { pending = null }) { Text("取消") } },
+        )
     }
 }

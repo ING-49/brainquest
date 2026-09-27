@@ -57,14 +57,13 @@ import com.brainquest.game.ui.PageHeader
 import com.brainquest.game.util.Sfx
 import com.brainquest.game.util.SfxType
 import kotlin.math.abs
+import kotlinx.coroutines.delay
 
 // 浅色棋盘 + 高饱和棋子：拉开底色与棋子对比（原来深棕底 + 深棕卒几乎糊在一起）
 private val BOARD_BG = Color(0xFFF3E7D3)
 private val BOARD_EDGE = Color(0xFF8D6E63)
 private val CELL_WELL = Color(0x14000000)
-private val EXIT_BG = Color(0x33FFB300)
 private val EXIT_EDGE = Color(0xFFFB8C00)
-private val EXIT_TEXT = Color(0xFFE65100)
 private val DOOR_GROUND = Color(0xFFFBEDCB)   // 门外地面：不透明浅暖色，用于门洞缺口与板外延伸
 private val PIECE_EDGE = Color(0x40FFFFFF)
 private val SELECT_RING = Color(0xFFFFB300)
@@ -75,6 +74,7 @@ private val PAWN_COLOR = Color(0xFF6D4C41)
 
 private val MOVE_MS = 150
 private val DRAG_MS = 70
+private val EXIT_MS = 450
 
 /** 华容道：滑动棋子把曹操移到底部中央出口（步数越少越好） */
 @Composable
@@ -87,13 +87,16 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
     var showWin by remember { mutableStateOf(false) }
     var newRecord by remember { mutableStateOf(false) }
     var rewarded by remember { mutableStateOf(false) }
+    var exitAnim by remember { mutableStateOf(false) }   // 曹操滑出门洞的出场动画（结算前播放）
 
     val g = game
     val lv = level
 
-    // 通关结算（只发一次奖励）
+    // 通关：先播曹操滑出门洞的动画，再结算发奖弹窗
     LaunchedEffect(g, g?.solved) {
         if (g != null && g.solved && !rewarded && lv != null) {
+            exitAnim = true
+            delay(650)
             rewarded = true
             val key = "hrd_${lv.id}"
             newRecord = vm.reportBestLow(key, g.moves)
@@ -120,7 +123,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
         if (g != null && lv != null) {
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
-                    g.reset(); rewarded = false; showWin = false; newRecord = false
+                    g.reset(); rewarded = false; showWin = false; newRecord = false; exitAnim = false
                     Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
                 }) { Text("🔄 重新开始") }
                 OutlinedButton(onClick = { game = null; level = null }) { Text("🗺️ 换一关") }
@@ -136,7 +139,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                         modifier = Modifier.fillMaxWidth().clickable {
                             level = l
                             game = KlotskiGame(l)
-                            rewarded = false; showWin = false; newRecord = false
+                            rewarded = false; showWin = false; newRecord = false; exitAnim = false
                             Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
                         },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -224,18 +227,6 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                         )
                     }
                 }
-                // 出口（底部中央两格）
-                Box(
-                    Modifier
-                        .offset(x = cell * KlotskiLevels.EXIT_COL + 3.dp, y = cell * KlotskiLevels.EXIT_ROW + 3.dp)
-                        .size(cell * 2 - 6.dp, cell - 6.dp)
-                        .background(EXIT_BG, RoundedCornerShape(8.dp))
-                        .border(BorderStroke(2.dp, EXIT_EDGE), RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("出口", color = EXIT_TEXT, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                }
-
                 g.snapshot().forEach { b ->
                     key(b.id) {
                         KlotskiBlock(
@@ -244,6 +235,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                             cellPx = cellPx,
                             thresholdPx = thresholdPx,
                             selected = selected == b.id,
+                            rowBias = if (exitAnim && b.name == KlotskiLevels.CAO_NAME) 1 else 0,
                             onSelect = {
                                 g.select(b.id)
                                 Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.SELECT)
@@ -318,7 +310,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                             showWin = false
                             level = next
                             game = KlotskiGame(next)
-                            rewarded = false; newRecord = false
+                            rewarded = false; newRecord = false; exitAnim = false
                         }) { Text("下一关：${next.name}") }
                     } else {
                         Button(onClick = { showWin = false; game = null; level = null }) { Text("返回选关") }
@@ -328,7 +320,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                     OutlinedButton(onClick = {
                         showWin = false
                         g.reset()
-                        rewarded = false; newRecord = false
+                        rewarded = false; newRecord = false; exitAnim = false
                     }) { Text("再来一次") }
                 },
             )
@@ -351,6 +343,7 @@ private fun KlotskiBlock(
     selected: Boolean,
     onSelect: () -> Unit,
     onTryMove: (Int, Int) -> Boolean,
+    rowBias: Int = 0,   // 出场动画：胜利后曹操向下多画一格（滑出门洞）
 ) {
     val density = LocalDensity.current
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
@@ -365,14 +358,14 @@ private fun KlotskiBlock(
     }
 
     // 拖动中缩短过渡时间，跟手更紧；落格/回弹用稍长一点，滑行更柔和
-    val moveSpec = tween<Dp>(if (dragging) DRAG_MS else MOVE_MS, easing = FastOutSlowInEasing)
+    val moveSpec = tween<Dp>(if (dragging) DRAG_MS else if (rowBias != 0) EXIT_MS else MOVE_MS, easing = FastOutSlowInEasing)
     val x by animateDpAsState(
         targetValue = cell * block.col + 4.dp + with(density) { dragOffset.x.toDp() },
         animationSpec = moveSpec,
         label = "blockX",
     )
     val y by animateDpAsState(
-        targetValue = cell * block.row + 4.dp + with(density) { dragOffset.y.toDp() },
+        targetValue = cell * (block.row + rowBias) + 4.dp + with(density) { dragOffset.y.toDp() },
         animationSpec = moveSpec,
         label = "blockY",
     )
