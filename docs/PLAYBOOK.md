@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.15 (versionCode 40)
+- **当前版本**：v1.6.16 (versionCode 41)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -110,6 +110,9 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **华容道出门动画（v1.6.14）**：移除旧出口高亮框（与门式出口重复）；胜利走纯 UI 路径——`solved` 后先 `exitAnim` 让曹操 `rowBias=1` 用 450ms 慢速滑出门洞（棋盘 clip 裁掉板外部分=钻门效果），650ms 后才结算弹窗；KlotskiGame 逻辑与 par 不动，`_klotski_solve_replay.py` 可 BFS 回放整关实测
 - **统一进度条（v1.6.15）**：material3 1.3 的 LinearProgressIndicator 未满时有 4dp 缺口+起点圆点（「分离感」）→ Common.kt 自绘 `BqProgressBar`（药丸 clip+轨道+按比例填充），全项目确定态进度条统一换用（血条/计时/经验/成就/下载），不定态加载条保留 M3
 - **华容道出门两段式（v1.6.15）**：solved → 原地停顿 550ms → 450ms 滑出门洞 → 结算弹窗（节奏三拍：到达确认→出门→结算）
+- **金币图标与动效（v1.6.16）**：🪙 是 Unicode 13 新表情，老设备字体缺失显示方框 → Common.kt 自绘 `CoinIcon`/`CoinText`（Canvas 琥珀币），全项目替换；商店购买后余额 AnimatedContent 上滑刷新 + 扣款浮字上飘渐隐（FloatingCoinDelta）
+- **StatChip 三层（v1.6.16）**：统计卡改 图标/数值/文字 纵向三层（value maxLines=1），四卡等宽不再折行
+- **大厅层级（v1.6.16）**：欢迎卡渐变底；签到降普通底色，每日挑战升 primaryContainer 高亮横幅；小游戏卡 emoji 加圆角色块底
 - **成品化精简（v1.6.15）**：删 华容道/五子棋×2/贪吃蛇 的 💡 提示段与商店底部说明，我的页副文案缩短；一话副标题保留
 - **成就进度可视化（v1.6.14）**：`AchievementDef` 加可选 `progress: (PlayerState)->Pair<Int,Int>`（注意尾随 lambda 会绑到最后一个参数，多行闭包须写 `check = {}` 命名参数）；成就墙顶部解锁率头卡 + 未解锁成就进度条
 - **科目注册**：`data/question/Question.kt` 里的 `object Subjects`（10 个科目的名称与 `all` 列表）+ `data/Achievements.kt` 的 `subjectKey()`（科目 → 存档 key 前缀）+ 科目卡颜色（`ui/LevelsScreen.kt` 的 `subjectColor`）

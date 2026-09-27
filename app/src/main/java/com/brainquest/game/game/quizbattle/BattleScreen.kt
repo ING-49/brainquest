@@ -205,7 +205,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
             )
             Text("❤️ ${battle.playerHp}", style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.size(8.dp))
-            Text("🪙${player.coins}", style = MaterialTheme.typography.labelLarge)
+            com.brainquest.game.ui.CoinText(player.coins, style = MaterialTheme.typography.labelLarge)
         }
 
         // 伤害飘字

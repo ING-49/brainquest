@@ -287,7 +287,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun buyItem(id: String): Boolean {
         val def = Items.byId(id)
         if (!spendCoins(def.price)) {
-            _events.tryEmit("🪙 金币不足，还差 ${def.price - _player.value.coins}")
+            _events.tryEmit("金币不足，还差 ${def.price - _player.value.coins}")
             return false
         }
         addItem(id)
@@ -298,7 +298,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun buyTheme(id: String, price: Int): Boolean {
         if (_player.value.ownedThemes.contains(id)) return false
         if (!spendCoins(price)) {
-            _events.tryEmit("🪙 金币不足，还差 ${price - _player.value.coins}")
+            _events.tryEmit("金币不足，还差 ${price - _player.value.coins}")
             return false
         }
         commit { it.copy(ownedThemes = it.ownedThemes + id) }
@@ -309,7 +309,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun buyAvatar(emoji: String, price: Int, label: String = emoji): Boolean {
         if (_player.value.ownedAvatars.contains(emoji)) return false
         if (!spendCoins(price)) {
-            _events.tryEmit("🪙 金币不足，还差 ${price - _player.value.coins}")
+            _events.tryEmit("金币不足，还差 ${price - _player.value.coins}")
             return false
         }
         commit { it.copy(ownedAvatars = it.ownedAvatars + emoji) }

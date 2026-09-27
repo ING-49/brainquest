@@ -1,9 +1,11 @@
 package com.brainquest.game.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.Arrangement
@@ -56,6 +58,7 @@ fun PageHeader(title: String, onBack: () -> Unit, subtitle: String = "") {
     }
 }
 
+/** 统计卡：三层结构（图标 / 数值 / 文字），数值单行不折行 */
 @Composable
 fun StatChip(emoji: String, label: String, value: String, modifier: Modifier = Modifier) {
     Card(
@@ -63,15 +66,39 @@ fun StatChip(emoji: String, label: String, value: String, modifier: Modifier = M
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(emoji, style = MaterialTheme.typography.titleMedium)
-                Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(emoji, style = MaterialTheme.typography.titleLarge)
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
+    }
+}
+
+/** 金币图标：代码绘制（🪙 属较新 emoji，部分设备字体缺失会显示为方框） */
+@Composable
+fun CoinIcon(size: Dp = 16.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val r = this.size.minDimension / 2f
+        drawCircle(Color(0xFFFBBF24), radius = r)
+        drawCircle(Color(0xFFD97706), radius = r * 0.82f, style = Stroke(width = r * 0.16f))
+        drawCircle(Color(0xFFFDE68A), radius = r * 0.4f)
+    }
+}
+
+/** 金币行：图标 + 数值（替代 "🪙 N" 文本拼接，图标随文字大小缩放） */
+@Composable
+fun CoinText(
+    amount: Int,
+    modifier: Modifier = Modifier,
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.labelLarge,
+    fontWeight: FontWeight? = FontWeight.Bold,
+    color: Color = Color.Unspecified,
+) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        CoinIcon(size = (style.fontSize.value * 0.95f).dp)
+        Text("$amount", style = style, fontWeight = fontWeight, color = color)
     }
 }
 
