@@ -2,6 +2,7 @@ package com.brainquest.game.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +35,11 @@ import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.data.Items
 import com.brainquest.game.data.levelForXp
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.brainquest.game.ui.CoinText
 
 @Composable
 fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
@@ -50,9 +56,22 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 顶部欢迎卡
+        // 顶部欢迎卡（渐变底，与「我的」玩家卡同语言）
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
+            Column(
+                Modifier
+                    .padding(2.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.surfaceContainerLow,
+                            ),
+                        ),
+                        RoundedCornerShape(12.dp),
+                    )
+                    .padding(14.dp),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AvatarBadge(player.avatar)
                     Column(Modifier.padding(start = 12.dp).weight(1f)) {
@@ -63,16 +82,16 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    StatChip("🪙", "金币", "${player.coins}")
+                    CoinText(player.coins, style = MaterialTheme.typography.titleMedium)
                 }
                 XpBar(player.xp, Modifier.padding(top = 10.dp))
             }
         }
 
-        // 签到
+        // 签到（次要功能：普通底色）
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         ) {
             Row(
                 Modifier.padding(14.dp).fillMaxWidth(),
@@ -92,12 +111,12 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // 每日挑战
+        // 每日挑战（主推日常玩法：高亮横幅）
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { nav.navigate(Routes.DAILY) },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         ) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("🎯", style = MaterialTheme.typography.headlineMedium)
@@ -123,8 +142,13 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                     },
             ) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("⚔️", style = MaterialTheme.typography.headlineLarge)
-                    Text("速算英雄", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Box(
+                        Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("⚔️", style = MaterialTheme.typography.headlineSmall) }
+                    Text("速算英雄", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
                     Text("答题战斗闯关", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -134,8 +158,13 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                     .clickable { nav.navigate(Routes.KLOTSKI) },
             ) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("🧱", style = MaterialTheme.typography.headlineLarge)
-                    Text("华容道", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Box(
+                        Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("🧱", style = MaterialTheme.typography.headlineSmall) }
+                    Text("华容道", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
                     Text("滑动移块救曹操", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -147,8 +176,13 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                     .clickable { nav.navigate(Routes.GOMOKU) },
             ) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("⚫", style = MaterialTheme.typography.headlineLarge)
-                    Text("五子棋", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Box(
+                        Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("⚫", style = MaterialTheme.typography.headlineSmall) }
+                    Text("五子棋", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
                     Text("挑战电脑棋力", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -158,8 +192,13 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                     .clickable { nav.navigate(Routes.SNAKE) },
             ) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("🐍", style = MaterialTheme.typography.headlineLarge)
-                    Text("贪吃蛇", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Box(
+                        Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("🐍", style = MaterialTheme.typography.headlineSmall) }
+                    Text("贪吃蛇", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
                     Text("滑动吃豆变长", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

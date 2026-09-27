@@ -107,7 +107,7 @@ fun AchievementsScreen(vm: AppViewModel, nav: NavHostController) {
                             }
                         }
                         Text(
-                            if (unlocked) "✅" else "+${def.reward}🪙",
+                            if (unlocked) "✅" else "+${def.reward} 金币",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                         )

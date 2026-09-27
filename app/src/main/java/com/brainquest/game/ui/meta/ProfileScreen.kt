@@ -103,11 +103,9 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
                         Text(player.nickname, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text("Lv.${levelForXp(player.xp)} · 累计经验 ${player.xp}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(
-                        "🪙 ${player.coins}",
+                    com.brainquest.game.ui.CoinText(
+                        player.coins,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = com.brainquest.game.ui.coinColor,
                     )
                 }
                 XpBar(player.xp, Modifier.padding(top = 10.dp))
