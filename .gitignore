@@ -35,3 +35,5 @@ tools/_shots_*/
 tools/_ui_raw.xml
 tools/_cloud_flow_*
 update-server/save_owners.json
+update-server/_uploaded.txt
+update-server/_missing.txt
