@@ -67,6 +67,7 @@ import com.brainquest.game.ui.PageHeader
 import com.brainquest.game.util.Sfx
 import com.brainquest.game.util.SfxType
 import kotlinx.coroutines.delay
+import com.brainquest.game.ui.BqProgressBar
 
 private const val QUESTION_TIME_MS = 15_000L
 private const val PK_QUESTION_COUNT = 10
@@ -814,8 +815,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("对手进度：$peerAnswered/${questions.size} 题（答对 $peerCorrect）",
                                 style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            LinearProgressIndicator(
-                                progress = { peerAnswered.toFloat() / questions.size },
+                            BqProgressBar(
+                                progress = peerAnswered.toFloat() / questions.size,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             Text(status, style = MaterialTheme.typography.bodySmall,
@@ -864,9 +865,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
                                 color = if (peerLost) Color(0xFFC62828) else Color.Unspecified)
                         }
-                        LinearProgressIndicator(
-                            progress = { (timeLeftMs.toFloat() / QUESTION_TIME_MS).coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth().height(6.dp),
+                        BqProgressBar(
+                            progress = (timeLeftMs.toFloat() / QUESTION_TIME_MS).coerceIn(0f, 1f),
+                            modifier = Modifier.fillMaxWidth(),
+                            height = 6.dp,
                         )
                         Card(Modifier.fillMaxWidth().padding(vertical = 10.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {

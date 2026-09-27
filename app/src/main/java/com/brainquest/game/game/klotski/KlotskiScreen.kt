@@ -95,6 +95,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
     // 通关：先播曹操滑出门洞的动画，再结算发奖弹窗
     LaunchedEffect(g, g?.solved) {
         if (g != null && g.solved && !rewarded && lv != null) {
+            delay(550)      // 先在出口停顿一下（到达的确认感），再滑出去
             exitAnim = true
             delay(650)
             rewarded = true
@@ -284,13 +285,6 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
             )
         }
 
-        Text(
-            "💡 提示：曹操（红块）需滑到下方出口；把挡路的竖将上下腾挪、横将左右移动来开路。" +
-                "大块不好滑时，先点一下棋子，再在棋盘任意位置滑动即可。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 10.dp),
-        )
 
         if (showWin) {
             AlertDialog(

@@ -247,12 +247,6 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                 onReset = { startGame("friend") },
                 rotated = false,
             )
-            Text(
-                "💡 两人对坐：上方信息已倒置，方便对面的人阅读。轮到谁，谁的信息条会亮起。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
         } else {
             // ---------- 人机对战：操作按钮在上方，不挡手 ----------
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -302,13 +296,6 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
             ) {
                 GomokuBoard(game, pop, context, player, friendMode)
             }
-            Text(
-                "💡 电脑棋力：简单（会走神）/ 普通（攻守均衡）/ 困难（带两步预判）。" +
-                    "悔棋会回到你上一手落子之前（电脑应的那手一并撤销）。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
         }
 
         if (confirmExit) {

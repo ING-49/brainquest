@@ -42,6 +42,7 @@ import com.brainquest.game.update.UpdateManager
 import com.brainquest.game.update.UpdateManifest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.brainquest.game.ui.BqProgressBar
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -338,8 +339,8 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                 }
 
                 progress?.let {
-                    LinearProgressIndicator(
-                        progress = { it },
+                    BqProgressBar(
+                        progress = it,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
                 }

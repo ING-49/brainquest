@@ -64,6 +64,7 @@ import com.brainquest.game.util.Sfx
 import com.brainquest.game.util.SfxType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.brainquest.game.ui.BqProgressBar
 
 @Composable
 fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, level: Int) {
@@ -175,10 +176,11 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
                             Text("🔥 连击 x${battle.combo}", color = Color(0xFFE65100), style = MaterialTheme.typography.labelLarge)
                         }
                     }
-                    LinearProgressIndicator(
-                        progress = { battle.enemyHp.toFloat() / battle.enemyHpMax },
-                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(10.dp),
+                    BqProgressBar(
+                        progress = battle.enemyHp.toFloat() / battle.enemyHpMax,
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                         color = Color(0xFFE53935),
+                        height = 10.dp,
                     )
                     Text(
                         "HP ${battle.enemyHp} / ${battle.enemyHpMax}",
@@ -195,10 +197,11 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("🧑‍⚔️${player.nickname}", style = MaterialTheme.typography.labelLarge)
-            LinearProgressIndicator(
-                progress = { battle.playerHp / 100f },
-                modifier = Modifier.weight(1f).padding(horizontal = 10.dp).height(10.dp),
+            BqProgressBar(
+                progress = battle.playerHp / 100f,
+                modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
                 color = Color(0xFF43A047),
+                height = 10.dp,
             )
             Text("❤️ ${battle.playerHp}", style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.size(8.dp))
@@ -235,9 +238,10 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
                         color = if (timeLeft <= 5) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                LinearProgressIndicator(
-                    progress = { timeLeft.toFloat() / battle.timeLimitSec },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).height(4.dp),
+                BqProgressBar(
+                    progress = timeLeft.toFloat() / battle.timeLimitSec,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    height = 4.dp,
                 )
                 Text(
                     battle.question?.question ?: "",

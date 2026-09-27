@@ -10,16 +10,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -86,12 +88,36 @@ fun XpBar(xp: Int, modifier: Modifier = Modifier) {
             Text("Lv.$level ${"小勇者"}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             Text("$cur / $need EXP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        LinearProgressIndicator(
-            progress = { if (need == 0) 1f else cur.toFloat() / need },
+        BqProgressBar(
+            progress = if (need == 0) 1f else cur.toFloat() / need,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 4.dp)
-                .height(8.dp),
+                .padding(top = 4.dp),
+            height = 8.dp,
+        )
+    }
+}
+
+/** 统一进度条：药丸圆角、无缺口（M3 自带条在未满时有断层感），进度变化处直接换用本组件 */
+@Composable
+fun BqProgressBar(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    height: Dp = 8.dp,
+) {
+    Box(
+        modifier
+            .height(height)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(height / 2))
+            .background(trackColor),
+    ) {
+        Box(
+            Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .background(color),
         )
     }
 }
