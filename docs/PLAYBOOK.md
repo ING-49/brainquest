@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.13 (versionCode 38)
+- **当前版本**：v1.6.14 (versionCode 39)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -106,6 +106,9 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **华容道单步+门式出口（v1.6.13）**：块级拖动加 `stepped` 锁——一次手势只走一步（走过即忽略后续拖动，松手重置）；出口改为「墙上开的门」：底边框在出口两格断开（DOOR_GROUND 缺口）+ 门柱探出板外 + 门外地面延伸
 - **云存档独立页（v1.6.13）**：设置页只留一行入口 → `CloudSaveScreen`（存档码/身份码+📋复制/上传/下载恢复/删除）；口令改为上传/下载时弹窗输入、不落盘；**弹窗每次打开必须清空口令/恢复输入**（screen 级 remember 跨弹窗残留曾致口令累加 test1234test1234 的事故）
 - **自动化经验（v1.6.13）**：掩码口令框回读的是 • 点串，不能按明文比对校验输入落点（按「非空点串且长度≥输入值」判）；`release.py` 实际输出前缀为 `[pack]/[patch]/[manifest]`（无 "[verify]" 字样）
+- **商店改版（v1.6.14）**：三区（道具/主题/Q版头像）+ 购买确认弹窗 + vm.events 成功/金币不足 toast + 已拥有「使用中」徽标；主题 2 列色卡网格；头像区改卖 8 款 kawaii（120/枚，`kawaii_0` 体验款免费），经典 emoji 在「我的」免费（经济修正：Q 版需拥有才能装备）
+- **华容道出门动画（v1.6.14）**：移除旧出口高亮框（与门式出口重复）；胜利走纯 UI 路径——`solved` 后先 `exitAnim` 让曹操 `rowBias=1` 用 450ms 慢速滑出门洞（棋盘 clip 裁掉板外部分=钻门效果），650ms 后才结算弹窗；KlotskiGame 逻辑与 par 不动，`_klotski_solve_replay.py` 可 BFS 回放整关实测
+- **成就进度可视化（v1.6.14）**：`AchievementDef` 加可选 `progress: (PlayerState)->Pair<Int,Int>`（注意尾随 lambda 会绑到最后一个参数，多行闭包须写 `check = {}` 命名参数）；成就墙顶部解锁率头卡 + 未解锁成就进度条
 - **科目注册**：`data/question/Question.kt` 里的 `object Subjects`（10 个科目的名称与 `all` 列表）+ `data/Achievements.kt` 的 `subjectKey()`（科目 → 存档 key 前缀）+ 科目卡颜色（`ui/LevelsScreen.kt` 的 `subjectColor`）
 - **存档**：DataStore 单键 JSON（PlayerState），换版本自动兼容（新字段有默认值）
 - **考研模式**：`PlayerState.hardMode` → 设置开关。每日挑战走 `pickDaily`（开=大学五科 60% 真题+40% 难度4，关=基础五科难度2）；闯关/战斗 v1.6.0 起同样联动（`BattleState(subject, level, hardMode=…)`，非数学/逻辑科目走 `pickKaoyanBattleExcluding` 真题+高难并去重），战斗页标题带 🎓 徽标

@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -80,16 +81,34 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
         }
 
         ElevatedCard(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
+            Column(
+                Modifier
+                    .padding(2.dp)   // 露出卡片圆角内的渐变描边
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.surfaceContainerLow,
+                            ),
+                        ),
+                        androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    )
+                    .padding(14.dp),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.clickable { showAvatarPicker = true }) {
                         AvatarBadge(player.avatar, 64)
                     }
                     Column(Modifier.padding(start = 14.dp).weight(1f).clickable { showRename = true }) {
                         Text(player.nickname, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Lv.${levelForXp(player.xp)} · 累计经验 ${player.xp} · 点击头像换装，点击昵称改名", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Lv.${levelForXp(player.xp)} · 累计经验 ${player.xp} · 点头像换装，点昵称改名", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    StatChip("🪙", "金币", "${player.coins}")
+                    Text(
+                        "🪙 ${player.coins}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = com.brainquest.game.ui.coinColor,
+                    )
                 }
                 XpBar(player.xp, Modifier.padding(top = 10.dp))
             }
@@ -108,10 +127,8 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
         MenuCard("⚙️ 设置与更新", "音效 · 震动 · 热更新 · APK升级") { nav.navigate(Routes.SETTINGS) }
 
         if (showAvatarPicker) {
-            val kawaii = listOf(
-                "kawaii_0", "kawaii_1", "kawaii_2", "kawaii_3",
-                "kawaii_4", "kawaii_5", "kawaii_6", "kawaii_7",
-            )
+            // Q 版头像需拥有才能选（kawaii_0 为体验款人人可用），其余可在商店购入
+            val ownedKawaii = (listOf("kawaii_0") + player.ownedAvatars.filter { it.startsWith("kawaii_") }).distinct()
             val classic = listOf("🧑‍🎓", "🐻", "🐱", "🦊", "🐼", "🦁", "🐸", "🐵", "🦉", "🤖", "👻", "🧙")
             val ctx2 = androidx.compose.ui.platform.LocalContext.current
             val customFiles = remember {
@@ -124,11 +141,18 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
                 text = {
                     Column {
                         Text("✨ Q 版头像", style = MaterialTheme.typography.labelLarge)
+                        if (ownedKawaii.size < 8) {
+                            Text(
+                                "还有 ${8 - ownedKawaii.size} 款在商店等你 · 🛒",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(4),
                             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                         ) {
-                            items(kawaii) { id ->
+                            items(ownedKawaii) { id ->
                                 val sel = player.avatar == id
                                 Box(
                                     Modifier
