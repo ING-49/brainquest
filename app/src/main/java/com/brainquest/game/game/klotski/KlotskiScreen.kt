@@ -92,6 +92,14 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
     val g = game
     val lv = level
 
+    // 对局计时：每秒推进（solved 后停止）
+    LaunchedEffect(g) {
+        while (g != null && !g.solved) {
+            delay(1000)
+            g.tick()
+        }
+    }
+
     // 通关：先播曹操滑出门洞的动画，再结算发奖弹窗
     LaunchedEffect(g, g?.solved) {
         if (g != null && g.solved && !rewarded && lv != null) {
@@ -101,6 +109,8 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
             rewarded = true
             val key = "hrd_${lv.id}"
             newRecord = vm.reportBestLow(key, g.moves)
+            vm.reportBestLow("hrd_${lv.id}_t", g.elapsedSec)
+            vm.completeDailyKlotski()   // 📋 每日任务：完成一局华容道
             vm.addCoins((50 - g.moves / 4).coerceAtLeast(10) + if (newRecord) 30 else 0)
             vm.addXp(25 + if (newRecord) 15 else 0)
             Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.WIN)
@@ -153,6 +163,14 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                                     style = MaterialTheme.typography.labelLarge,
                                     color = if (best != null && best > 0) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                val bestT = player.bestScores["hrd_${l.id}_t"]
+                                if (bestT != null && bestT > 0) {
+                                    Text(
+                                        "最快 ${bestT}s",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                                 Text(
                                     "参考 ${l.par} 步",
                                     style = MaterialTheme.typography.labelSmall,
@@ -169,7 +187,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
         // 状态栏
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("🗺️ ${lv.name}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Text("步数 ${g.moves}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("步数 ${g.moves} · ${g.elapsedSec}s", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             val best = player.bestScores["hrd_${lv.id}"]
             Text(
                 if (best != null && best > 0) "最少 $best 步" else "最少 —",
@@ -292,7 +310,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                 title = { Text("🎉 曹操已到出口！") },
                 text = {
                     Column {
-                        Text("用了 ${g.moves} 步", style = MaterialTheme.typography.titleMedium)
+                        Text("用了 ${g.moves} 步 · 用时 ${g.elapsedSec}s", style = MaterialTheme.typography.titleMedium)
                         if (newRecord) Text("🏅 新纪录！", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
                     }
                 },

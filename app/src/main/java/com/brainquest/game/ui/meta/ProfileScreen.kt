@@ -49,6 +49,9 @@ import com.brainquest.game.data.levelForXp
 import com.brainquest.game.ui.AvatarBadge
 import com.brainquest.game.ui.StatChip
 import com.brainquest.game.ui.XpBar
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Arrangement
+import com.brainquest.game.ui.SectionCard
 
 @Composable
 fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
@@ -106,6 +109,7 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
                     com.brainquest.game.ui.CoinText(
                         player.coins,
                         style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.clickable { nav.navigate(com.brainquest.game.ui.Routes.SHOP) },
                     )
                 }
                 XpBar(player.xp, Modifier.padding(top = 10.dp))
@@ -117,6 +121,50 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
             StatChip("💥", "答错", "${player.totalWrong}", Modifier.weight(1f))
             StatChip("📈", "正确率", "${(player.accuracy * 100).toInt()}%", Modifier.weight(1f))
             StatChip("⭐", "星星", "${player.totalStars}", Modifier.weight(1f))
+        }
+
+        // 本周学习（最近 7 天答题柱状）
+        val weekBars = remember(player.dailyResults) {
+            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            val wd = java.text.SimpleDateFormat("E", java.util.Locale.getDefault())
+            val cal = java.util.Calendar.getInstance()
+            (6 downTo 0).map { off ->
+                cal.time = java.util.Date()
+                cal.add(java.util.Calendar.DAY_OF_YEAR, -off)
+                val key = fmt.format(cal.time)
+                val r = player.dailyResults[key]
+                Triple(wd.format(cal.time), r?.correct ?: 0, r?.total ?: 0)
+            }
+        }
+        val weekCorrect = weekBars.sumOf { it.second }
+        val weekTotal = weekBars.sumOf { it.third }
+        val maxBar = weekBars.maxOf { it.second }.coerceAtLeast(1)
+        SectionCard("📅 本周学习") {
+            Text(
+                if (weekTotal > 0) "本周答对 $weekCorrect / $weekTotal" else "本周还没答题，去闯一闯吧",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                Modifier.fillMaxWidth().padding(top = 10.dp).height(72.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                weekBars.forEach { (label, correct, total) ->
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth(0.55f)
+                                .height((8 + 52f * correct / maxBar).dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                                ),
+                        )
+                        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
         }
 
         MenuCard("🏅 成就墙", "已解锁 ${player.achievements.size} 个成就") { nav.navigate(Routes.ACHIEVEMENTS) }

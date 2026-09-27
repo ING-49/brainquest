@@ -37,13 +37,19 @@ import com.brainquest.game.data.Items
 import com.brainquest.game.data.levelForXp
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.brainquest.game.ui.CoinText
+import com.brainquest.game.ui.BqProgressBar
+import com.brainquest.game.ui.CoinIcon
+import com.brainquest.game.util.Sfx
+import com.brainquest.game.util.SfxType
 
 @Composable
 fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var checkInReward by remember { mutableStateOf(0) }
 
     val checkedIn = player.lastCheckIn == vm.today()
@@ -82,7 +88,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    CoinText(player.coins, style = MaterialTheme.typography.titleMedium)
+                    CoinText(player.coins, style = MaterialTheme.typography.titleMedium, modifier = Modifier.clickable { nav.navigate(com.brainquest.game.ui.Routes.SHOP) })
                 }
                 XpBar(player.xp, Modifier.padding(top = 10.dp))
             }
@@ -125,6 +131,43 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                     Text("10 道混合题，坚持天数越多奖励越丰厚", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(if (dailyDone) "✅" else "GO", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // 每日任务（跨天自动重置，完成领金币）
+        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+            Column(Modifier.padding(14.dp)) {
+                Text("📋 每日任务", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                com.brainquest.game.data.DailyTasks.all.forEach { def ->
+                    val progress = (player.dailyTaskProgress[def.id] ?: 0).coerceAtMost(def.goal)
+                    val done = progress >= def.goal
+                    val claimed = def.id in player.dailyTaskClaimed
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(def.emoji, style = MaterialTheme.typography.titleMedium)
+                        Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                            Text(def.desc, style = MaterialTheme.typography.bodyMedium)
+                            BqProgressBar(
+                                progress = progress.toFloat() / def.goal,
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                height = 6.dp,
+                                color = if (done) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        when {
+                            claimed -> Text("✅", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 10.dp))
+                            else -> Button(
+                                onClick = {
+                                    if (vm.claimDailyTask(def.id) > 0) Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.COIN)
+                                },
+                                enabled = done,
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(start = 10.dp),
+                            ) {
+                                CoinText(def.reward, style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
+                }
             }
         }
 

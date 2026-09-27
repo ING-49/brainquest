@@ -17,6 +17,7 @@ import android.os.VibratorManager
 enum class SfxType {
     CORRECT, WRONG, CLICK, WIN, LOSE,
     SELECT, MOVE, PLACE, PLACE_AI, EAT, CRASH, START,
+    COIN, CHEER,
 }
 
 /** 轻量音效（ToneGenerator 音序，无需音频资源）+ 震动反馈 */
@@ -98,11 +99,21 @@ object Sfx {
             Note(ToneGenerator.TONE_DTMF_6, 120, 40),
             Note(ToneGenerator.TONE_DTMF_3, 240),
         )
+        SfxType.COIN -> listOf(
+            Note(ToneGenerator.TONE_DTMF_8, 70, 30),
+            Note(ToneGenerator.TONE_DTMF_5, 110),
+        )
+        SfxType.CHEER -> listOf(
+            Note(ToneGenerator.TONE_DTMF_1, 80, 30),
+            Note(ToneGenerator.TONE_DTMF_3, 80, 30),
+            Note(ToneGenerator.TONE_DTMF_5, 80, 30),
+            Note(ToneGenerator.TONE_DTMF_9, 150),
+        )
     }
 
     private fun hapticOf(type: SfxType): HapticKind = when (type) {
         SfxType.MOVE, SfxType.SELECT, SfxType.CLICK -> HapticKind.NONE
-        SfxType.CRASH, SfxType.WIN, SfxType.LOSE -> HapticKind.STRONG
+        SfxType.CRASH, SfxType.WIN, SfxType.LOSE, SfxType.CHEER -> HapticKind.STRONG
         else -> HapticKind.LIGHT
     }
 

@@ -250,7 +250,7 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
         } else {
             // ---------- 人机对战：操作按钮在上方，不挡手 ----------
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("简单", "普通", "困难").forEachIndexed { i, label ->
+                listOf("简单", "普通", "困难", "大师").forEachIndexed { i, label ->
                     FilterChip(
                         selected = difficulty == i,
                         onClick = {

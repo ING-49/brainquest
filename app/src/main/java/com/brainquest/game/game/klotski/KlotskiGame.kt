@@ -113,14 +113,44 @@ object KlotskiLevels {
         b(9, "卒", 4, 3, 1, 1),
     )
 
+    /** 重整旗鼓（v1.6.17 新增，最优 24 步，由将拥曹营打乱构造） */
+    private val chongZheng = listOf(
+        b(0, CAO, 1, 1, 2, 2),
+        b(1, "张飞", 0, 2, 1, 1),
+        b(2, "赵云", 0, 3, 1, 1),
+        b(3, "马超", 0, 0, 1, 2),
+        b(4, "黄忠", 1, 3, 1, 2),
+        b(5, "关羽", 3, 1, 2, 1),
+        b(6, "卒", 2, 0, 1, 1),
+        b(7, "卒", 3, 3, 1, 1),
+        b(8, "卒", 4, 0, 1, 1),
+        b(9, "卒", 4, 1, 1, 1),
+    )
+
+    /** 固若金汤（v1.6.17 新增，最优 120 步，由横刀立马打乱构造） */
+    private val guRuo = listOf(
+        b(0, CAO, 1, 1, 2, 2),
+        b(1, "张飞", 0, 0, 1, 2),
+        b(2, "赵云", 0, 3, 1, 2),
+        b(3, "马超", 2, 0, 1, 2),
+        b(4, "黄忠", 2, 3, 1, 2),
+        b(5, "关羽", 3, 1, 2, 1),
+        b(6, "卒", 4, 1, 1, 1),
+        b(7, "卒", 4, 2, 1, 1),
+        b(8, "卒", 4, 0, 1, 1),
+        b(9, "卒", 4, 3, 1, 1),
+    )
+
     /** 按难度（最优步数）从易到难排列 */
     val all = listOf(
         KlotskiLevel("jiangyongcaoying", "将拥曹营", 24, jiangYong),
+        KlotskiLevel("chongzhengqigu", "重整旗鼓", 24, chongZheng),
         KlotskiLevel("qitoubingjin", "齐头并进", 47, qiTou),
         KlotskiLevel("zhihuiruoding", "指挥若定", 100, zhiHui),
         KlotskiLevel("cengcengshefang", "层层设防", 100, cengCeng),
         KlotskiLevel("hengdaolima", "横刀立马", 116, hengDao),
         KlotskiLevel("bingfensanlu", "兵分三路", 119, bingFen),
+        KlotskiLevel("guruojintang", "固若金汤", 120, guRuo),
     )
 
     const val CAO_NAME = CAO
@@ -145,6 +175,14 @@ class KlotskiGame(val level: KlotskiLevel) {
     /** 已走步数 */
     var moves by mutableIntStateOf(0)
         private set
+    val startMs: Long = System.currentTimeMillis()
+    var elapsedSec by mutableIntStateOf(0)
+        private set
+
+    /** UI 每秒调用推进计时（solved 后停止增长由调用方控制） */
+    fun tick() {
+        if (!solved) elapsedSec = ((System.currentTimeMillis() - startMs) / 1000L).toInt()
+    }
 
     /** 选中的棋子（点选后可用方向键移动） */
     var selectedId by mutableIntStateOf(-1)

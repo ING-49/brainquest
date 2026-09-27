@@ -2,6 +2,7 @@ package com.brainquest.game.game.quizbattle
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -65,6 +66,9 @@ import com.brainquest.game.util.SfxType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.brainquest.game.ui.BqProgressBar
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.rememberInfiniteTransition
 
 @Composable
 fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, level: Int) {
@@ -84,6 +88,15 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
     var revivedOnce by remember { mutableStateOf(false) }
     var shake by remember { mutableFloatStateOf(0f) }
     val enemyShake = remember { Animatable(0f) }
+    val hpFlash = remember { Animatable(0f) }        // 敌方血条受击闪白
+    var prevEnemyHp by remember { mutableIntStateOf(battle.enemyHp) }
+    val comboScale = remember { Animatable(1f) }     // 连击文字弹跳
+    val urgentTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "urgent")
+    val urgentAlpha by urgentTransition.animateFloat(
+        0.4f, 1f,
+        androidx.compose.animation.core.infiniteRepeatable(tween(400), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "urgentAlpha",
+    )
 
     val sfxOn = player.soundOn
     val hapticOn = player.hapticsOn
@@ -118,6 +131,11 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
         enemyShake.snapTo(0f)
         enemyShake.animateTo(1f, tween(120))
         enemyShake.animateTo(0f, tween(200))
+        if (battle.enemyHp < prevEnemyHp) {
+            hpFlash.snapTo(1f)
+            hpFlash.animateTo(0f, tween(320))
+        }
+        prevEnemyHp = battle.enemyHp
     }
 
     fun doFill(input: String) {
@@ -173,13 +191,25 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                         Text(battle.enemy.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (battle.combo >= 2) {
-                            Text("🔥 连击 x${battle.combo}", color = Color(0xFFE65100), style = MaterialTheme.typography.labelLarge)
+                            LaunchedEffect(battle.combo) {
+                                comboScale.snapTo(1.5f)
+                                comboScale.animateTo(1f, tween(180))
+                            }
+                            Text(
+                                "🔥 连击 x${battle.combo}",
+                                color = Color(0xFFE65100),
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.graphicsLayer {
+                                    scaleX = comboScale.value
+                                    scaleY = comboScale.value
+                                },
+                            )
                         }
                     }
                     BqProgressBar(
                         progress = battle.enemyHp.toFloat() / battle.enemyHpMax,
                         modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                        color = Color(0xFFE53935),
+                        color = androidx.compose.ui.graphics.lerp(Color(0xFFE53935), Color.White, hpFlash.value * 0.8f),
                         height = 10.dp,
                     )
                     Text(
@@ -232,15 +262,20 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
             Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Text("Q${battle.answered + 1}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val urgent = timeLeft <= 5
                     Text(
                         "⏳ ${timeLeft}s",
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (timeLeft <= 5) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (urgent) Color(0xFFC62828).copy(alpha = urgentAlpha) else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 BqProgressBar(
                     progress = timeLeft.toFloat() / battle.timeLimitSec,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                        .graphicsLayer { alpha = if (timeLeft <= 5) urgentAlpha else 1f },
+                    color = if (timeLeft <= 5) Color(0xFFC62828) else MaterialTheme.colorScheme.primary,
                     height = 4.dp,
                 )
                 Text(

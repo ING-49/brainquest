@@ -14,6 +14,18 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ui  # noqa: E402
 
+def tap_scrolled(text, wait=6):
+    """大厅 v1.6.17 起有每日任务卡，入口可能在屏下：滚动后重试"""
+    if ui.tap_text(text, exact=False, wait=2):
+        return True
+    for _ in range(4):
+        ui.swipe(540, 1600, 540, 600, ms=250, delay=0.5)
+        if ui.tap_text(text, exact=False, wait=2):
+            return True
+    return False
+
+
+
 SHOTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".shots")
 TMP = os.path.join(os.environ.get("TEMP", "."), "gomoku_check.png")
 SIZE = 15
@@ -77,7 +89,7 @@ def status():
 def main():
     fails = []
     ui.start()
-    if not ui.tap_text("五子棋", exact=False, wait=6):
+    if not tap_scrolled("五子棋"):
         print("❌ 未找到五子棋入口"); return 1
     time.sleep(0.6)
     if not ui.tap_text("人机对战", exact=True, wait=4):

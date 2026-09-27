@@ -30,6 +30,8 @@ private val STYLES = listOf(
     KawaiiStyle(Color(0xFFE0F7FA), Color(0xFF00695C), Color(0xFF4DD0E1)), // 薄荷
     KawaiiStyle(Color(0xFFFCE4EC), Color(0xFFAD1457), Color(0xFFF48FB1)), // 草莓
     KawaiiStyle(Color(0xFFEFEBE9), Color(0xFF3E2723), Color(0xFFBCAAA4)), // 奶咖
+    KawaiiStyle(Color(0xFFFFF8E1), Color(0xFF6D4C41), Color(0xFFFFD700)), // 金冠（成就限定）
+    KawaiiStyle(Color(0xFF37474F), Color(0xFF212121), Color(0xFF7C4DFF)), // 夜影（成就限定）
 )
 
 @Composable

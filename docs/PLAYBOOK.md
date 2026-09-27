@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.16 (versionCode 41)
+- **当前版本**：v1.6.17 (versionCode 42)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -112,6 +112,13 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **华容道出门两段式（v1.6.15）**：solved → 原地停顿 550ms → 450ms 滑出门洞 → 结算弹窗（节奏三拍：到达确认→出门→结算）
 - **金币图标与动效（v1.6.16）**：🪙 是 Unicode 13 新表情，老设备字体缺失显示方框 → Common.kt 自绘 `CoinIcon`/`CoinText`（Canvas 琥珀币），全项目替换；商店购买后余额 AnimatedContent 上滑刷新 + 扣款浮字上飘渐隐（FloatingCoinDelta）
 - **StatChip 三层（v1.6.16）**：统计卡改 图标/数值/文字 纵向三层（value maxLines=1），四卡等宽不再折行
+- **每日任务（v1.6.17）**：`data/DailyTasks.kt` 定义三任务（答对10题/完成一局华容道/复习答对3错题，30-40金币）；PlayerState 加 dailyTask* 字段（跨天重置）；钩子在 recordAnswer/reviewAnswered/华容道胜利结算；大厅任务卡领取→COIN 音效
+- **战斗动效（v1.6.17）**：敌方血条受击闪白（lerp）、计时≤5s 红色脉冲（rememberInfiniteTransition 必须无条件 hoist，不能进 if 分支）、连击文字弹跳
+- **华容道 v1.6.17**：新增 重整旗鼓(24)/固若金汤(120) 两关（打乱构造法：从可解布局随机走子生成，必可解）；对局计时 elapsedSec（UI 每秒 tick，solved 停）+ 最快用时记录 `hrd_<id>_t`
+- **五子棋大师档（v1.6.17）**：difficulty=3 三层有界搜索（前3候选：我方→对方最佳应→我方最佳应），风险=对手最强应×2−我方后续
+- **成就限定头像（v1.6.17）**：clear_30→kawaii_8金冠、snake_30→kawaii_9夜影，解锁即入 ownedAvatars
+- **提醒通知（v1.6.17）**：WorkManager 24h 周期 ReminderWorker（未签到/到期错题→本地通知）；仅已授权 POST_NOTIFICATIONS 时生效
+- **经验**：大厅加卡片后入口可能被推到屏下，回归脚本要滚动重试（且 exact=False 会误中任务描述文本，华容道入口用 exact=True）
 - **大厅层级（v1.6.16）**：欢迎卡渐变底；签到降普通底色，每日挑战升 primaryContainer 高亮横幅；小游戏卡 emoji 加圆角色块底
 - **成品化精简（v1.6.15）**：删 华容道/五子棋×2/贪吃蛇 的 💡 提示段与商店底部说明，我的页副文案缩短；一话副标题保留
 - **成就进度可视化（v1.6.14）**：`AchievementDef` 加可选 `progress: (PlayerState)->Pair<Int,Int>`（注意尾随 lambda 会绑到最后一个参数，多行闭包须写 `check = {}` 命名参数）；成就墙顶部解锁率头卡 + 未解锁成就进度条

@@ -53,6 +53,9 @@ data class PlayerState(
     val cloudCode: String = "", // ☁️ 云存档码（首次上传自动生成，只读不可改；换机配合身份码恢复进度）
     val identity: String = "",  // 🪪 本机身份码（首次启动自动生成、永久固定不可改；云存档归属校验用）
     val lastGoodSource: String = "", // 最近一次检查更新成功的源（优先复用，利于国内更新）
+    val dailyTaskDate: String = "", // 📋 每日任务归属日期（yyyy-MM-dd，跨天自动重置）
+    val dailyTaskProgress: Map<String, Int> = emptyMap(), // 📋 每日任务进度（键见 DailyTasks）
+    val dailyTaskClaimed: List<String> = emptyList(), // 📋 已领取奖励的任务 id
 ) {
     val totalAnswered: Int get() = totalCorrect + totalWrong
     val accuracy: Float get() = if (totalAnswered == 0) 0f else totalCorrect.toFloat() / totalAnswered

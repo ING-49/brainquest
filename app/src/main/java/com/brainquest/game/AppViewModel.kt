@@ -37,6 +37,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _events = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val events = _events.asSharedFlow()
 
+    /** UI 侧直接发一条 toast（导出成功等） */
+    fun toast(msg: String) = _events.tryEmit(msg)
+
     init {
         com.brainquest.game.data.GenRulesConfig.load(getApplication())
         bank.reload()
@@ -173,12 +176,51 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             } else {
                 state.wrongBook
             }
-            state.copy(
+            val s = state.copy(
                 totalCorrect = state.totalCorrect + if (correct) 1 else 0,
                 totalWrong = state.totalWrong + if (!correct) 1 else 0,
                 wrongBook = wrongBook,
             )
+            if (correct) taskBump(withDailyTasks(s), "solve10") else withDailyTasks(s)
         }
+    }
+
+    // ---------- 每日任务（日期变化自动重置；键与目标见 data/DailyTasks） ----------
+
+    private fun todayStr(): String =
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+
+    private fun withDailyTasks(state: PlayerState): PlayerState =
+        if (state.dailyTaskDate == todayStr()) state
+        else state.copy(dailyTaskDate = todayStr(), dailyTaskProgress = emptyMap(), dailyTaskClaimed = emptyList())
+
+    /** 推进任务进度（不超过目标值；done=直接置满） */
+    private fun taskBump(state: PlayerState, id: String, done: Boolean = false): PlayerState {
+        val goal = com.brainquest.game.data.DailyTasks.byId(id)?.goal ?: return state
+        val cur = state.dailyTaskProgress[id] ?: 0
+        val v = if (done) goal else (cur + 1).coerceAtMost(goal)
+        if (v == cur) return state
+        return state.copy(dailyTaskProgress = state.dailyTaskProgress + (id to v))
+    }
+
+    /** 华容道完成一局（胜利结算处调用） */
+    fun completeDailyKlotski() = commit { withDailyTasks(taskBump(withDailyTasks(it), "klotski1", done = true)) }
+
+    /** 领取任务奖励；成功返回奖励值，未达目标/已领取返回 0 */
+    fun claimDailyTask(id: String): Int {
+        val def = com.brainquest.game.data.DailyTasks.byId(id) ?: return 0
+        var granted = 0
+        commit { state ->
+            val s = withDailyTasks(state)
+            val done = (s.dailyTaskProgress[id] ?: 0) >= def.goal
+            if (!done || id in s.dailyTaskClaimed) s
+            else {
+                granted = def.reward
+                s.copy(dailyTaskClaimed = s.dailyTaskClaimed + id, coins = s.coins + def.reward)
+            }
+        }
+        if (granted > 0) _events.tryEmit("✅ 任务完成「${def.desc}」 +$granted 金币")
+        return granted
     }
 
     /** 错题本标记已掌握（复习时答对调用） */
@@ -200,7 +242,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun reviewAnswered(questionId: String, correct: Boolean) {
         val now = System.currentTimeMillis()
         commit { state ->
-            state.copy(wrongBook = state.wrongBook.map { entry ->
+            val s = withDailyTasks(state)
+            val nb = s.wrongBook.map { entry ->
                 if (entry.question.id != questionId) entry else when {
                     correct -> {
                         val ns = (entry.stage + 1).coerceAtMost(5)
@@ -208,7 +251,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     else -> entry.copy(stage = 0, nextReviewAt = now + 60_000L) // 1 分钟后再练
                 }
-            })
+            }
+            if (correct) taskBump(s.copy(wrongBook = nb), "review3") else s.copy(wrongBook = nb)
         }
         if (correct) {
             _events.tryEmit("📅 复习通过，进入下一轮间隔")
@@ -329,8 +373,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         if (newly.isEmpty()) return
         commit { s ->
+            // 成就限定头像：clear_30 → 金冠(kawaii_8)、snake_30 → 夜影(kawaii_9)，解锁即赠
+            val giftAvatars = newly.mapNotNull { def ->
+                when (def.id) {
+                    "clear_30" -> "kawaii_8" to "金冠"
+                    "snake_30" -> "kawaii_9" to "夜影"
+                    else -> null
+                }
+            }.filter { (id, _) -> id !in s.ownedAvatars }
+            for ((_, label) in giftAvatars) {
+                _events.tryEmit("🎨 解锁限定头像「$label」，去「我的 → 换装」查看")
+            }
             s.copy(
                 achievements = s.achievements + newly.associate { it.id to System.currentTimeMillis() },
+                ownedAvatars = s.ownedAvatars + giftAvatars.map { it.first },
                 coins = s.coins + newly.sumOf { it.reward },
             )
         }

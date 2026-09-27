@@ -20,8 +20,8 @@ android {
         applicationId = "com.brainquest.game"
         minSdk = 26
         targetSdk = 34
-        versionCode = 41
-        versionName = "1.6.16"
+        versionCode = 42
+        versionName = "1.6.17"
     }
 
     signingConfigs {
@@ -75,6 +75,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")

@@ -194,7 +194,7 @@ class GomokuGame(val size: Int = 15, var difficulty: Int = 1, val vsAi: Boolean 
         val (attackW, defendW) = when (difficulty) {
             0 -> 1.0 to 0.6      // 简单：偏进攻，容易漏防
             1 -> 1.1 to 1.0      // 普通：攻守均衡
-            else -> 1.1 to 1.0   // 困难：均衡 + 前瞻
+            else -> 1.1 to 1.0   // 困难/大师：均衡 + 前瞻
         }
         val ranked = scored.sortedByDescending { it.atk * attackW + it.def * defendW }
 
@@ -219,6 +219,44 @@ class GomokuGame(val size: Int = 15, var difficulty: Int = 1, val vsAi: Boolean 
             }
             board[r][c] = 0
             val risk = oppBest - cand.atk / 50
+            if (risk < bestRisk) {
+                bestRisk = risk
+                best = cand
+            }
+        }
+        if (difficulty == 2) return best.rc
+
+        // 大师档：对前 3 手做 3 层有界搜索（我方→对方最佳应→我方最佳应），
+        // 风险 = 对手最强回应 ×2 − 我方后续最佳得分，兼顾堵截与展开
+        best = ranked.first()
+        bestRisk = Int.MAX_VALUE
+        for (cand in ranked.take(3)) {
+            val (r, c) = cand.rc
+            board[r][c] = 2
+            var oppBest = 0
+            var oppMove: Pair<Int, Int>? = null
+            for ((rr, cc) in candidates()) {
+                if (board[rr][cc] != 0) continue
+                val s = scoreAt(rr, cc, 1)
+                if (s > oppBest) {
+                    oppBest = s
+                    oppMove = rr to cc
+                }
+                if (oppBest >= 1_000_000) break
+            }
+            var myFollow = 0
+            if (oppMove != null) {
+                board[oppMove.first][oppMove.second] = 1
+                for ((rr, cc) in candidates()) {
+                    if (board[rr][cc] != 0) continue
+                    val s = scoreAt(rr, cc, 2)
+                    if (s > myFollow) myFollow = s
+                    if (myFollow >= 1_000_000) break
+                }
+                board[oppMove.first][oppMove.second] = 0
+            }
+            board[r][c] = 0
+            val risk = oppBest * 2 - myFollow
             if (risk < bestRisk) {
                 bestRisk = risk
                 best = cand

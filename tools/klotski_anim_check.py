@@ -17,6 +17,18 @@ from scipy import ndimage
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ui  # noqa: E402
 
+def tap_scrolled(text, wait=6):
+    """大厅 v1.6.17 起有每日任务卡，入口可能在屏下：滚动后重试"""
+    if ui.tap_text(text, exact=False, wait=2):
+        return True
+    for _ in range(4):
+        ui.swipe(540, 1600, 540, 600, ms=250, delay=0.5)
+        if ui.tap_text(text, exact=False, wait=2):
+            return True
+    return False
+
+
+
 SHOTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".shots")
 TMP = os.path.join(os.environ.get("TEMP", "."), "klotski_check.png")
 
@@ -86,16 +98,23 @@ def swipe(x1, y1, x2, y2, ms=300):
 
 
 def step_text():
+    # v1.6.17 起顶行带计时后缀（"步数 N · Xs"），只回步数部分
     for t in ui.texts():
         if t.startswith("步数"):
-            return t
+            return t.split(" · ")[0]
     return None
 
 
 def main():
     fails = []
     ui.start()
-    if not ui.tap_text("华容道", exact=False, wait=6):
+    # exact=True：避免误中每日任务描述「完成一局华容道」
+    hit = ui.tap_text("华容道", exact=True, wait=2)
+    for _ in range(4):
+        if hit: break
+        ui.swipe(540, 1600, 540, 600, ms=250, delay=0.5)
+        hit = ui.tap_text("华容道", exact=True, wait=2)
+    if not hit:
         print("❌ 未找到首页华容道入口"); return 1
     if not ui.tap_text("将拥曹营", wait=5):
         print("❌ 未进入关卡"); return 1

@@ -10,6 +10,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import snake_autoeat as s  # noqa: E402
 import ui  # noqa: E402
 
+def tap_scrolled(text, wait=6):
+    """大厅 v1.6.17 起有每日任务卡，入口可能在屏下：滚动后重试"""
+    if ui.tap_text(text, exact=False, wait=2):
+        return True
+    for _ in range(4):
+        ui.swipe(540, 1600, 540, 600, ms=250, delay=0.5)
+        if ui.tap_text(text, exact=False, wait=2):
+            return True
+    return False
+
+
+
 SHOTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".shots")
 WINDOW_S = 2.0
 
@@ -17,7 +29,7 @@ WINDOW_S = 2.0
 def main():
     fails = []
     ui.start()
-    if not ui.tap_text("贪吃蛇", exact=False, wait=6):
+    if not tap_scrolled("贪吃蛇"):
         print("❌ 未找到贪吃蛇入口"); return 1
     time.sleep(0.6)
 

@@ -212,7 +212,7 @@ fun ShopScreen(vm: AppViewModel, nav: NavHostController) {
                                 Text(KAWAII_NAMES[v], style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                 when {
                                     active -> Text("使用中", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                    owned -> Text("免费", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    owned -> Text(if (v == 0) "体验款" else "点击装备", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     else -> CoinText(KAWAII_PRICE, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Normal)
                                 }
                             }

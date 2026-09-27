@@ -19,6 +19,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        com.brainquest.game.util.ReminderWorker.schedule(this) // 每日提醒（未授权通知时静默跳过）
         setContent {
             BrainQuestTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {

@@ -11,6 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,6 +34,32 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     var reviewing by remember { mutableStateOf(false) }
     var reviewDue by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val exportCsv = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv"),
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)!!.use { out ->
+                    out.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())) // UTF-8 BOM，Excel 中文不乱码
+                    out.write("题目,正确答案,你的答案,掌握,复习阶段\n".toByteArray(Charsets.UTF_8))
+                    player.wrongBook.forEach { e ->
+                        fun esc(s: String) = "\"" + s.replace("\"", "\"\"") + "\""
+                        val chosen = if (e.chosen < 0) "超时" else e.question.options.getOrNull(e.chosen) ?: "?"
+                        out.write(listOf(
+                            esc(e.question.question),
+                            esc(e.question.options.getOrNull(e.question.answer) ?: "?"),
+                            esc(chosen),
+                            if (e.mastered) "已掌握" else "未掌握",
+                            "${e.stage}",
+                        ).joinToString(",").toByteArray(Charsets.UTF_8))
+                        out.write("\n".toByteArray(Charsets.UTF_8))
+                    }
+                }
+                vm.toast("📤 已导出错题本")
+            }.onFailure { vm.toast("导出失败：${it.message}") }
+        }
+    }
 
     if (reviewing) {
         val questions = if (reviewDue) vm.dueReviewQuestions().take(15)
@@ -63,6 +90,13 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
 
         val unmastered = player.wrongBook.count { !it.mastered }
         val dueQuestions = remember(player.wrongBook) { vm.dueReviewQuestions() }
+
+        // 导出 CSV（SAF，UTF-8 BOM，Excel 直接打开）
+        OutlinedButton(
+            onClick = { exportCsv.launch("错题本.csv") },
+            enabled = player.wrongBook.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        ) { Text("📤 导出全部错题（CSV）") }
 
         // 📅 艾宾浩斯今日待复习
         Card(
