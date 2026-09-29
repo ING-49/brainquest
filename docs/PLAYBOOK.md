@@ -65,7 +65,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | `tools/gomoku_undo_check.py` | 同上 | 五子棋悔棋语义 + 思考期取消 + 返回确认取证 |
 | `tools/ui.py` | 被上面几个脚本 import | uiautomator 文本定位/点击/滑动/截图（`tap_text`/`swipe`/`shot`） |
 | `tools/pk_guest.py` | `python tools/pk_guest.py --quick [答对数] [版本]` | 联机机器人对手（PK_URL 指定服务器） |
-| `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://8.148.192.129:8765` | PK 服务器冒烟（31 项断言） |
+| `tools/pk_server_smoke.py` | `python tools/pk_server_smoke.py ws://<PK_HOST>:8765` | PK 服务器冒烟（31 项断言） |
 | `tools/deploy_pk_server.py` | `PK_SSH_PASS='<密码>' python tools/deploy_pk_server.py` | 部署/更新公网 pk_server（systemd 常驻） |
 | `启动对战服务器.bat` | 双击 | 局域网 PC 端 PK 服务器 |
 | `tools/_oneshot/*.py`（20 个） | ⛔ **不要运行** | 历史一次性改写脚本（`fix_*`/`add_*`/`v1xx_*`/`upgrade_*` 等），改动已并入源码；重跑会二次改写源码或题库 JSON。见 `tools/_oneshot/README.md` |
@@ -99,7 +99,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **出题规则热更（v1.6.8 修复）**：`GenRulesConfig` 递归扫 `content/packs/` 任意子目录的 gen_rules.json（UpdateManager 解包到 `<包id>/` 子目录，旧版只查平铺路径导致热更从未生效）；`PapersScreen` 同法支持 papers.json 热更
 - **五子棋双模式（v1.6.12）**：进入先显示居中模式选择页——人机对战（简单/普通/困难，有奖励）/ 好友同机对战（`GomokuGame.vsAi` 分支：双人对坐布局，白方信息条旋转 180° 供对面阅读，轮次高亮，悔棋只撤一手，不结算奖励防互刷，胜负弹窗标黑方/白方）
 - **小游戏操作上移（v1.6.12）**：五子棋/贪吃蛇/华容道的 悔棋·重开·暂停 按钮移到棋盘上方（手在下方滑动不挡按钮）；`gomoku_undo_check.py` 导航已适配模式选择页
-- **联机版本门控（v1.6.12）**：服务器读 `/opt/pk/manifest.json` 的 latestVersionName（deploy 上传，mtime 缓存免重启），非最新版 quick_match/create/join 直接拒绝并提示更新；本地无 manifest 自动跳过
+- **联机版本门控（v1.6.12）**：服务器读 `<PK_DIR>/manifest.json` 的 latestVersionName（deploy 上传，mtime 缓存免重启），非最新版 quick_match/create/join 直接拒绝并提示更新；本地无 manifest 自动跳过
 - **云存档身份保护（v1.6.12）**：导入存档强制保留本机 identity（旧实现会被存档覆盖导致归属校验失败）
 - **Tab 导航不带 restoreState（v1.6.13）**：底部 Tab onClick 与速算英雄入口统一为 `popUpTo(HOME){saveState=true}+launchSingleTop`；带 `restoreState=true` 会把深层栈（小游戏页）原样复活，导致「点大厅回不到大厅」
 - **五子棋会话保留（v1.6.13）**：`GomokuSession` 单例存 难度/棋局/战绩/rewarded（进程死才清）；对局返回改弹「回到模式选择？」（棋局保留），模式页多「▶️ 回到上一局」卡片；每次进入必落模式选择页；两模式棋盘都 `weight(1f)+Center+clipToBounds()` 居中
@@ -172,12 +172,12 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 2. **局域网 PC 服务器**：`启动对战服务器.bat`（pk_server.py 跑电脑，同 Wi-Fi 手机对战）
 3. **公网服务器**（随时随地对战）：同一份 pk_server.py 部署到云上
 
-### 阿里云部署实录（已上线：ws://8.148.192.129:8765）
+### 阿里云部署实录（已上线：ws://<PK_HOST>:8765）
 - 选型：轻量应用服务器 · 国内地域（延迟最低）· 镜像 Ubuntu 24.04 LTS · 最低套餐 2核2G · **纯 IP+非标端口（8765）无需 ICP 备案** · 新用户活动价常低至 ¥38~99/年
 - 防火墙规则：应用类型=自定义 / 协议=自定义 TCP / 端口范围=8765/8765 / 来源=0.0.0.0/0
 - 一键部署：`python tools/deploy_pk_server.py`（SSH：装 python3+websockets → 上传 pk_server.py → systemd 常驻 pk-server.service，开机自启+崩溃拉起）
 - 运维：`systemctl status/restart pk-server`；服务无状态，换机迁移=改 App 联机页地址
-- App 联机页填：`ws://8.148.192.129:8765`
+- App 联机页填：`ws://<PK_HOST>:8765`
 
 ### 远程模式（v1.6.9 起服务器中立；v1.6.10 断线韧性）
 - **断线韧性（v1.6.10）**：对局开始后一方掉线 → 房间保留（不拆不判），对手收 `peer_lost` 后可继续作答；掉线方 App 自动重连（2/4/8s 三次）后发 resume，按身份码找回挂起房间，恢复原题/进度/双方得分继续；**在场玩家交卷即结算**（对手缺席：在场方得分 ≥ 缺席方 → 在场方胜，全对必胜；缺席方分更高只判平——掉线无利可图），结算页标注「对手掉线」；迟到重连收到「没有可恢复的对局」
@@ -190,17 +190,17 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - 大厅双页签：🌐 远程（默认，在线人数/快速匹配/科目选择/好友房间）+ 🏠 局域网（创建/搜索/手动直连，原样保留）
 - 服务器地址**不在界面显示**（默认公网唯一地址）；长按「在线人数」行弹出隐藏编辑对话框（调试/自建用），修改后 1.5s 防抖自动重连；旧默认（10.0.2.2）打开时自动迁移为公网地址
 - PK 战斗体验（v1.6.2 定稿）：答完题卡内显示对错与正确答案，停留 0.75s **自动进下一题**（无"下一题"按钮，最后一题自动交卷）；顶部双方进度「🧑 我 x/10」｜「对手 x/10」实时更新；我方完成页上下布局显示自己成绩+对手进度；双方完成出结算页
-- 冒烟测试：`python tools/pk_server_smoke.py ws://8.148.192.129:8765`（在线查询/版本隔离/配对/服务器出题/服务器判分/整局/取消/ELO/不计分/排行榜/云存档加密信封/身份归属/明文拒绝/删除/限流/断线重连/缺席结算/单局约束，31 项断言）
+- 冒烟测试：`python tools/pk_server_smoke.py ws://<PK_HOST>:8765`（在线查询/版本隔离/配对/服务器出题/服务器判分/整局/取消/ELO/不计分/排行榜/云存档加密信封/身份归属/明文拒绝/删除/限流/断线重连/缺席结算/单局约束，31 项断言）
 - 机器人对手：`python tools/pk_guest.py --quick [答对数] [版本]` 或 `python tools/pk_guest.py <房间码>`（版本默认读 manifest；PK_URL 指定服务器）
 
 ### ELO 与排行榜（v1.6.3 起）
 - **仅快速匹配计分**：配对房间 `ranked=true`；好友房间（create/join）与局域网/热点对战不计分（结算页标注「不计分」）
-- ELO：初始 1000、K=32；服务器持久化 `/opt/pk/ratings.json`（重启不丢）
+- ELO：初始 1000、K=32；服务器持久化 `<PK_DIR>/ratings.json`（重启不丢）
 - 结算消息 `rating:{ranked,my,delta,peer}`；App 结算页显示「🏅 积分 xxx（±n）」
 - 排行榜：`{"t":"leaderboard","name":昵称}` → Top10 + 我的排名；联机页远程页签常驻「🏆 排行榜」入口
 
 ### 云存档（v1.6.3 起；v1.6.7 加密；v1.6.9 身份归属）
-- 服务器：`save_put`/`save_get`/`save_del`，存 `/opt/pk/saves/<码>.json`；存档码 10 位（BQ+8 位大写字母数字，去除易混字符），旧 8 位码兼容（服务器接受 ≤24 位）
+- 服务器：`save_put`/`save_get`/`save_del`，存 `<PK_DIR>/saves/<码>.json`；存档码 10 位（BQ+8 位大写字母数字，去除易混字符），旧 8 位码兼容（服务器接受 ≤24 位）
 - App：设置页「☁️ 云存档」卡片——存档码 + 口令两个输入框；上传**必须设口令（≥4 位）**，留空码自动生成；换设备输同一存档码与口令「下载存档」并确认覆盖本地
 - **加密（v1.6.7）**：`util/SaveCrypto.kt` 口令 PBKDF2WithHmacSHA256（盐 16B、6 万次迭代）→ AES-256-GCM，密文封装 `{"fmt":"BQENC1","salt","iters","iv","ct"}` 信封后上传；**服务器只见密文**，口令不落盘不上传，是唯一凭证（丢了无法恢复云端存档）
 - **兼容**：无 `fmt` 字段的旧明文存档仍可下载（App 端检测后免口令直接导入，导入会把 PlayerState 整体覆盖——**含 pkServerUrl 等设置**）；新上传一律信封，服务器 `save_put` **拒绝明文**
@@ -257,7 +257,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | 26 | 华容道棋子拖完停在半格，重开也回不去 | 手势 `pointerInput(b.id, version)` 的 key 含 `version`：走子 `version++` → 手势协程被重启，`onDragEnd/onDragCancel` 永不执行，拖动偏移永久残留 | 手势 key 只绑棋子 id；拖动偏移用普通 state，位置 = 格位 + 偏移统一交给 `animateDpAsState` 一个动画值（不再另开动画协程） |
 | 27 | 五子棋悔棋撤错手（只撤电脑那颗 / 或连上轮自己那颗一起撤） | `undo()` 奇偶判断写反：玩家手是奇数手、AI 手是偶数手 | 偶数手（AI 刚应过）撤 2 手、奇数手撤 1 手 → 永远回到"玩家落子之前"，撤完必轮到玩家 |
 | 29 | 后来人误跑 `tools/fix_*.py` / `tools/v1xx_*.py`，源码或题库被二次改写 | 这些是历史一次性脚本（读源码→断言行→字符串替换→覆盖写回），改动早已并入源码，但当时和现役工具混放在 `tools/` 顶层，没有任何警示 | 统一移入 `tools/_oneshot/` 并加 README 警告；想追改动看 git 历史而不是重跑脚本 |
-| 30 | 新域名 http/ws 请求线上全部失败（模拟器/本地却正常） | v1.6.7 起 `usesCleartextTraffic` 已换成 `network_security_config.xml` 白名单（仅 8.148.192.129 与 10.0.2.2），白名单外域名明文流量被**静默拦截** | 新增 http/ws 域名同步改 `res/xml/network_security_config.xml`；或上 TLS |
+| 30 | 新域名 http/ws 请求线上全部失败（模拟器/本地却正常） | v1.6.7 起 `usesCleartextTraffic` 已换成 `network_security_config.xml` 白名单（仅 <PK_HOST> 与 10.0.2.2），白名单外域名明文流量被**静默拦截** | 新增 http/ws 域名同步改 `res/xml/network_security_config.xml`；或上 TLS |
 | 31 | 恢复云存档后联机/更新地址「莫名」变回默认 | 导入存档 = 整份 PlayerState 覆盖（含 pkServerUrl/updateServerUrl/cloudCode），旧档里的设置会一起回来 | 属既定语义（整档迁移）。受影响时到联机页长按在线人数行改回服务器地址 |
 | 28 | 改小游戏配色后像素识别脚本全失效 | 脚本按 RGB 阈值识别棋盘/棋子；且暂停时棋盘上有 40% 黑蒙层（观察色 = 原色 × 0.6） | 脚本改自适应：棋盘取屏幕最高频色的包围盒；棋子色同时匹配原色与 ×0.6 变体（见 tools/snake_autoeat.py） |
 
@@ -269,7 +269,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - [x] README 补充截图与 Release 链接
 - [ ] 打 tag 实战验证一次 Actions 发版流水线（workflow 已就绪；目前发版走 tools/publish_github.py 本地发布）
 - [x] v1.6.7/1.6.8 服务器代码已上线（2026-09-25，SSH 免密部署，线上冒烟 19 项全过；systemd 用 `python3 -u` 使对局日志落 journalctl）
-- [ ] 真机两台实测（热点局域网互搜 / 公网 8.148.192.129 对战 / 应用内更新全流程）
+- [ ] 真机两台实测（热点局域网互搜 / 公网 <PK_HOST> 对战 / 应用内更新全流程）
 - [x] 联机随机匹配（v1.6.1）、ELO 排行榜 + 云存档（v1.6.3，仅快速匹配计分）
 - [x] 小游戏体验强化（v1.6.6：手势化/动效/配色/音效/悔棋语义/减速）
 

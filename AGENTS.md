@@ -3,6 +3,7 @@
 > 「脑力大冒险」Android 项目的环境速查与避坑清单。供 AI 助手与新成员快速上手。
 > 完整版（流水线叙述、踩坑详表）见 `docs/PLAYBOOK.md`。
 > 交接包见 `docs/移交/`（**仅本地留存，不入库**）：[总览](docs/移交/00-交接总览.md) · **[事实源](docs/移交/01-事实源.md)（版本/数量/地址以它为准）** · [资产与凭据](docs/移交/02-资产与凭据.md) · [环境与恢复开发](docs/移交/03-环境与恢复开发.md) · [遗留与决策记录](docs/移交/04-遗留与决策记录.md) · [上架清单](docs/移交/05-上架准备清单.md) · [交接包维护](docs/移交/06-交接包维护与模板.md)。
+> 本文件与 HANDOFF/PLAYBOOK 中的 `<PK_HOST>` / `<PK_DIR>` 为占位符，**真实服务器地址与路径只在本地交接包**（`docs/移交/`，不入库）。
 > ⛔ `tools/_oneshot/` 是历史一次性脚本，**勿重跑**（会二次改写源码/题库）。
 
 ## 环境（已固化，直接用）
@@ -76,7 +77,7 @@ adb exec-out screencap -p > screen.png
 12. **更新后自动回游戏**：Android 后台启动限制（BAL）会拦截 Receiver 拉起 Activity → 先尝试拉起、失败发通知兜底；POST_NOTIFICATIONS 需运行时授权
 13. **`adb shell input text` 不支持中文**（会 NPE）；自动化测试用英文数字输入
 14. **CI（GitHub Actions ubuntu runner）**：Android SDK 预装（build-tools 34.0.0 可用）；需 `pip install numpy`；aapt2 无 .exe 后缀（release.py 已做跨平台）
-15. **明文流量白名单**（v1.6.7 起）：`network_security_config.xml` 只放行 `8.148.192.129` 与 `10.0.2.2`，新增 http/ws 域名要同步改，否则被静默拦截
+15. **明文流量白名单**（v1.6.7 起）：`network_security_config.xml` 只放行 `<PK_HOST>` 与 `10.0.2.2`，新增 http/ws 域名要同步改，否则被静默拦截
 16. **云存档**：上传必须设 ≥4 位口令（PBKDF2→AES-GCM 信封，`util/SaveCrypto.kt`），口令不落盘；服务器拒绝明文 `save_put`；导入存档会整份覆盖 PlayerState（含服务器地址等设置）
 17. **导航**：底部 Tab 与速算英雄入口**不能带 `restoreState=true`**（会把小游戏深层栈还原，表现为"点大厅回不到大厅"）；Tab 点击统一 `popUpTo(HOME){saveState=true}+launchSingleTop`
 18. **口令输入框是掩码**：自动化里回读的是 • 点串，**不能按明文比对**校验输入落点（按"非空点串且长度≥输入值"判）；弹窗每次打开要清空输入，否则重开弹窗会累加（曾出现 `test1234test1234` 导致解密失败）

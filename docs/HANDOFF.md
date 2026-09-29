@@ -24,7 +24,7 @@
 | 速算英雄 | 答题战斗闯关（10 科题库 420+ 题 + 真题卷，考研模式高难题；热更包扩至 596 题） |
 | 每日挑战 / 错题本 | 艾宾浩斯复习（1/2/4/7/15 天）、错题本到期队列 |
 | 小游戏 | **华容道**（8 关经典布局，滑动/点选移动+滑行动画，最少步数与最快用时记录）· **五子棋**（本地 AI 三档，悔棋回到我上一手前）· **贪吃蛇**（2D，整屏滑动，300ms 起步缓加速）|
-| 联机对战 | **远程 = 服务器中立**（v1.6.9：服务器出题+按题库判分+结算 ELO，双方 ready 后自动下发；题库在 /opt/pk/questions，口算/逻辑服务器程序生成）/ 局域网热点（内嵌服务器+UDP 发现，保留房主出题模式） |
+| 联机对战 | **远程 = 服务器中立**（v1.6.9：服务器出题+按题库判分+结算 ELO，双方 ready 后自动下发；题库在 <PK_DIR>/questions，口算/逻辑服务器程序生成）/ 局域网热点（内嵌服务器+UDP 发现，保留房主出题模式） |
 | 云存档 | **三重防护（v1.6.9 完整）**：存档码（自动生成只读）+ 身份码（QX+10 位，归属校验，换机输原身份码转移）+ 口令（AES-GCM 加密，服务器只存密文）；`save_del` 删除通道；`save_get` 限流 |
 | 隐私合规 | 应用内隐私政策（设置页入口）、明文流量收敛为域名白名单（`network_security_config.xml`）、商店副名「学海星槎」 |
 | 更新体系 | 多版本 BQDELTA1 差分补丁链（当前 manifest 34 条，覆盖全部正式签名版本；数量见 `docs/移交/01-事实源.md`）+ 国内多源回退 + GitHub Releases |
@@ -60,9 +60,9 @@
 # 1) build.gradle.kts 版本号+1 → ./gradlew clean assembleDebug → cp 到 update-server/apks/
 # 2) cd update-server && python release.py      # 差分+manifest+自校验
 # 3) GH_EXE=E:/Tools/gh-cli/bin/gh.exe python tools/publish_github.py
-# 联机服务器（阿里云 8.148.192.129:8765）
+# 联机服务器（阿里云 <PK_HOST>:8765）
 PK_SSH_PASS='<密码>' python tools/deploy_pk_server.py     # 部署（改完 pk_server.py 后）
-python tools/pk_server_smoke.py ws://8.148.192.129:8765   # 冒烟 31 项
+python tools/pk_server_smoke.py ws://<PK_HOST>:8765   # 冒烟 31 项
 python tools/pk_guest.py --quick 6   # 版本默认读 manifest，勿写死                  # 机器人对手（版本必须与 App 一致，否则配不上；PK_URL 指定服务器）
 python tools/klotski_verify.py                            # 华容道关卡可解性 BFS 校验
 python tools/snake_autoeat.py                             # 贪吃蛇自动追豆（像素识别）
@@ -79,7 +79,7 @@ python tools/gomoku_undo_check.py                         # 五子棋悔棋语�
 - 新增页面：`ui/AppRoot.kt` 加路由常量 + import + composable；`ui/HomeScreen.kt` 加入口卡片与最佳成绩标签
 - 联机非大厅阶段返回要先回大厅（`BackHandler`），别直接 `popBackStack`
 - 云存档上传必须走 `vm.encryptSaveJson(口令)`（SaveCrypto 信封）；服务器**拒绝明文** `save_put`，口令不落盘不上传；`save_get` 每连接 60s 限 6 次
-- ⚠️ 明文流量已收敛为白名单（`res/xml/network_security_config.xml`：仅 `8.148.192.129` 与 `10.0.2.2`）——新加 http/ws 域名要同步改这里，否则线上被静默拦截
+- ⚠️ 明文流量已收敛为白名单（`res/xml/network_security_config.xml`：仅 `<PK_HOST>` 与 `10.0.2.2`）——新加 http/ws 域名要同步改这里，否则线上被静默拦截
 - 发版前必须 `clean`（zipflinger 死空间会让 APK 虚高）
 - ⛔ `tools/_oneshot/` 里的 20 个脚本是**历史一次性脚本**（改动已并入源码），**勿重跑**，见 `tools/_oneshot/README.md`
 - 模拟器 AVD：`BrainQuest`，`ANDROID_AVD_HOME=E:/Tools/Android-Studio/avd-home`
