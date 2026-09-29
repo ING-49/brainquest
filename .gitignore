@@ -37,3 +37,6 @@ tools/_cloud_flow_*
 update-server/save_owners.json
 update-server/_uploaded.txt
 update-server/_missing.txt
+
+# 交接包仅在本地留存（含服务器地址与资产清单，不入公开仓库）
+docs/移交/
