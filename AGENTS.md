@@ -2,7 +2,7 @@
 
 > 「脑力大冒险」Android 项目的环境速查与避坑清单。供 AI 助手与新成员快速上手。
 > 完整版（流水线叙述、踩坑详表）见 `docs/PLAYBOOK.md`。
-> ⏸ 项目暂停中（2026-09）：交接包见 `docs/移交/`（[总览](docs/移交/00-交接总览.md) · [资产与凭据](docs/移交/01-资产与凭据.md) · [恢复开发](docs/移交/02-恢复开发.md) · [待办路线图](docs/移交/03-待办与路线图.md) · [上架清单](docs/移交/04-上架准备清单.md)）。
+> 交接包见 `docs/移交/`：[总览](docs/移交/00-交接总览.md) · **[事实源](docs/移交/01-事实源.md)（版本/数量/地址以它为准）** · [资产与凭据](docs/移交/02-资产与凭据.md) · [环境与恢复开发](docs/移交/03-环境与恢复开发.md) · [遗留与决策记录](docs/移交/04-遗留与决策记录.md) · [上架清单](docs/移交/05-上架准备清单.md) · [交接包维护](docs/移交/06-交接包维护与模板.md)。
 > ⛔ `tools/_oneshot/` 是历史一次性脚本，**勿重跑**（会二次改写源码/题库）。
 
 ## 环境（已固化，直接用）
@@ -19,8 +19,8 @@
 ## 关键命令
 
 ```bash
-# 构建（JDK17/ANDROID_HOME 已 setx 到用户级）
-gradlew assembleDebug
+# 构建（JDK17/ANDROID_HOME 已 setx 到用户级）；发版前必须 clean（否则 zipflinger 留死空间、APK 虚高）
+gradlew clean assembleDebug
 # 安装并启动
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.brainquest.game/.MainActivity
@@ -78,3 +78,12 @@ adb exec-out screencap -p > screen.png
 14. **CI（GitHub Actions ubuntu runner）**：Android SDK 预装（build-tools 34.0.0 可用）；需 `pip install numpy`；aapt2 无 .exe 后缀（release.py 已做跨平台）
 15. **明文流量白名单**（v1.6.7 起）：`network_security_config.xml` 只放行 `8.148.192.129` 与 `10.0.2.2`，新增 http/ws 域名要同步改，否则被静默拦截
 16. **云存档**：上传必须设 ≥4 位口令（PBKDF2→AES-GCM 信封，`util/SaveCrypto.kt`），口令不落盘；服务器拒绝明文 `save_put`；导入存档会整份覆盖 PlayerState（含服务器地址等设置）
+17. **导航**：底部 Tab 与速算英雄入口**不能带 `restoreState=true`**（会把小游戏深层栈还原，表现为"点大厅回不到大厅"）；Tab 点击统一 `popUpTo(HOME){saveState=true}+launchSingleTop`
+18. **口令输入框是掩码**：自动化里回读的是 • 点串，**不能按明文比对**校验输入落点（按"非空点串且长度≥输入值"判）；弹窗每次打开要清空输入，否则重开弹窗会累加（曾出现 `test1234test1234` 导致解密失败）
+19. **M3 自带进度条有缺口**：material3 1.3 的 `LinearProgressIndicator` 未满时进度末端有 4dp 断层+起点圆点 → 统一用自绘 `Common.kt` 的 `BqProgressBar`
+20. **别用新 emoji 当关键图标**：🪙（Unicode 13）在老设备字体缺失会显示方框 → 金币一律用代码绘制的 `CoinIcon`/`CoinText`
+21. **`remember` 不能放条件分支**（含 `rememberInfiniteTransition`）：会因槽位变化崩溃/错位 → 无条件 hoist 到顶部再按条件取 `.value`
+22. **发版前必须 `clean`**：否则 zipflinger 把已删条目留成死空间，APK 体积虚高（曾 16.9MB，应为 3.8MB）
+23. **`reportBestLow` 是反向指标**（越小越好，用于步数/用时）；普通成绩用 `reportBest`
+24. **PK 服务器地址要做合法性校验**（`validPkUrl`）：残缺地址（如只填 `ws://`）会直接崩溃
+25. **`pointerInput` 的 key 不要绑 `version`**：每次落子都重建手势检测器，拖动会断触

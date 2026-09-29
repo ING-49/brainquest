@@ -58,7 +58,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 | `tools/publish_github.py` | `GH_EXE=<gh路径> python tools/publish_github.py` | 发布 update-server 产物到 Releases |
 | `update-server/release.py` | `python release.py`；`--packs-only` 只发内容包 | 每次发版第一步之后 |
 | `update-server/delta.py` | 被 release.py 调用；`verify()` 独立可测 | 差分编码 |
-| `tools/klotski_verify.py` | `python tools/klotski_verify.py` | 华容道 6 关可解性 BFS 校验（含最少步数） |
+| `tools/klotski_verify.py` | `python tools/klotski_verify.py` | 华容道 8 关可解性 BFS 校验（含最少步数） |
 | `tools/snake_autoeat.py` | `python tools/snake_autoeat.py` | 贪吃蛇自动追豆（像素识别 + 暂停分步，转向用棋盘内滑动） |
 | `tools/snake_speed_check.py` | 同上 | 贪吃蛇速度/无方向键/速度档/返回确认取证 |
 | `tools/klotski_anim_check.py` | 同上 | 华容道拖动跟手/过阈值滑行/精确落格/步数取证 |
@@ -76,7 +76,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
   `{"subject","version","questions":[{"id","subject","difficulty"(1-5),"type","question","options"[4],"answer"(下标),"explanation","tags"}]}`
 - **加题**：直接改 assets 里的 JSON（随 APK 发）或在 `update-server/packs/src/` 新建 JSON（version+1 → release.py --packs-only → publish_github，走热更）
 - **小游戏**（v1.6.5 起）：速算英雄（答题战斗）、`game/klotski/`（华容道，关卡 Kotlin 内置，最优步数由 `tools/klotski_verify.py` BFS 校验）、`game/gomoku/`（五子棋，本地启发式 AI）、`game/snake/`（贪吃蛇 2D）；三者纯逻辑类 + `version` 计数器，无资产依赖
-- **小游戏清单（v1.6.5 / 体验强化 v1.6.6）**：速算英雄（答题战斗闯关）· 华容道（6 关，滑动/点选移动 + 滑行动画，记录最少步数）· 五子棋（本地 AI 三档，记录总胜场/最佳连胜）· 贪吃蛇（最高分，300ms 起步缓加速）· 联机对战
+- **小游戏清单（v1.6.5 / 体验强化 v1.6.6）**：速算英雄（答题战斗闯关）· 华容道（8 关，滑动/点选移动 + 滑行动画，记录最少步数与最快用时）· 五子棋（本地 AI 三档，记录总胜场/最佳连胜）· 贪吃蛇（最高分，300ms 起步缓加速）· 联机对战
 - 成就联动：智取华容 / 棋逢对手 / 连战连捷 / 蛇行三十；奖励统一走 `vm.reportBest(Low) + addCoins + addXp`
 
 ### 小游戏交互规范（v1.6.6 定稿，改小游戏先读这条）
@@ -132,7 +132,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - [ ] `app/build.gradle.kts` versionCode +1、versionName 升级
 - [ ] `gradlew assembleDebug` 成功
 - [ ] APK 复制到 `update-server/apks/BrainQuest-v<版本>.apk`
-- [ ] `python release.py`（末尾必须出现 `[verify] ✓`，自校验不过禁止发布）
+- [ ] `python release.py`（正常结束并出现 `[pack]`/`[patch]`/`[manifest]` 前缀，如 `[patch] 补丁链共 N 条` 与 `[manifest] 已生成 manifest.json`；**没有 `[verify]` 这个字样**）
 - [ ] `python tools/publish_github.py`（末尾出现 `✓ GitHub 托管生效`）
 - [ ] 浏览器验证 `releases/latest/download/manifest.json` 指向新版本
 - [ ] 真机/模拟器实际走一次「检查更新 → 增量更新」
@@ -184,7 +184,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **单局约束**：同一身份码有未结束对局（含挂起）时不可快速匹配/建房/加房，客户端收到拒绝自动发 resume 回原局；排队队列同身份去重
 - **检测与提示**：ping 10s/10s（真断线 ~20 秒检出）；排队 >15s 未配对提示版本可能不同；版本不同排队收显式 error；matched >60s 未就绪提示对手可能断开；双方都掉线 60s 静默拆房（`PK_EMPTY_ROOM_LIFE_S` 可调）
 
-### 远程模式（v1.6.9 服务器出题+判分）
+### 远程模式协议细节（v1.6.9 服务器出题+判分）
 - **在线人数**：服务器实时广播 `{"t":"online","players":N,"waiting":K,"rooms":M}`（连接/断开/入队/出队时触发）；App 联机页远程页签维持空闲长连接显示「🟢 在线 N 人」
 - **快速匹配**：`quick_match` 入队，服务器只配对**同版本**玩家；甲方收 `created`+`peer_joined`、乙方收 `joined` —— 客户端状态机零改动，复用现有确认→倒计时→对战→结算全流程
 - 大厅双页签：🌐 远程（默认，在线人数/快速匹配/科目选择/好友房间）+ 🏠 局域网（创建/搜索/手动直连，原样保留）
