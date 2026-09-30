@@ -283,6 +283,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return false
     }
 
+    /**
+     * 迷你幸存者结算：最高生存秒/单局击杀入 bestScores，累计击杀累加，并按战绩发金币经验。
+     * 返回是否刷新最高生存纪录。
+     */
+    fun addSurvivorResult(timeSec: Int, kills: Int): Boolean {
+        val newBest = reportBest("survivor_best", timeSec)
+        reportBest("survivor_kills", kills)
+        commit { it.copy(survivorTotalKills = it.survivorTotalKills + kills) }
+        if (kills > 0 || timeSec > 0) {
+            addCoins(minOf(kills / 3, 50))
+            addXp(minOf(timeSec / 4 + kills / 6, 80))
+        }
+        return newBest
+    }
+
     /** 反向指标记录（越小越好，如最少步数）：首次记录或刷新更低值，返回是否破纪录 */
     fun reportBestLow(key: String, score: Int): Boolean {
         val old = _player.value.bestScores[key]

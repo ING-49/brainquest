@@ -249,6 +249,17 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
         ElevatedCard(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { nav.navigate(Routes.SURVIVOR) },
+        ) {
+            Column(Modifier.padding(14.dp)) {
+                Text("🧟", style = MaterialTheme.typography.headlineLarge)
+                Text("迷你幸存者", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("弹幕求生 · 升级三选一", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
                 .clickable { nav.navigate(Routes.PK) },
         ) {
             Column(Modifier.padding(14.dp)) {
@@ -290,6 +301,8 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                         k == "gomoku_wins" -> "五子棋·总胜场"
                         k == "gomoku_best_streak" -> "五子棋·最佳连胜"
                         k == "snake_best" -> "贪吃蛇·最高分"
+                        k == "survivor_best" -> "迷你幸存者·最长生存（秒）"
+                        k == "survivor_kills" -> "迷你幸存者·单局击杀"
                         else -> k
                     }
                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {

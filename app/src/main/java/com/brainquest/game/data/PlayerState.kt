@@ -56,6 +56,7 @@ data class PlayerState(
     val dailyTaskDate: String = "", // 📋 每日任务归属日期（yyyy-MM-dd，跨天自动重置）
     val dailyTaskProgress: Map<String, Int> = emptyMap(), // 📋 每日任务进度（键见 DailyTasks）
     val dailyTaskClaimed: List<String> = emptyList(), // 📋 已领取奖励的任务 id
+    val survivorTotalKills: Int = 0, // 🧟 迷你幸存者累计击杀（跨局累加）
 ) {
     val totalAnswered: Int get() = totalCorrect + totalWrong
     val accuracy: Float get() = if (totalAnswered == 0) 0f else totalCorrect.toFloat() / totalAnswered
