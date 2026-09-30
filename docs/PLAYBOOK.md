@@ -8,7 +8,7 @@
 - **应用**：脑力大冒险（com.brainquest.game）——益智学习手游合集，单机离线可玩 + 公网联机对战
 - **技术栈**：Kotlin 2.0.20 + Jetpack Compose (BOM 2024.09) + Material 3 + DataStore + OkHttp；minSdk 26 / target 34
 - **仓库**：https://github.com/ING-49/brainquest（public，Conventional Commits）
-- **当前版本**：v1.6.18 (versionCode 43)
+- **当前版本**：v1.6.19 (versionCode 44)
 - **更新体系**：自研 BQDELTA1 增量差分 + GitHub Releases 托管 + GitHub Actions 自动发版
 
 ## 二、已验证的完整线路
@@ -112,6 +112,7 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **华容道出门两段式（v1.6.15）**：solved → 原地停顿 550ms → 450ms 滑出门洞 → 结算弹窗（节奏三拍：到达确认→出门→结算）
 - **金币图标与动效（v1.6.16）**：🪙 是 Unicode 13 新表情，老设备字体缺失显示方框 → Common.kt 自绘 `CoinIcon`/`CoinText`（Canvas 琥珀币），全项目替换；商店购买后余额 AnimatedContent 上滑刷新 + 扣款浮字上飘渐隐（FloatingCoinDelta）
 - **StatChip 三层（v1.6.16）**：统计卡改 图标/数值/文字 纵向三层（value maxLines=1），四卡等宽不再折行
+- **v1.6.19**：修进题闪答案——战斗屏揭晓态（answered/chosen）复位原先挂在 `LaunchedEffect(题号)`，切题后晚一帧才生效，新题先画一帧揭晓态；改为在调 `nextQuestion()`/`qIndex++` 前同步复位（同协程无挂起点，原子提交）
 - **v1.6.18 修复轮**：①华容道切关手势闭包陈旧（`pointerInput(block.id, gameKey)`，见 AGENTS 坑 26）；②错题本复习列表 `remember` 快照防索引漂移；③题库正确项均衡（一次性脚本 `_bank_rebalance.py`，A-D 均匀）；④`ui/FormulaText.kt` 把 `^`/`_` 记号渲染为上下标（仅数学类科目启用，编程/英语不启用防蛇形命名误伤）；⑤服务器 ELO 按 identity 计分 + `name_check`/`name_claim` 昵称唯一协议（ratings.json 旧昵称键自动加 `n:` 前缀，`names.json` 登记身份→昵称，首次连线认领迁移）；⑥改名查重 `PkClient.checkNameAvailability`（**注意：连接后首条消息是 online 广播，latch 只能在 name_check 回包处放行**）
 - **每日任务（v1.6.17）**：`data/DailyTasks.kt` 定义三任务（答对10题/完成一局华容道/复习答对3错题，30-40金币）；PlayerState 加 dailyTask* 字段（跨天重置）；钩子在 recordAnswer/reviewAnswered/华容道胜利结算；大厅任务卡领取→COIN 音效
 - **战斗动效（v1.6.17）**：敌方血条受击闪白（lerp）、计时≤5s 红色脉冲（rememberInfiniteTransition 必须无条件 hoist，不能进 if 分支）、连击文字弹跳

@@ -466,6 +466,9 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
             else client.sendFinish(totalTime)
             phase = "mydone"
         } else {
+            // 复位与切题同帧提交：若等 LaunchedEffect(qIndex) 再复位，新题会先闪出一帧上一题的答案揭晓态
+            answered = false
+            chosen = -1
             qIndex++
         }
     }

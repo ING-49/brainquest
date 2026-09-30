@@ -107,7 +107,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
         scope.launch {
             handleAnswer(vm, battle, context, sfxOn, hapticOn, -1, onDone = { dmg, fb ->
                 lastDamage = dmg; feedback = fb
-            }, onEnd = { rs -> resultState = rs })
+            }, onEnd = { rs -> resultState = rs }, onNextQuestion = { answered = false; chosen = -1 })
         }
     }
 
@@ -146,7 +146,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
             handleAnswer(vm, battle, context, sfxOn, hapticOn, index = -100, fillInput = input, onDone = { dmg, fb ->
                 lastDamage = dmg; feedback = fb
                 if (dmg > 0) shakeEnemy()
-            }, onEnd = { rs -> resultState = rs })
+            }, onEnd = { rs -> resultState = rs }, onNextQuestion = { answered = false; chosen = -1 })
         }
     }
 
@@ -160,7 +160,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
                 if (dmg > 0) {
                     shakeEnemy()
                 }
-            }, onEnd = { rs -> resultState = rs })
+            }, onEnd = { rs -> resultState = rs }, onNextQuestion = { answered = false; chosen = -1 })
         }
     }
 
@@ -425,6 +425,7 @@ private suspend fun handleAnswer(
     index: Int,
     onDone: suspend (Int, String) -> Unit,
     onEnd: (Int) -> Unit,
+    onNextQuestion: () -> Unit = {},
     fillInput: String? = null,
 ) {
     val q = battle.question ?: return
@@ -441,6 +442,11 @@ private suspend fun handleAnswer(
     when {
         battle.victory -> onEnd(1)
         battle.defeated -> onEnd(2)
-        else -> battle.nextQuestion()
+        else -> {
+            // 复位必须与 nextQuestion() 同帧提交：若等 LaunchedEffect(questionIndex) 再复位，
+            // 新题会先以"已揭晓"状态画出一帧，表现为短暂闪出正确答案
+            onNextQuestion()
+            battle.nextQuestion()
+        }
     }
 }
