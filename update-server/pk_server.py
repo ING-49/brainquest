@@ -51,6 +51,7 @@ import websockets
 
 DATA_DIR = os.environ.get("PK_DATA_DIR") or ("/opt/pk" if os.path.isdir("/opt/pk") else os.path.dirname(os.path.abspath(__file__)))
 RATINGS_FILE = os.path.join(DATA_DIR, "ratings.json")
+NAMES_FILE = os.path.join(DATA_DIR, "names.json")
 SAVES_DIR = os.path.join(DATA_DIR, "saves")
 OWNERS_FILE = os.path.join(DATA_DIR, "save_owners.json")
 
@@ -70,9 +71,14 @@ rooms = {}   # code -> {"host","guest","names","versions","identities","ranked",
              #            "finish":{ws:timeMs},"gone_slots":set("host"/"guest"),"teardown":task|None}
 online = set()   # 当前所有连接
 queue = []   # 快速匹配等待队列：[{"ws","name","version","subject","identity"}, ...]
-ratings = {}  # 科目 -> {name -> {"r": 1000, "w": 0, "l": 0, "g": 0}}（排行榜按科目分桶）
+ratings = {}  # 科目 -> {玩家键 -> {"name": 昵称, "r": 1000, "w": 0, "l": 0, "g": 0}}
+              # 玩家键：身份码（v1.6.18 起，同名不再共享积分）；"n:"+昵称 = 无身份码旧客户端的回退键
+names = {}    # 身份码 -> 昵称（全服唯一昵称登记表；改名须查重）
 save_get_hist = {}  # ws -> [time.time(), ...]（save_get 滑动窗口限流）
 save_owners = {}  # 存档码 -> 身份码（云存档归属；无记录 = 旧存档，首次操作时认领）
+
+_NAME_SUGGEST_WORDS = ["疾风星", "闪耀星", "智慧果", "小天才", "思维者",
+                       "闯关王", "星辰客", "破晓者", "思考熊", "夜行者"]
 
 
 # ---------- 题库（服务器中立对战：服务器出题 + 判分，v1.6.9） ----------
@@ -266,6 +272,15 @@ def is_save_envelope(data):
 
 # ---------- 积分持久化（快速匹配 ELO，按科目分桶，仅计分局更新） ----------
 
+def player_key(identity, name):
+    """积分键：身份码优先（同名用户互不串分）；无身份码的旧客户端回退到昵称键"""
+    return identity if identity else ("n:" + name if name else "")
+
+
+def claimed_names():
+    return set(names.values())
+
+
 def load_ratings():
     global ratings
     try:
@@ -274,6 +289,17 @@ def load_ratings():
         # 兼容 v1.6.3 的旧扁平结构（name -> 积分）→ 迁移进「混合」桶
         if data and all(isinstance(v, dict) and "r" in v for v in data.values()):
             data = {DEFAULT_SUBJECT: data}
+        # 兼容 v1.6.17 及更早的按昵称计分（记录无 name 字段）→ 改为 "n:"+昵称 键，等待同名身份认领
+        for table in data.values():
+            if not isinstance(table, dict):
+                continue
+            for k in list(table.keys()):
+                rec = table[k]
+                if not isinstance(rec, dict):
+                    continue
+                if "name" not in rec:
+                    table["n:" + k] = dict(rec, name=k)
+                    del table[k]
         ratings = data
         n = sum(len(v) for v in ratings.values())
         print(f"[elo] 已载入 {len(ratings)} 个科目桶 / {n} 名玩家积分")
@@ -290,9 +316,75 @@ def save_ratings():
         print(f"[elo] 积分保存失败: {e}")
 
 
-def rating_of(subject, name):
+def load_names():
+    global names
+    try:
+        with open(NAMES_FILE, "r", encoding="utf-8") as f:
+            names = json.load(f)
+        print(f"[name] 已载入 {len(names)} 条昵称登记", flush=True)
+    except Exception:
+        names = {}
+
+
+def save_names():
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(NAMES_FILE, "w", encoding="utf-8") as f:
+            json.dump(names, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"[name] 昵称登记保存失败: {e}")
+
+
+def adopt_legacy(identity, name):
+    """新身份首次登记时，若旧版按昵称计分的记录与其昵称同名且未被认领 → 继承旧积分。
+    防止升级后老玩家积分清零（同名两人谁先连谁继承，后到者新起 1000 分）。"""
+    if not identity or not name:
+        return False
+    moved = False
+    for table in ratings.values():
+        rec = table.pop("n:" + name, None)
+        if rec is not None and identity not in table:
+            table[identity] = rec
+            moved = True
+    if moved:
+        print(f"[elo] 身份 {identity} 认领了旧昵称「{name}」的历史积分", flush=True)
+    return moved
+
+
+def register_player(identity, name):
+    """连接时登记身份→昵称（唯一昵称表的占用记录），并尝试继承同名旧积分。静默尽力而为。"""
+    if not identity or not name:
+        return
+    if names.get(identity) == name:
+        return
+    if name in claimed_names():
+        return  # 昵称已被其他身份占用：不覆盖登记、不迁移（对局照常进行）
+    adopt_legacy(identity, name)
+    names[identity] = name
+    save_names()
+    save_ratings()
+
+
+def name_taken(name, identity):
+    """昵称是否已被“其他身份”占用（自己已登记的不算）"""
+    return bool(name) and name in claimed_names() and names.get(identity or "") != name
+
+
+def suggest_names(base, count=3):
+    rng = random.Random(time.time())
+    out = []
+    for _ in range(60):
+        cand = rng.choice(_NAME_SUGGEST_WORDS) + str(rng.randint(100, 999))
+        if cand != base and cand not in claimed_names() and cand not in out:
+            out.append(cand)
+        if len(out) >= count:
+            break
+    return out
+
+
+def rating_of(subject, key, name="玩家"):
     return ratings.setdefault(subject, {}).setdefault(
-        name, {"r": DEFAULT_RATING, "w": 0, "l": 0, "g": 0})
+        key, {"name": name, "r": DEFAULT_RATING, "w": 0, "l": 0, "g": 0})
 
 
 # ---------- 云存档归属（v1.6.9：存档码 ↔ 身份码绑定，防猜码盗档/覆盖） ----------
@@ -316,9 +408,12 @@ def save_owners_to_disk():
         print(f"[save] 归属保存失败: {e}")
 
 
-def apply_elo(subject, host_name, guest_name, host_score):
-    """host_score: 1 胜 / 0.5 平 / 0 负；返回 (host_delta, host_rating, guest_rating)"""
-    h, g = rating_of(subject, host_name), rating_of(subject, guest_name)
+def apply_elo(subject, h_key, g_key, h_name, g_name, host_score):
+    """host_score: 1 胜 / 0.5 平 / 0 负；返回 (host_delta, host_rating, guest_rating)。
+    以玩家键（身份码）计分，昵称只作展示名随记录更新。"""
+    h, g = rating_of(subject, h_key, h_name), rating_of(subject, g_key, g_name)
+    h["name"] = h_name
+    g["name"] = g_name
     exp_h = 1 / (1 + 10 ** ((g["r"] - h["r"]) / 400))
     delta = round(K_FACTOR * (host_score - exp_h))
     h["r"] += delta
@@ -333,10 +428,10 @@ def apply_elo(subject, host_name, guest_name, host_score):
     return delta, h["r"], g["r"]
 
 
-def rank_of(subject, name):
+def rank_of(subject, key):
     order = sorted(ratings.get(subject, {}).items(), key=lambda kv: -kv[1]["r"])
-    for i, (n, _) in enumerate(order):
-        if n == name:
+    for i, (k, _) in enumerate(order):
+        if k == key:
             return i + 1
     return 0
 
@@ -507,7 +602,9 @@ def try_result(code, forfeit=False):
         h_name = room["names"].get(host, "玩家")
         g_name = room["names"].get(guest, "玩家")
         subject = room.get("subject") or DEFAULT_SUBJECT
-        delta, h_r, g_r = apply_elo(subject, h_name, g_name, host_score)
+        h_key = player_key((room.get("identities") or {}).get(host, ""), h_name)
+        g_key = player_key((room.get("identities") or {}).get(guest, ""), g_name)
+        delta, h_r, g_r = apply_elo(subject, h_key, g_key, h_name, g_name, host_score)
         rating = {
             host: {"ranked": True, "my": h_r, "delta": delta, "peer": g_r},
             guest: {"ranked": True, "my": g_r, "delta": -delta, "peer": h_r},
@@ -558,6 +655,7 @@ async def handler(ws):
                 if busy:
                     send(ws, {"t": "error", "msg": "你有未结束的对局，正在为你恢复…"})
                     continue
+                register_player(identity, str(msg.get("name", ""))[:32])
                 code = new_code()
                 rooms[code] = {"host": ws, "guest": None,
                                "names": {ws: msg.get("name", "玩家")},
@@ -586,6 +684,7 @@ async def handler(ws):
                 if not room or room["guest"] is not None:
                     send(ws, {"t": "error", "msg": "房间不存在或已满"})
                     continue
+                register_player(identity, str(msg.get("name", ""))[:32])
                 room["guest"] = ws
                 room["names"][ws] = msg.get("name", "玩家")
                 room["versions"] = room.get("versions", {})
@@ -608,6 +707,7 @@ async def handler(ws):
                 if busy:
                     send(ws, {"t": "error", "msg": "你有未结束的对局，正在为你恢复…"})
                     continue
+                register_player(identity, str(msg.get("name", ""))[:32])
                 enqueue(ws, msg.get("name", "玩家"), msg.get("version", "?"),
                         str(msg.get("subject") or DEFAULT_SUBJECT), identity)
                 if not try_match():
@@ -666,19 +766,47 @@ async def handler(ws):
                 send(ws, presence())
 
             elif t == "leaderboard":
-                name = msg.get("name", "")
+                name = str(msg.get("name", ""))[:32]
+                identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
+                register_player(identity, name)
+                my_key = player_key(identity, name)
                 subject = str(msg.get("subject") or DEFAULT_SUBJECT)
                 table = ratings.get(subject, {})
                 top = sorted(table.items(), key=lambda kv: -kv[1]["r"])[:10]
                 me = None
-                if name in table:
-                    v = table[name]
-                    me = {"name": name, "rating": v["r"], "wins": v["w"],
-                          "losses": v["l"], "games": v["g"], "rank": rank_of(subject, name)}
+                if my_key and my_key in table:
+                    v = table[my_key]
+                    me = {"id": identity, "name": v.get("name", name), "rating": v["r"], "wins": v["w"],
+                          "losses": v["l"], "games": v["g"], "rank": rank_of(subject, my_key)}
                 send(ws, {"t": "leaderboard", "subject": subject,
-                          "top": [{"name": n, "rating": v["r"], "wins": v["w"],
-                                   "losses": v["l"], "games": v["g"]} for n, v in top],
+                          "top": [{"id": ("" if k.startswith("n:") else k), "name": v.get("name", k[2:] if k.startswith("n:") else k),
+                                   "rating": v["r"], "wins": v["w"], "losses": v["l"], "games": v["g"]}
+                                  for k, v in top],
                           "me": me})
+
+            elif t == "name_check":
+                print(f"[name] 收到查重 name={msg.get('name')!r} identity={msg.get('identity')!r}", flush=True)
+                # 昵称唯一性查重（改名界面调用）：返回是否被占 + 未被占用的随机建议名
+                name = str(msg.get("name", ""))[:32]
+                identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
+                send(ws, {"t": "name_check", "taken": name_taken(name, identity),
+                          "suggestions": suggest_names(name)})
+
+            elif t == "name_claim":
+                # 改名通过查重后登记占用（身份码 → 昵称），并继承同名旧积分
+                name = str(msg.get("name", ""))[:32]
+                identity = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("identity", "")))[:24]
+                if not identity:
+                    send(ws, {"t": "name_claim", "ok": False, "taken": False, "msg": "身份码缺失"})
+                elif name_taken(name, identity):
+                    send(ws, {"t": "name_claim", "ok": False, "taken": True,
+                              "suggestions": suggest_names(name)})
+                else:
+                    adopt_legacy(identity, name)
+                    names[identity] = name
+                    save_names()
+                    save_ratings()
+                    send(ws, {"t": "name_claim", "ok": True, "taken": False})
 
             elif t == "save_put":
                 code = re.sub(r"[^A-Za-z0-9_-]", "", str(msg.get("code", "")))[:24]
@@ -849,6 +977,7 @@ async def handler(ws):
 
 async def main(port):
     load_ratings()
+    load_names()
     load_owners()
     load_bank()
     async with websockets.serve(handler, "0.0.0.0", port, ping_interval=10, ping_timeout=10):

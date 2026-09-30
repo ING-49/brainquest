@@ -9,11 +9,11 @@
       "question": "lim(x→0) sin x / x = ?",
       "options": [
         "0",
-        "1",
         "∞",
+        "1",
         "不存在"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "第一个重要极限，sinx/x → 1（x→0）。",
       "tags": [
         "极限"
@@ -26,11 +26,11 @@
       "question": "lim(x→∞) (1 + 1/x)^x = ?",
       "options": [
         "1",
-        "e",
         "0",
+        "e",
         "∞"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "第二个重要极限，极限为自然常数 e ≈ 2.718。",
       "tags": [
         "极限"
@@ -43,11 +43,11 @@
       "question": "函数 f(x)=x³ 的导数是？",
       "options": [
         "3x",
-        "3x²",
         "x²",
+        "3x²",
         "x⁴/4"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "幂函数求导：(xⁿ)' = n·xⁿ⁻¹，故 (x³)'=3x²。",
       "tags": [
         "导数"
@@ -59,12 +59,12 @@
       "difficulty": 1,
       "question": "∫ 2x dx = ?",
       "options": [
-        "x² + C",
         "2x² + C",
+        "x² + C",
         "x²/2 + C",
         "2 + C"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "∫xⁿdx = xⁿ⁺¹/(n+1)+C，故 ∫2x dx = x² + C。",
       "tags": [
         "积分"
@@ -77,11 +77,11 @@
       "question": "函数在某点可导，则在该点？",
       "options": [
         "不一定连续",
-        "必连续",
+        "必不可微",
         "必取极值",
-        "必不可微"
+        "必连续"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "可导必连续，连续不一定可导。",
       "tags": [
         "导数"
@@ -94,11 +94,11 @@
       "question": "lim(x→0⁺) ln x = ?",
       "options": [
         "0",
-        "-∞",
         "+∞",
+        "-∞",
         "不存在"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "x→0⁺ 时 ln x → −∞。",
       "tags": [
         "极限"
@@ -127,12 +127,12 @@
       "difficulty": 1,
       "question": "sin x 的导数是？",
       "options": [
-        "cos x",
+        "tan x",
         "−cos x",
         "−sin x",
-        "tan x"
+        "cos x"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "(sin x)' = cos x，(cos x)' = −sin x。",
       "tags": [
         "导数"
@@ -144,12 +144,12 @@
       "difficulty": 1,
       "question": "常数 C 的导数是？",
       "options": [
-        "C",
         "0",
+        "C",
         "1",
         "不存在"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "常数的导数为 0。",
       "tags": [
         "导数"
@@ -163,10 +163,10 @@
       "options": [
         "1",
         "∞",
-        "0",
-        "−∞"
+        "−∞",
+        "0"
       ],
-      "answer": 2,
+      "answer": 3,
       "explanation": "无穷小的倒数，极限为 0。",
       "tags": [
         "极限"
@@ -178,12 +178,12 @@
       "difficulty": 2,
       "question": "函数 f(x)=|x| 在 x=0 处？",
       "options": [
-        "既可导又连续",
         "连续但不可导",
+        "既可导又连续",
         "导数不存在",
         "可导不连续"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "左右导数分别为 −1 和 1，不相等，故连续但不可导（尖点）。",
       "tags": [
         "导数"
@@ -229,12 +229,12 @@
       "difficulty": 2,
       "question": "∫ cos x dx = ?",
       "options": [
-        "−sin x + C",
         "sin x + C",
+        "−sin x + C",
         "cos x + C",
         "tan x + C"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "∫cosx dx = sinx + C。",
       "tags": [
         "积分"
@@ -247,11 +247,11 @@
       "question": "函数 y = x² 的单调递增区间是？",
       "options": [
         "(−∞,0)",
-        "(0,+∞)",
+        "[−1,1]",
         "R",
-        "[−1,1]"
+        "(0,+∞)"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "y'=2x>0 当 x>0，故在 (0,+∞) 单调递增。",
       "tags": [
         "导数应用"
@@ -263,12 +263,12 @@
       "difficulty": 2,
       "question": "微分的线性近似：f(x₀+Δx) ≈ ?",
       "options": [
-        "f(x₀)+f′(x₀)Δx",
-        "f(x₀)+f′(x₀)·(Δx)²",
         "f′(x₀)",
+        "f(x₀)+f′(x₀)·(Δx)²",
+        "f(x₀)+f′(x₀)Δx",
         "f(x₀)·(1+Δx)"
       ],
-      "answer": 0,
+      "answer": 2,
       "explanation": "一阶泰勒近似：Δy ≈ f′(x₀)Δx。",
       "tags": [
         "微分"
@@ -297,12 +297,12 @@
       "difficulty": 2,
       "question": "曲线 y=f(x) 在点处切线斜率是？",
       "options": [
-        "f(x)",
         "f′(x)",
+        "f(x)",
         "f″(x)",
         "Δx"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "导数的几何意义就是切线斜率。",
       "tags": [
         "导数应用"
@@ -315,11 +315,11 @@
       "question": "级数 ∑ 1/n² 收敛吗？",
       "options": [
         "通项不趋于零故发散",
-        "收敛于π²/6",
+        "无法判断",
         "条件收敛",
-        "无法判断"
+        "收敛于π²/6"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "p=2>1 的 p-级数收敛，欧拉求得和为 π²/6。",
       "tags": [
         "级数"
@@ -331,12 +331,12 @@
       "difficulty": 2,
       "question": "调和级数 ∑ 1/n 的敛散性？",
       "options": [
-        "收敛",
         "发散",
+        "收敛",
         "收敛于1",
         "条件收敛"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "p=1 的 p-级数（调和级数）发散。",
       "tags": [
         "级数"
@@ -348,12 +348,12 @@
       "difficulty": 2,
       "question": "乘积求导法则 (uv)′ = ?",
       "options": [
-        "u′v′",
         "u′v+uv′",
+        "u′v′",
         "u′v−uv′",
         "uv"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "莱布尼茨乘积法则：(uv)′ = u′v + uv′。",
       "tags": [
         "导数"
@@ -365,12 +365,12 @@
       "difficulty": 2,
       "question": "复合函数求导（链式法则）：[f(g(x))]′ = ?",
       "options": [
-        "f′(g(x))·g(x) + g′(x)",
         "f′(g(x))·g′(x)",
+        "f′(g(x))·g(x) + g′(x)",
         "f(g′(x))",
         "f′(x)·g′(x)"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "外层导数乘内层导数。",
       "tags": [
         "导数"
@@ -384,10 +384,10 @@
       "options": [
         "ln x + C",
         "−1/x² + C",
-        "ln|x| + C",
-        "1/x² + C"
+        "1/x² + C",
+        "ln|x| + C"
       ],
-      "answer": 2,
+      "answer": 3,
       "explanation": "∫(1/x)dx = ln|x| + C，加绝对值覆盖负区间。",
       "tags": [
         "积分"
@@ -399,12 +399,12 @@
       "difficulty": 2,
       "question": "函数极值点处的一阶导数？",
       "options": [
-        "必为0或不存在",
+        "必连续",
         "必为正数且连续",
         "必为负数",
-        "必连续"
+        "必为0或不存在"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "极值必要条件：驻点(f′=0)或导数不存在的点。",
       "tags": [
         "导数应用"
@@ -416,12 +416,12 @@
       "difficulty": 2,
       "question": "lim(x→0) (1−cos x)/x² = ?",
       "options": [
-        "0",
         "1/2",
+        "0",
         "1",
         "3/2"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "1−cosx ~ x²/2，故极限为 1/2。",
       "tags": [
         "极限"
@@ -433,12 +433,12 @@
       "difficulty": 3,
       "question": "罗尔定理的条件不包括？",
       "options": [
-        "闭区间连续",
+        "函数单调",
         "开区间可导",
         "端点函数值相等",
-        "函数单调"
+        "闭区间连续"
       ],
-      "answer": 3,
+      "answer": 0,
       "explanation": "罗尔定理：连续+可导+f(a)=f(b) ⇒ 存在 ξ 使 f′(ξ)=0，不要求单调。",
       "tags": [
         "中值定理"
@@ -451,11 +451,11 @@
       "question": "∫₀^(π/2) cos x dx = ?",
       "options": [
         "0",
-        "1",
         "−1",
+        "1",
         "π/2"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "[sin x]₀^(π/2) = 1 − 0 = 1。",
       "tags": [
         "积分"
@@ -467,12 +467,12 @@
       "difficulty": 3,
       "question": "y = ln x 的导数是？",
       "options": [
-        "1/x",
+        "ln x / x",
         "−1/x²",
         "x",
-        "ln x / x"
+        "1/x"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "(ln x)' = 1/x (x>0)；(ln|x|)' = 1/x 对 x≠0 都成立。",
       "tags": [
         "导数"
@@ -502,11 +502,11 @@
       "question": "微分方程 y′ = y 的通解是？",
       "options": [
         "y = Cx",
-        "y = Ce^x",
         "y = x + C",
+        "y = Ce^x",
         "y = e^x + C"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "dy/y = dx ⇒ ln|y| = x + C₁ ⇒ y = Ce^x。",
       "tags": [
         "微分方程"
@@ -519,11 +519,11 @@
       "question": "极坐标下面积的积分元素是？",
       "options": [
         "r² sinθ dr dθ",
-        "r dθ",
         "(1/2)r² dθ",
+        "r dθ",
         "θ dr"
       ],
-      "answer": 2,
+      "answer": 1,
       "explanation": "扇形面积微元 dS = (1/2)r²dθ。",
       "tags": [
         "积分应用"
@@ -552,12 +552,12 @@
       "difficulty": 3,
       "question": "拐点是曲线上的什么点？",
       "options": [
-        "导数不存在的极值点",
         "凹凸性改变的分界点",
+        "导数不存在的极值点",
         "端点",
         "间断点"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "二阶导数变号处为拐点，凹凸性在此改变。",
       "tags": [
         "导数应用"
@@ -570,11 +570,11 @@
       "question": "∫ x·e^x dx 用什么方法？",
       "options": [
         "换元积分法",
-        "分部积分法",
         "定义法",
+        "分部积分法",
         "留数法"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "幂函数×指数：分部积分 ∫u dv = uv − ∫v du，取 u=x。",
       "tags": [
         "积分"
@@ -587,11 +587,11 @@
       "question": "二重积分 ∬1 dxdy 的几何意义是？",
       "options": [
         "体积",
-        "区域面积",
         "曲线长度",
+        "区域面积",
         "平均值"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "被积函数为1时，二重积分等于积分区域的面积。",
       "tags": [
         "重积分"
@@ -604,11 +604,11 @@
       "question": "dy/dx 中 dy 称为？",
       "options": [
         "自变量的微分",
-        "函数的微分",
+        "因变量的增量",
         "导数本身",
-        "因变量的增量"
+        "函数的微分"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "dy = f′(x)dx，dy 是微分，dx 是自变量微分。",
       "tags": [
         "微分"
@@ -638,11 +638,11 @@
       "question": "拉格朗日中值定理的结论是？",
       "options": [
         "存在 ξ 使 f′(ξ)=f(b)−f(a)",
-        "f(b)−f(a)=f′(ξ)(b−a)",
+        "f(ξ)=0",
         "f″(ξ)=0",
-        "f(ξ)=0"
+        "f(b)−f(a)=f′(ξ)(b−a)"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "存在ξ∈(a,b)使 f(b)−f(a)=f′(ξ)(b−a)，罗尔定理是其特例。",
       "tags": [
         "中值定理"
@@ -655,11 +655,11 @@
       "question": "f(x)=x³−3x 的极大值是？",
       "options": [
         "−2",
-        "2",
         "0",
+        "2",
         "3"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "f′=3x²−3=0 得 x=±1；f(−1)=−1+3=2 为极大值，f(1)=−2 极小。",
       "tags": [
         "导数应用"
@@ -671,12 +671,12 @@
       "difficulty": 4,
       "question": "曲率公式中 y=f(x) 的曲率 K = ?",
       "options": [
-        "|y″|/(1+y′²)^(3/2)",
         "y″/(1+y′²)",
+        "|y″|/(1+y′²)^(3/2)",
         "|y′|/(1+y″²)（分子分母互换）",
         "y″·y′"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "K = |y″|/(1+y′²)^(3/2)，圆的曲率为半径倒数。",
       "tags": [
         "导数应用"
@@ -689,11 +689,11 @@
       "question": "微分方程 y″+y=0 的通解是？",
       "options": [
         "y = C₁e^{2x} + C₂e^{−2x}",
-        "y = C₁cos x + C₂sin x",
+        "y = C₁e^x",
         "y = C₁x + C₂",
-        "y = C₁e^x"
+        "y = C₁cos x + C₂sin x"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "特征方程 r²+1=0，r=±i，通解 C₁cosx+C₂sinx。",
       "tags": [
         "微分方程"
@@ -724,10 +724,10 @@
       "options": [
         "(−1,1] 区间",
         "[−1,1]",
-        "(−∞,+∞)",
-        "[0,1]"
+        "[0,1]",
+        "(−∞,+∞)"
       ],
-      "answer": 2,
+      "answer": 3,
       "explanation": "ρ = lim n/n+1... 收敛半径 R=∞，处处收敛，和为 e^x。",
       "tags": [
         "级数"
@@ -756,12 +756,12 @@
       "difficulty": 4,
       "question": "方向导数与梯度的关系：函数增长最快的方向是？",
       "options": [
-        "任意方向",
         "梯度方向",
+        "任意方向",
         "梯度反方向",
         "水平方向"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "梯度方向是方向导数最大（增长最快）的方向，模为最大变化率。",
       "tags": [
         "多元微分"
@@ -775,10 +775,10 @@
       "options": [
         "一维",
         "二维",
-        "三维",
-        "四维"
+        "四维",
+        "三维"
       ],
-      "answer": 2,
+      "answer": 3,
       "explanation": "斯托克斯公式把空间闭曲线的曲线积分与曲面积分联系起来。",
       "tags": [
         "曲线积分"
@@ -807,12 +807,12 @@
       "difficulty": 5,
       "question": "隐函数求导：x²+y²=1 在 (0,1) 处的切线斜率？",
       "options": [
-        "0",
-        "1",
         "不存在",
+        "1",
+        "0",
         "−1"
       ],
-      "answer": 0,
+      "answer": 2,
       "explanation": "2x+2yy′=0 ⇒ y′=−x/y = 0/1 = 0，切线水平。",
       "tags": [
         "多元微分"
@@ -841,12 +841,12 @@
       "difficulty": 5,
       "question": "傅里叶级数把周期函数展开为？",
       "options": [
-        "幂级数展开式",
         "三角函数级数",
+        "幂级数展开式",
         "几何级数",
         "泰勒级数"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "傅里叶级数用 sin/cos 的无穷和表示周期函数。",
       "tags": [
         "级数"
@@ -858,12 +858,12 @@
       "difficulty": 2,
       "question": "tan x 的导数是？",
       "options": [
-        "sec²x",
         "−sec²x",
+        "sec²x",
         "cot x",
         "1/cos x"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "(tanx)' = sec²x = 1/cos²x。",
       "tags": [
         "导数"
@@ -875,12 +875,12 @@
       "difficulty": 1,
       "question": "lim(x→1) (x²−1)/(x−1) = ?",
       "options": [
-        "0",
-        "1",
         "2",
+        "1",
+        "0",
         "∞"
       ],
-      "answer": 2,
+      "answer": 0,
       "explanation": "约分 (x+1)(x−1)/(x−1) = x+1 → 2。",
       "tags": [
         "极限"
@@ -892,12 +892,12 @@
       "difficulty": 2,
       "question": "y=arctan x 的导数是？",
       "options": [
-        "1/(1+x²)",
         "−1/(1+x²)",
+        "1/(1+x²)",
         "1/√(1+x²)",
         "1/(1−x²)"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "(arctanx)' = 1/(1+x²)；(arcsinx)' = 1/√(1−x²)。",
       "tags": [
         "导数"
@@ -909,12 +909,12 @@
       "difficulty": 4,
       "question": "二元函数 f 在驻点处极值的充分条件用到？",
       "options": [
-        "AC−B² 判别式（二阶偏导）",
+        "拉格朗日乘数法的进一步推广形式",
         "一阶偏导数的符号",
         "方向导数最大值",
-        "拉格朗日乘数法的进一步推广形式"
+        "AC−B² 判别式（二阶偏导）"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "AC−B²>0 且 A>0 极小，A<0 极大；<0 非极值。",
       "tags": [
         "多元微分"
@@ -927,11 +927,11 @@
       "question": "∫ sin²x dx 等价于先做什么变换？",
       "options": [
         "分部积分法",
-        "半角公式（降幂）",
+        "洛必达法则",
         "换元 t=sinx",
-        "洛必达法则"
+        "半角公式（降幂）"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "降幂公式把 sin²x 化为一次三角函数再积分。",
       "tags": [
         "积分"
@@ -944,11 +944,11 @@
       "question": "无穷小量与无穷大量的关系：在同一过程中，无穷大的倒数是？",
       "options": [
         "无穷大",
-        "无穷小",
         "常数1",
+        "无穷小",
         "0或∞随机"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "无穷大(≠0)的倒数为无穷小。",
       "tags": [
         "极限"
@@ -1011,12 +1011,12 @@
       "difficulty": 4,
       "question": "∫₀^∞ e^(−x) dx = ?",
       "options": [
-        "1",
         "e",
+        "1",
         "0",
         "∞"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "[−e^(−x)]₀^∞ = 0+1 = 1。",
       "tags": [
         "反常积分"

@@ -10,6 +10,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -34,6 +35,8 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     var reviewing by remember { mutableStateOf(false) }
     var reviewDue by remember { mutableStateOf(false) }
+    var reviewSubject by remember { mutableStateOf<String?>(null) }   // 复习范围：null = 全部科目
+    var filterSubject by remember { mutableStateOf<String?>(null) }   // 列表筛选
     val context = androidx.compose.ui.platform.LocalContext.current
     val exportCsv = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv"),
@@ -62,8 +65,14 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
     }
 
     if (reviewing) {
-        val questions = if (reviewDue) vm.dueReviewQuestions().take(15)
-        else player.wrongBook.filter { !it.mastered }.map { it.question }.take(10)
+        // 关键：进入复习时对题目列表做一次快照。复习作答会改 player.wrongBook（答对剔除/答错挪到头部），
+        // 若每次重组都现算列表，QuizRunner 的旧 index 会指到另一道题（表现为"答 A 显示 B"）。
+        val questions = remember(reviewing, reviewDue, reviewSubject) {
+            val base = if (reviewDue) vm.dueReviewQuestions()
+            else player.wrongBook.filter { !it.mastered }.map { it.question }
+            val scoped = if (reviewSubject == null) base else base.filter { it.subject == reviewSubject }
+            scoped.take(if (reviewDue) 15 else 10)
+        }
         QuizRunner(
             questions = questions,
             title = if (reviewDue) "📅 今日复习" else "📖 错题复习",
@@ -88,7 +97,6 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
             subtitle = "共 ${player.wrongBook.size} 道 · 未掌握 ${player.wrongBook.count { !it.mastered }} 道",
         )
 
-        val unmastered = player.wrongBook.count { !it.mastered }
         val dueQuestions = remember(player.wrongBook) { vm.dueReviewQuestions() }
 
         // 导出 CSV（SAF，UTF-8 BOM，Excel 直接打开）
@@ -112,22 +120,51 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
                     modifier = Modifier.padding(top = 2.dp),
                 )
                 Button(
-                    onClick = { reviewing = true; reviewDue = true },
+                    onClick = { reviewSubject = null; reviewing = true; reviewDue = true },
                     enabled = dueQuestions.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 ) { Text(if (dueQuestions.isNotEmpty()) "开始今日复习（${dueQuestions.size} 题到期）" else "今日无到期复习 ✓") }
             }
         }
 
+        // 📖 按科目过一遍：跟随下方筛选（未筛选 = 全部科目）
+        val scopedUnmastered = player.wrongBook.count { !it.mastered && (filterSubject == null || it.question.subject == filterSubject) }
         Button(
-            onClick = { reviewing = true },
-            enabled = unmastered > 0,
+            onClick = { reviewSubject = filterSubject; reviewing = true },
+            enabled = scopedUnmastered > 0,
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        ) { Text(if (unmastered > 0) "全部错题过一遍（$unmastered 道）" else "全部已掌握，太棒了！") }
+        ) {
+            Text(
+                if (scopedUnmastered > 0)
+                    (if (filterSubject == null) "全部错题过一遍（$scopedUnmastered 道）" else "$filterSubject 过一遍（$scopedUnmastered 道）")
+                else "该范围已全部掌握，太棒了！",
+            )
+        }
 
+        // 科目筛选 chips
+        val subjects = remember(player.wrongBook) { player.wrongBook.map { it.question.subject }.distinct() }
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 2.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = filterSubject == null,
+                onClick = { filterSubject = null },
+                label = { Text("全部 ${player.wrongBook.size}") },
+            )
+            subjects.forEach { s ->
+                FilterChip(
+                    selected = filterSubject == s,
+                    onClick = { filterSubject = if (filterSubject == s) null else s },
+                    label = { Text("${com.brainquest.game.data.question.Subjects.emoji(s)} $s") },
+                )
+            }
+        }
+
+        val shown = if (filterSubject == null) player.wrongBook else player.wrongBook.filter { it.question.subject == filterSubject }
         LazyColumn(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)) {
-            items(player.wrongBook.size) { i ->
-                val entry = player.wrongBook[i]
+            items(shown.size) { i ->
+                val entry = shown[i]
                 val q = entry.question
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -151,7 +188,13 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
                                 )
                             }
                         }
-                        Text(q.question, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
+                        com.brainquest.game.ui.FormulaText(
+                            q.question,
+                            formula = com.brainquest.game.ui.isFormulaSubject(q.subject),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
                         Text(
                             "你的答案：${if (entry.chosen < 0) "超时" else "${'A' + entry.chosen}. ${q.options.getOrNull(entry.chosen) ?: "-"}"}" +
                                 " ｜ 正确：${'A' + q.answer}. ${q.options.getOrNull(q.answer) ?: ""}",
@@ -159,7 +202,11 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
                             color = MaterialTheme.colorScheme.error,
                         )
                         if (q.explanation.isNotBlank()) {
-                            Text("💡 ${q.explanation}", style = MaterialTheme.typography.bodySmall)
+                            com.brainquest.game.ui.FormulaText(
+                                "💡 ${q.explanation}",
+                                formula = com.brainquest.game.ui.isFormulaSubject(q.subject),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                     }
                 }

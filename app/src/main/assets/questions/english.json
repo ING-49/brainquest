@@ -8,12 +8,12 @@
       "difficulty": 1,
       "question": "apple 的意思是？",
       "options": [
-        "苹果",
+        "葡萄",
         "橘子",
         "香蕉",
-        "葡萄"
+        "苹果"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "apple 苹果；an apple a day keeps the doctor away.",
       "tags": [
         "名词"
@@ -25,12 +25,12 @@
       "difficulty": 1,
       "question": "book 的意思是？",
       "options": [
-        "笔记本（电脑）",
         "书",
+        "笔记本（电脑）",
         "书包",
         "报纸"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "book 书；bookstore 书店。",
       "tags": [
         "名词"
@@ -43,11 +43,11 @@
       "question": "run 的意思是？",
       "options": [
         "走",
-        "跳",
         "跑",
+        "跳",
         "爬"
       ],
-      "answer": 2,
+      "answer": 1,
       "explanation": "run 跑；running 是其现在分词。",
       "tags": [
         "动词"
@@ -60,11 +60,11 @@
       "question": "“水”的英文是？",
       "options": [
         "fire",
-        "water",
         "wind",
+        "water",
         "earth"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "water 水；四大元素：水火风土。",
       "tags": [
         "名词"
@@ -93,12 +93,12 @@
       "difficulty": 1,
       "question": "teacher 的意思是？",
       "options": [
-        "学生",
         "老师",
+        "学生",
         "校长",
         "医生"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "teach 教 → teacher 教师，-er 表人。",
       "tags": [
         "名词"
@@ -127,12 +127,12 @@
       "difficulty": 1,
       "question": "beautiful 的意思是？",
       "options": [
-        "丑陋的",
         "美丽的",
+        "丑陋的",
         "聪明的",
         "勇敢的"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "beauty（美）→ beautiful 美丽的。",
       "tags": [
         "形容词"
@@ -144,12 +144,12 @@
       "difficulty": 1,
       "question": "“图书馆”的英文是？",
       "options": [
-        "library",
         "bookstore",
+        "library",
         "laboratory",
         "labor"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "library 图书馆；bookstore 书店；laboratory 实验室。",
       "tags": [
         "名词"
@@ -162,11 +162,11 @@
       "question": "small 的意思是？",
       "options": [
         "大的",
-        "小的",
+        "矮的",
         "高的",
-        "矮的"
+        "小的"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "small 小的 ↔ big/large 大的。",
       "tags": [
         "形容词"
@@ -195,12 +195,12 @@
       "difficulty": 2,
       "question": "ancient 的意思是？",
       "options": [
-        "古代的",
+        "频繁的",
         "现代的",
         "未来的",
-        "频繁的"
+        "古代的"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "ancient 古代的；ancient China 古代中国。",
       "tags": [
         "形容词"
@@ -230,11 +230,11 @@
       "question": "borrow 的意思是？",
       "options": [
         "借出",
-        "借入",
         "偷",
+        "借入",
         "还"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "borrow 借入（borrow sth from sb）；lend 借出。",
       "tags": [
         "动词"
@@ -263,12 +263,12 @@
       "difficulty": 2,
       "question": "select 的近义词是？",
       "options": [
-        "choose",
-        "elect",
         "collect",
+        "elect",
+        "choose",
         "correct"
       ],
-      "answer": 0,
+      "answer": 2,
       "explanation": "select = choose 选择；elect 选举；collect 收集。",
       "tags": [
         "动词"
@@ -298,11 +298,11 @@
       "question": "expensive 的意思是？",
       "options": [
         "便宜的",
-        "昂贵的",
+        "扩张的",
         "广泛的",
-        "扩张的"
+        "昂贵的"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "expense 花费 → expensive 昂贵的 ↔ cheap 便宜的。",
       "tags": [
         "形容词"
@@ -348,12 +348,12 @@
       "difficulty": 3,
       "question": "achieve 的意思是？",
       "options": [
-        "达到；实现",
+        "避免；避开",
         "获得；取得",
         "承认；认可",
-        "避免；避开"
+        "达到；实现"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "achieve 实现（目标）；achieve one's dream 实现梦想。",
       "tags": [
         "动词"
@@ -366,11 +366,11 @@
       "question": "“increasingly”的意思是？",
       "options": [
         "越来越少地",
-        "日益；越来越多地",
+        "间接地",
         "立刻、马上完成",
-        "间接地"
+        "日益；越来越多地"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "increase 增加 + -ing + -ly → increasingly 日益、越来越。",
       "tags": [
         "副词"
@@ -383,11 +383,11 @@
       "question": "benefit 的意思是？",
       "options": [
         "缺点",
-        "益处",
         "仪式",
+        "益处",
         "信仰"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "benefit 益处、好处；beneficial 有益的。",
       "tags": [
         "名词"
@@ -416,12 +416,12 @@
       "difficulty": 3,
       "question": "curious 的意思是？",
       "options": [
-        "好奇的",
+        "勇猛的",
         "认真的",
         "谨慎的",
-        "勇猛的"
+        "好奇的"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "curiosity 好奇心 → curious 好奇的。",
       "tags": [
         "形容词"
@@ -434,11 +434,11 @@
       "question": "“She is looking forward to ___ you.” 应填？",
       "options": [
         "meet",
-        "meeting",
         "have met",
+        "meeting",
         "meets"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "look forward to 中 to 是介词，后接动名词 meeting。",
       "tags": [
         "语法"
@@ -450,12 +450,12 @@
       "difficulty": 3,
       "question": "estimate 的意思是？",
       "options": [
-        "估计",
+        "激发",
         "教育",
         "升级",
-        "激发"
+        "估计"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "estimate 估计、估算；underestimate 低估。",
       "tags": [
         "动词"
@@ -467,12 +467,12 @@
       "difficulty": 3,
       "question": "genuine 的意思是？",
       "options": [
-        "天才的",
         "真正的",
+        "天才的",
         "世代相传的",
         "慷慨的"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "genuine 真正的、正宗的；generous 慷慨的（形近）。",
       "tags": [
         "形容词"
@@ -485,11 +485,11 @@
       "question": "“on purpose”的意思是？",
       "options": [
         "准时",
-        "故意地",
+        "顺便",
         "-purpose-在路上",
-        "顺便"
+        "故意地"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "on purpose 故意地；on time 准时。",
       "tags": [
         "短语"
@@ -501,12 +501,12 @@
       "difficulty": 3,
       "question": "resource 的意思是？",
       "options": [
-        "资源",
         "研究",
+        "资源",
         "储备",
         "回复"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "re- + source（源泉）→ resource 资源；natural resources 自然资源。",
       "tags": [
         "名词"
@@ -518,12 +518,12 @@
       "difficulty": 4,
       "question": "hypothesis 的意思是？",
       "options": [
-        "假设",
-        "疗法",
         "高潮",
+        "疗法",
+        "假设",
         "梗概"
       ],
-      "answer": 0,
+      "answer": 2,
       "explanation": "hypo-（下面）+ thesis（论点）→ hypothesis 假说、假设，复数 hypotheses。",
       "tags": [
         "学术词"
@@ -535,12 +535,12 @@
       "difficulty": 4,
       "question": "interpret 的意思是？",
       "options": [
-        "口译；解释",
-        "打断别人谈话",
         "干预他国内政",
+        "打断别人谈话",
+        "口译；解释",
         "采访某个人物"
       ],
-      "answer": 0,
+      "answer": 2,
       "explanation": "interpreter 口译员；interrupt 打断；intervene 干预。",
       "tags": [
         "动词"
@@ -553,11 +553,11 @@
       "question": "negotiate 的意思是？",
       "options": [
         "否定",
-        "谈判",
+        "提名",
         "航行",
-        "提名"
+        "谈判"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "negotiate 谈判、协商；negotiation 名词。",
       "tags": [
         "动词"
@@ -569,12 +569,12 @@
       "difficulty": 4,
       "question": "obstacle 的意思是？",
       "options": [
-        "障碍",
         "观测",
+        "障碍",
         "固执",
         "方尖碑"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "obstacle 障碍（物），overcome obstacles 克服障碍。",
       "tags": [
         "名词"
@@ -586,12 +586,12 @@
       "difficulty": 4,
       "question": "phenomenon 的意思是？",
       "options": [
-        "现象",
-        "哲学",
         "阶段",
+        "哲学",
+        "现象",
         "框架"
       ],
-      "answer": 0,
+      "answer": 2,
       "explanation": "phenomenon 现象，复数 phenomena。",
       "tags": [
         "名词"
@@ -603,12 +603,12 @@
       "difficulty": 4,
       "question": "strategy 的意思是？",
       "options": [
-        "策略",
+        "压力",
         "地层",
         "稻草",
-        "压力"
+        "策略"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "strategy 策略、战略；strategic 战略性的。",
       "tags": [
         "名词"
@@ -621,11 +621,11 @@
       "question": "“take...into account”的意思是？",
       "options": [
         "解释说明",
-        "把…考虑在内",
+        "当众质问某人",
         "记录账目信息",
-        "当众质问某人"
+        "把…考虑在内"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "take sth into account = take sth into consideration 把…考虑在内。",
       "tags": [
         "短语"
@@ -638,11 +638,11 @@
       "question": "mechanism 的意思是？",
       "options": [
         "机器",
-        "机制",
         "机械师",
+        "机制",
         "纪念"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "mechanism 机制、机理；the mechanism of... 的机制。",
       "tags": [
         "名词"
@@ -654,12 +654,12 @@
       "difficulty": 4,
       "question": "“in terms of”的意思是？",
       "options": [
-        "就…而言",
         "用…术语",
+        "就…而言",
         "长期来看",
         "绝不可能"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "in terms of 就…而言、在…方面；in the long term 长期来看。",
       "tags": [
         "短语"
@@ -671,12 +671,12 @@
       "difficulty": 4,
       "question": "priority 的意思是？",
       "options": [
-        "事情的可能性",
         "优先事项",
+        "事情的可能性",
         "名下的财产",
         "占多数的部分"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "prior 优先的 → priority 优先事项；give priority to 优先考虑。",
       "tags": [
         "名词"
@@ -689,11 +689,11 @@
       "question": "scrutiny 的意思是？",
       "options": [
         "一个剧本",
-        "仔细审查",
+        "系统安全",
         "一件雕塑",
-        "系统安全"
+        "仔细审查"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "scrutiny 仔细审查；under scrutiny 受到严格审查。",
       "tags": [
         "学术词"
@@ -705,12 +705,12 @@
       "difficulty": 5,
       "question": "pragmatic 的意思是？",
       "options": [
-        "实用的",
         "教条的",
+        "实用的",
         "戏剧的",
         "散漫的"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "pragmatic 务实的、实用的；dogmatic 教条的（反义参考）。",
       "tags": [
         "形容词"
@@ -740,11 +740,11 @@
       "question": "paradigm 的意思是？",
       "options": [
         "悖论",
-        "范式",
         "天堂",
+        "范式",
         "段落"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "paradigm 范式、典范；a new paradigm 新范式。",
       "tags": [
         "学术词"
@@ -808,11 +808,11 @@
       "question": "“a double-edged sword”的含义是？",
       "options": [
         "承诺给出双倍的奖励",
-        "双刃剑（利弊并存）",
         "双重标准",
+        "双刃剑（利弊并存）",
         "两面派做法"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "比喻利弊并存的事物。",
       "tags": [
         "习语"
@@ -824,12 +824,12 @@
       "difficulty": 5,
       "question": "entrepreneur 的意思是？",
       "options": [
-        "企业家",
-        "娱乐活动",
         "出入口",
+        "娱乐活动",
+        "企业家",
         "热情态度"
       ],
-      "answer": 0,
+      "answer": 2,
       "explanation": "entrepreneur 企业家、创业者；entrepreneurship 创业精神。",
       "tags": [
         "名词"
@@ -842,11 +842,11 @@
       "question": "“Not until yesterday ___ the news.” 应填？",
       "options": [
         "I knew",
-        "did I know",
+        "knew I",
         "I did know",
-        "knew I"
+        "did I know"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "Not until 置于句首引起部分倒装：did I know。",
       "tags": [
         "语法"
@@ -876,11 +876,11 @@
       "question": "passenger 的意思是？",
       "options": [
         "行人",
-        "乘客",
         "护照",
+        "乘客",
         "过路人"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "passenger（车船飞机上的）乘客；passer-by 过路人。",
       "tags": [
         "名词"
@@ -893,11 +893,11 @@
       "question": "disease 的意思是？",
       "options": [
         "轻松",
-        "疾病",
         "死亡",
+        "疾病",
         "不安"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "dis-（不）+ ease（安逸）→ disease 疾病。",
       "tags": [
         "名词"
@@ -909,12 +909,12 @@
       "difficulty": 3,
       "question": "economy 的意思是？",
       "options": [
-        "经济",
+        "经济学（学科）",
         "生态",
         "系统",
-        "经济学（学科）"
+        "经济"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "economy 经济；economics 经济学；economic 经济的。",
       "tags": [
         "名词"
@@ -926,12 +926,12 @@
       "difficulty": 2,
       "question": "“ increase ”的反义词是？",
       "options": [
-        "decrease",
         "release",
+        "decrease",
         "please",
         "erase"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "increase 增加 ↔ decrease 减少。",
       "tags": [
         "动词"
@@ -943,12 +943,12 @@
       "difficulty": 4,
       "question": "fluctuate 的意思是？",
       "options": [
-        "波动",
         "流动",
+        "波动",
         "冲洗",
         "飘浮"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "fluctuate（价格等）波动；fluctuation 名词。",
       "tags": [
         "动词"
@@ -960,12 +960,12 @@
       "difficulty": 1,
       "question": "“星期三”的英文是？",
       "options": [
-        "Tuesday",
         "Wednesday",
+        "Tuesday",
         "Thursday",
         "Sunday"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "一周：Mon/Tue/Wed/Thu/Fri/Sat/Sun。",
       "tags": [
         "名词"
@@ -977,12 +977,12 @@
       "difficulty": 3,
       "question": "identity 的意思是？",
       "options": [
-        "身份",
         "思想",
+        "身份",
         "懒惰",
         "理想"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "identity 身份、同一性；identity card 身份证。",
       "tags": [
         "名词"
@@ -994,12 +994,12 @@
       "difficulty": 4,
       "question": "incentive 的意思是？",
       "options": [
-        "激励",
         "事件",
+        "激励",
         "收入",
         "本能"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "incentive 刺激、激励（措施）；financial incentives 经济激励。",
       "tags": [
         "名词"
@@ -1011,12 +1011,12 @@
       "difficulty": 5,
       "question": "aesthetic 的意思是？",
       "options": [
-        "美学的",
         "合成的",
+        "美学的",
         "运动的",
         "上升的"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "aesthetic 审美的、美学的；aesthetic value 审美价值。",
       "tags": [
         "形容词"

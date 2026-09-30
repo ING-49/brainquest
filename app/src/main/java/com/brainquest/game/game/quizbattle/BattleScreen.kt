@@ -278,8 +278,10 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
                     color = if (timeLeft <= 5) Color(0xFFC62828) else MaterialTheme.colorScheme.primary,
                     height = 4.dp,
                 )
-                Text(
+                val isFormula = battle.question?.let { com.brainquest.game.ui.isFormulaSubject(it.subject) } ?: false
+                com.brainquest.game.ui.FormulaText(
                     battle.question?.question ?: "",
+                    formula = isFormula,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 10.dp),
@@ -312,6 +314,7 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
                         onChoose = { doAnswer(it) },
                         eliminated = battle.eliminated.toSet(),
                         explanation = q.explanation,
+                        formula = isFormula,
                     )
                 }
             }

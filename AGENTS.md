@@ -51,6 +51,9 @@ adb exec-out screencap -p > screen.png
 | `tools/pk_guest.py` | 联机机器人对手：`--quick` 快速匹配（可当房主）/ 房间码模式；PK_URL 环境变量 |
 | `tools/pk_server_smoke.py` | PK 服务器冒烟测试（配对/服务器出题判分/整局/ELO/排行榜/云存档加密+身份归属/断线重连/缺席结算/单局约束/删除/限流，31 项断言） |
 | `tools/klotski_verify.py` | 华容道关卡校验（BFS 判可解性 + 最少步数） |
+| `tools/pk_server_smoke.py`（已列）扩展 | v1.6.18 起含同名积分独立/昵称查重断言（39 项） |
+| `tools/pk_server_migration_check.py` | 旧昵称积分→身份码迁移验证（需临时目录起服务器） |
+| `tools/_bank_rebalance.py` | ⚠️ 一次性：题库正确项分布均衡化（勿重跑，重跑会再次洗牌） |
 | `tools/ui.py` | uiautomator 文本定位/点击/滑动/截图（`tap_text`/`swipe`/`shot`，验证脚本复用） |
 | `tools/snake_autoeat.py` | 贪吃蛇自动追豆（像素识别 + 暂停分步控制；v1.6.6 起转向改用棋盘内滑动） |
 | `tools/snake_speed_check.py` | 贪吃蛇速度/无方向键/速度档/返回确认取证 |
@@ -88,3 +91,4 @@ adb exec-out screencap -p > screen.png
 23. **`reportBestLow` 是反向指标**（越小越好，用于步数/用时）；普通成绩用 `reportBest`
 24. **PK 服务器地址要做合法性校验**（`validPkUrl`）：残缺地址（如只填 `ws://`）会直接崩溃
 25. **`pointerInput` 的 key 不要绑 `version`**：每次落子都重建手势检测器，拖动会断触
+26. **`pointerInput` 闭包陈旧**：key 不变时协程不重启，lambda 里捕获的实例是旧的——切关/换实例必须把新实例加进 key（如 `pointerInput(block.id, game)`），否则操作全落在废弃对象上（v1.6.18 华容道「下一关不能拖」根因）；`pointerInput(Unit)` 同理

@@ -211,8 +211,8 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                     .clip(RoundedCornerShape(14.dp))
                     .background(BOARD_BG)
                     .border(BorderStroke(2.dp, BOARD_EDGE), RoundedCornerShape(14.dp))
-                    // 点棋盘空白处取消选中
-                    .pointerInput(Unit) { detectTapGestures { g.clearSelection() } }
+                    // 点棋盘空白处取消选中（key 绑 g：切关重建实例后手势闭包必须跟着换，否则作用在旧棋盘上）
+                    .pointerInput(g) { detectTapGestures { g.clearSelection() } }
                     // 选中后可在棋盘任意位置滑动来移动它（曹操这种大块更好操作）
                     .pointerInput(selected) {
                         if (selected < 0) return@pointerInput
@@ -250,6 +250,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                     key(b.id) {
                         KlotskiBlock(
                             block = b,
+                            gameKey = g,
                             cell = cell,
                             cellPx = cellPx,
                             thresholdPx = thresholdPx,
@@ -349,6 +350,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
 @Composable
 private fun KlotskiBlock(
     block: KBlock,
+    gameKey: Any,       // 拖动手势 key 的一部分：切关重建 KlotskiGame 后必须重启手势协程，否则闭包还绑着旧棋盘
     cell: Dp,
     cellPx: Float,
     thresholdPx: Float,
@@ -410,7 +412,7 @@ private fun KlotskiBlock(
                 shape,
             )
             .clickable { onSelect() }
-            .pointerInput(block.id) {
+            .pointerInput(block.id, gameKey) {
                 detectDragGestures(
                     onDragStart = {
                         acc = Offset.Zero

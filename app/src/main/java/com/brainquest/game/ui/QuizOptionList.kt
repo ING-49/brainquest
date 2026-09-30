@@ -40,6 +40,7 @@ fun QuizOptionList(
     enabled: Boolean = true,
     eliminated: Set<Int> = emptySet(),
     explanation: String = "",
+    formula: Boolean = false,   // 数学类题目：把 ^/_ 记号渲染成上下标
 ) {
     options.forEachIndexed { i, opt ->
         if (i !in eliminated || revealed) {
@@ -74,10 +75,11 @@ fun QuizOptionList(
                         fontWeight = FontWeight.Bold,
                         color = accent,
                     )
-                    Text(
+                    FormulaText(
                         opt,
                         style = MaterialTheme.typography.titleMedium,
                         color = accent,
+                        formula = formula,
                         modifier = Modifier.weight(1f),
                     )
                     if (isCorrect) Text("✔", color = GREEN, fontWeight = FontWeight.Bold)
@@ -94,7 +96,7 @@ fun QuizOptionList(
                 .background(Color(0xFFFFF8E1), RoundedCornerShape(10.dp))
                 .padding(12.dp),
         ) {
-            Text("💡 $explanation", style = MaterialTheme.typography.bodyMedium)
+            FormulaText("💡 $explanation", style = MaterialTheme.typography.bodyMedium, formula = formula)
         }
     }
 }

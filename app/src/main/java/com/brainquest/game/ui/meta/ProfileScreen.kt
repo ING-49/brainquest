@@ -20,13 +20,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.Image
@@ -52,6 +55,7 @@ import com.brainquest.game.ui.XpBar
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Arrangement
 import com.brainquest.game.ui.SectionCard
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
@@ -293,22 +297,68 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
 
         if (showRename) {
             var newName by remember { mutableStateOf(player.nickname) }
+            var checking by remember { mutableStateOf(false) }
+            var takenMsg by remember { mutableStateOf<String?>(null) }
+            var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+            val scope = rememberCoroutineScope()
+            fun saveName(name: String) { vm.rename(name); showRename = false }
             AlertDialog(
-                onDismissRequest = { showRename = false },
+                onDismissRequest = { if (!checking) showRename = false },
                 title = { Text("修改昵称") },
                 text = {
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it.take(12) },
-                        singleLine = true,
-                        label = { Text("最多 12 个字") },
-                    )
+                    Column {
+                        OutlinedTextField(
+                            value = newName,
+                            onValueChange = { newName = it.take(12); takenMsg = null },
+                            singleLine = true,
+                            label = { Text("最多 12 个字") },
+                            isError = takenMsg != null,
+                            supportingText = {
+                                if (takenMsg != null) Text(takenMsg!!, color = MaterialTheme.colorScheme.error)
+                            },
+                        )
+                        if (suggestions.isNotEmpty()) {
+                            Text(
+                                "换个没被占用的试试：",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                            Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                suggestions.take(3).forEach { s ->
+                                    AssistChip(
+                                        onClick = { newName = s.take(12); takenMsg = null },
+                                        label = { Text(s, style = MaterialTheme.typography.labelSmall) },
+                                    )
+                                }
+                            }
+                        }
+                    }
                 },
                 confirmButton = {
-                    Button(onClick = { vm.rename(newName); showRename = false }) { Text("确定") }
+                    Button(
+                        enabled = !checking && newName.isNotBlank(),
+                        onClick = {
+                            checking = true; takenMsg = null
+                            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                // 阻塞式查重必须放 IO 线程；服务器不可达时 best-effort 放行（下次联机仍会登记）
+                                val res = com.brainquest.game.net.PkClient.checkNameAvailability(
+                                    player.pkServerUrl, newName, player.identity,
+                                )
+                                scope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                                    checking = false
+                                    when {
+                                        res == null -> saveName(newName)
+                                        res.first -> { takenMsg = "「$newName」已被占用，换一个吧"; suggestions = res.second }
+                                        else -> saveName(newName)
+                                    }
+                                }
+                            }
+                        },
+                    ) { Text(if (checking) "校验中…" else "确定") }
                 },
                 dismissButton = {
-                    androidx.compose.material3.TextButton(onClick = { showRename = false }) { Text("取消") }
+                    TextButton(onClick = { showRename = false }, enabled = !checking) { Text("取消") }
                 },
             )
         }

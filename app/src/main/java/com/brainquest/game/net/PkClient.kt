@@ -41,8 +41,8 @@ sealed class PkEvent {
         val peerRating: Int = 0,
         val reason: String = "",         // 结算原因说明（如「对手掉线」）
     ) : PkEvent()
-    /** 排行榜条目 */
-    data class RankRow(val name: String, val rating: Int, val wins: Int, val losses: Int, val games: Int = 0, val rank: Int = 0)
+    /** 排行榜条目（id = 玩家身份码；旧格式/无身份码回退时为空串，按昵称展示与匹配） */
+    data class RankRow(val id: String, val name: String, val rating: Int, val wins: Int, val losses: Int, val games: Int = 0, val rank: Int = 0)
     data class Leaderboard(val top: List<RankRow>, val me: RankRow?, val subject: String = "") : PkEvent()
     data class SaveOk(val size: Int) : PkEvent()          // 云存档上传成功
     data class SaveData(val data: String) : PkEvent()     // 云存档下载数据
@@ -168,6 +168,7 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
             }
             "leaderboard" -> {
                 fun row(o: JsonObject, fallbackRank: Int) = PkEvent.RankRow(
+                    id = o["id"]?.jsonPrimitive?.content ?: "",
                     name = o["name"]?.jsonPrimitive?.content ?: "?",
                     rating = o["rating"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1000,
                     wins = o["wins"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
@@ -242,10 +243,11 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
         send(buildJsonObject { put("t", "online") }.toString())
     }
 
-    /** 查询某科目排行榜（含我自己的排名），默认混合 */
-    fun sendLeaderboard(name: String, subject: String = "混合") {
+    /** 查询某科目排行榜（含我自己的排名），默认混合。identity 用于服务器按身份码定位"我" */
+    fun sendLeaderboard(name: String, subject: String = "混合", identity: String = "") {
         send(buildJsonObject {
             put("t", "leaderboard"); put("name", name); put("subject", subject)
+            if (identity.isNotBlank()) put("identity", identity)
         }.toString())
     }
 
@@ -283,5 +285,48 @@ class PkClient(private val onEvent: (PkEvent) -> Unit) {
     fun close() {
         ws?.close(1000, "bye")
         ws = null
+    }
+
+    companion object {
+        /**
+         * 昵称唯一性查重：一次性短连接（阻塞，须在 IO 线程调用）。
+         * 返回 (是否被占, 服务器建议的未占用昵称)；服务器不可达或地址无效返回 null（调用方放行）。
+         */
+        fun checkNameAvailability(url: String, name: String, identity: String): Pair<Boolean, List<String>>? {
+            val t = url.trim()
+            if (!t.startsWith("ws://") && !t.startsWith("wss://")) return null
+            val httpUrl = t.replace("ws://", "http://").replace("wss://", "https://").trimEnd('/')
+            val latch = java.util.concurrent.CountDownLatch(1)
+            var result: Pair<Boolean, List<String>>? = null
+            val client = OkHttpClient.Builder()
+                .connectTimeout(4, TimeUnit.SECONDS)
+                .readTimeout(4, TimeUnit.SECONDS)
+                .build()
+            val ws = client.newWebSocket(Request.Builder().url(httpUrl).build(), object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
+                    webSocket.send(buildJsonObject {
+                        put("t", "name_check"); put("name", name); put("identity", identity)
+                    }.toString())
+                }
+
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    runCatching {
+                        val o = Json { ignoreUnknownKeys = true }.parseToJsonElement(text).jsonObject
+                        if (o["t"]?.jsonPrimitive?.content == "name_check") {
+                            val sug = o["suggestions"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
+                            result = (o["taken"]?.jsonPrimitive?.content?.toBoolean() ?: false) to sug
+                            latch.countDown()   // 只认查重回包：连接时先到的 online 广播不能放行
+                        }
+                    }
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) { latch.countDown() }
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { latch.countDown() }
+            })
+            latch.await(6, TimeUnit.SECONDS)
+            ws.close(1000, "bye")
+            client.dispatcher.executorService.shutdown()
+            return result
+        }
     }
 }

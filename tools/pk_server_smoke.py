@@ -156,14 +156,14 @@ async def main():
           bool(rg and rg.get("rating") and rg["rating"].get("ranked") is False))
 
     # 9. 排行榜：包含刚才计分玩家（混合桶）
-    await b.send(json.dumps({"t": "leaderboard", "name": "B"}))
+    await b.send(json.dumps({"t": "leaderboard", "name": "B", "identity": "SMOKE_B"}))
     lb = await recv_until(b, "leaderboard", timeout=5)
     check("排行榜返回 Top 列表与我的排名",
           bool(lb and isinstance(lb.get("top"), list) and len(lb["top"]) >= 1
                and lb.get("me") and lb["me"].get("rank", 0) >= 1))
 
     # 9b. 排行榜按科目分桶：混合桶有 B，数学口算桶独立为空
-    await b.send(json.dumps({"t": "leaderboard", "name": "B", "subject": "数学口算"}))
+    await b.send(json.dumps({"t": "leaderboard", "name": "B", "subject": "数学口算", "identity": "SMOKE_B"}))
     lb_sub = await recv_until(b, "leaderboard", timeout=5)
     check("排行榜按科目分桶（数学口算桶不含混合桶玩家）",
           bool(lb_sub and lb_sub.get("subject") == "数学口算" and lb_sub.get("me") is None))
@@ -325,6 +325,60 @@ async def main():
             break
     check("save_get 超频被限流", limited)
     await rl_ws.close()
+
+    # 12. 同名不同身份积分独立（v1.6.18 身份化排行榜）
+    m1 = await websockets.connect(URL)
+    m2 = await websockets.connect(URL)
+    await m1.send(json.dumps({"t": "quick_match", "name": "同名者", "version": V, "subject": "线性代数", "identity": "SMOKE_SAME1"}))
+    await m2.send(json.dumps({"t": "quick_match", "name": "同名者", "version": V, "subject": "线性代数", "identity": "SMOKE_SAME2"}))
+    rm1 = await recv_until(m1, "created", timeout=5)
+    rm2 = await recv_until(m2, "joined", timeout=5)
+    check("同名不同身份可正常配对", rm1 is not None and rm2 is not None)
+    await m1.send(json.dumps({"t": "ready"}))
+    await m2.send(json.dumps({"t": "ready"}))
+    s1 = await recv_until(m1, "start", timeout=5)
+    s2 = await recv_until(m2, "start", timeout=5)
+    for i3 in range(10):
+        q1, q2 = s1["questions"][i3], s2["questions"][i3]
+        c1 = q1["answer"] if i3 < 7 else (q1["answer"] + 1) % len(q1["options"])
+        c2 = q2["answer"] if i3 < 2 else (q2["answer"] + 1) % len(q2["options"])
+        await m1.send(json.dumps({"t": "answer", "idx": i3, "choice": c1, "timeMs": 100}))
+        await m2.send(json.dumps({"t": "answer", "idx": i3, "choice": c2, "timeMs": 100}))
+    await m1.send(json.dumps({"t": "finish", "timeMs": 300}))
+    await m2.send(json.dumps({"t": "finish", "timeMs": 400}))
+    r1 = await recv_until(m1, "result", timeout=5)
+    check("同名两人结算积分独立（胜方 delta 为正）",
+          bool(r1 and r1.get("rating", {}).get("ranked") and r1["rating"].get("delta", 0) > 0))
+    await m1.send(json.dumps({"t": "leaderboard", "name": "同名者", "subject": "线性代数", "identity": "SMOKE_SAME1"}))
+    l1 = await recv_until(m1, "leaderboard", timeout=5)
+    await m2.send(json.dumps({"t": "leaderboard", "name": "同名者", "subject": "线性代数", "identity": "SMOKE_SAME2"}))
+    l2 = await recv_until(m2, "leaderboard", timeout=5)
+    check("同名两人排行榜记录独立（积分不同）",
+          bool(l1 and l2 and l1.get("me") and l2.get("me")
+               and l1["me"].get("rating") != l2["me"].get("rating")))
+    check("排行榜条目带身份 id", bool(l1 and l1.get("top") and all("id" in row for row in l1["top"])))
+    await m1.close()
+    await m2.close()
+
+    # 13. 昵称唯一性：查重 / 占用 / 他人占用被拒
+    u1 = await websockets.connect(URL)
+    u2 = await websockets.connect(URL)
+    await u1.send(json.dumps({"t": "name_check", "name": "smokeNickX1", "identity": "SMOKE_N1"}))
+    nc1 = await recv_until(u1, "name_check", timeout=5)
+    check("未占用昵称查重通过（附建议名）",
+          bool(nc1 and nc1.get("taken") is False and isinstance(nc1.get("suggestions"), list)
+               and len(nc1.get("suggestions") or []) >= 1))
+    await u1.send(json.dumps({"t": "name_claim", "name": "smokeNickX1", "identity": "SMOKE_N1"}))
+    nr1 = await recv_until(u1, "name_claim", timeout=5)
+    check("昵称占用成功", bool(nr1 and nr1.get("ok") is True))
+    await u2.send(json.dumps({"t": "name_check", "name": "smokeNickX1", "identity": "SMOKE_N2"}))
+    nc2 = await recv_until(u2, "name_check", timeout=5)
+    check("他人占用昵称查重为 taken", bool(nc2 and nc2.get("taken") is True))
+    await u2.send(json.dumps({"t": "name_claim", "name": "smokeNickX1", "identity": "SMOKE_N2"}))
+    nr2 = await recv_until(u2, "name_claim", timeout=5)
+    check("占用昵称被拒并给建议", bool(nr2 and nr2.get("ok") is False and nr2.get("suggestions")))
+    await u1.close()
+    await u2.close()
 
     for ws in (b, d, e, g, g2, i, j):
         await ws.close()

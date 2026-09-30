@@ -91,8 +91,10 @@ fun QuizRunner(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
+                val isFormula = isFormulaSubject(q.subject)
+                FormulaText(
                     q.question,
+                    formula = isFormula,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 10.dp),
@@ -101,6 +103,7 @@ fun QuizRunner(
                     options = q.options,
                     answer = q.answer,
                     chosen = chosen ?: -1,
+                    formula = isFormula,
                     onChoose = { i ->
                         chosen = i
                         val correct = i == q.answer

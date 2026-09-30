@@ -193,7 +193,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     pendingMatch = false
                 }
                 if (pendingBoard) {
-                    client.sendLeaderboard(player.nickname, boardSubject)
+                    client.sendLeaderboard(player.nickname, boardSubject, player.identity)
                     pendingBoard = false
                 }
             }
@@ -364,7 +364,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         boardSubject = subject
         board = null; boardMe = null
         if (remoteConnected && connectedUrl == serverUrl) {
-            client.sendLeaderboard(player.nickname, subject)
+            client.sendLeaderboard(player.nickname, subject, player.identity)
         } else if (client.connect(serverUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME, identity = player.identity)) {
             connectedUrl = serverUrl
             pendingBoard = true
@@ -648,9 +648,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                             else -> {
                                                 list.forEachIndexed { i, r ->
                                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                        val mine = if (r.id.isNotBlank()) r.id == player.identity else r.name == player.nickname
                                                         Text("${i + 1}. ${r.name}",
                                                             style = MaterialTheme.typography.bodyMedium,
-                                                            fontWeight = if (r.name == player.nickname) FontWeight.Bold else FontWeight.Normal)
+                                                            fontWeight = if (mine) FontWeight.Bold else FontWeight.Normal)
                                                         Text("${r.rating} 分 · ${r.wins}胜${r.losses}负",
                                                             style = MaterialTheme.typography.bodySmall,
                                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -702,7 +703,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     discovered.values.forEach { b ->
                                         Card(onClick = {
                                             lanSession = true
-                                            client.connect("ws://${b.ip}:${b.tcpPort}", player.nickname, "join", b.room, BuildConfig.VERSION_NAME)
+                                            client.connect("ws://${b.ip}:${b.tcpPort}", player.nickname, "join", b.room, BuildConfig.VERSION_NAME, identity = player.identity)
                                             PkDiscovery.stopListening()
                                         }, modifier = Modifier.fillMaxWidth()) {
                                             Column(Modifier.padding(10.dp)) {
@@ -730,7 +731,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 )
                                 Button(onClick = {
                                     lanSession = true
-                                    client.connect(lanUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME)
+                                    client.connect(lanUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME, identity = player.identity)
                                 }, enabled = lanUrl.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("🚪 直连加入") }
                             }
                         }
@@ -875,7 +876,9 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                             Column(Modifier.padding(16.dp)) {
                                 Text("${Subjects.emoji(q?.subject ?: "")} ${q?.subject ?: ""} · 难度${q?.difficulty ?: ""}",
                                     style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(q?.question ?: "", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                                val isFormula = q != null && com.brainquest.game.ui.isFormulaSubject(q.subject)
+                                com.brainquest.game.ui.FormulaText(q?.question ?: "", formula = isFormula,
+                                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(vertical = 8.dp))
                             }
                         }
@@ -887,6 +890,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 revealed = answered,
                                 onChoose = { i -> submit(i) },
                                 explanation = it.explanation,
+                                formula = com.brainquest.game.ui.isFormulaSubject(it.subject),
                             )
                         }  // 答完标绿/红框并显示解析，0.75s 后自动进下一题
                     }
