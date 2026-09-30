@@ -260,6 +260,17 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
         ElevatedCard(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { nav.navigate(Routes.DUNGEON) },
+        ) {
+            Column(Modifier.padding(14.dp)) {
+                Text("🏰", style = MaterialTheme.typography.headlineLarge)
+                Text("地牢幸存者", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("Roguelike 探索 · 职业与装备", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
                 .clickable { nav.navigate(Routes.PK) },
         ) {
             Column(Modifier.padding(14.dp)) {
@@ -303,6 +314,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                         k == "snake_best" -> "贪吃蛇·最高分"
                         k == "survivor_best" -> "迷你幸存者·最长生存（秒）"
                         k == "survivor_kills" -> "迷你幸存者·单局击杀"
+                        k == "dungeon_floor" -> "地牢幸存者·最高层数"
                         else -> k
                     }
                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {

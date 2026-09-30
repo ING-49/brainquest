@@ -53,6 +53,7 @@ object Routes {
     const val GOMOKU = "gomoku"
     const val SNAKE = "snake"
     const val SURVIVOR = "survivor"
+    const val DUNGEON = "dungeon"
     const val DAILY = "daily"
     const val WRONGBOOK = "wrongbook"
     const val SHOP = "shop"
@@ -130,6 +131,7 @@ fun AppRoot(vm: AppViewModel) {
             composable(Routes.GOMOKU) { GomokuScreen(vm, nav) }
             composable(Routes.SNAKE) { SnakeScreen(vm, nav) }
             composable(Routes.SURVIVOR) { com.brainquest.game.game.survivor.SurvivorScreen(vm, nav) }
+            composable(Routes.DUNGEON) { com.brainquest.game.game.dungeon.DungeonScreen(vm, nav) }
             composable(Routes.DAILY) { DailyScreen(vm, nav) }
             composable(Routes.WRONGBOOK) { WrongBookScreen(vm, nav) }
             composable(Routes.SHOP) { ShopScreen(vm, nav) }
