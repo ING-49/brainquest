@@ -40,7 +40,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
@@ -61,21 +60,28 @@ private data class Hud(
     val roomsTotal: Int,
     val hp: Int,
     val maxHp: Int,
+    val level: Int,
     val timeSec: Int,
     val kills: Int,
 )
 
-/** 地牢幸存者：选职业 → 探索地牢（清房开门选房间）→ 层末 Boss → 5 层通关 */
+/** 地牢幸存者：选职业 → 探索地牢（清怪开门选房间）→ 层末 Boss → 5 层通关 */
 @Composable
 fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
 
     // 游戏实例全局唯一：重开走 reset()，防止摇杆 pointerInput(Unit) 闭包绑旧实例
     val game = remember { DungeonGame() }
+    // DEBUG：自动化验收的自动驾驶（intent extra 打开）
+    LaunchedEffect(Unit) {
+        game.autopilot = com.brainquest.game.util.DebugFlags.autopilot
+    }
     var hud by remember {
-        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 0, 0))
+        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0))
     }
     var confirmExit by remember { mutableStateOf(false) }
+    var joyBase by remember { mutableStateOf(Offset.Zero) }
+    var joyOn by remember { mutableStateOf(false) }
     val frame = remember { mutableIntStateOf(0) }
     val joyMaxPx = with(LocalDensity.current) { 48.dp.toPx() }
 
@@ -88,9 +94,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 last = t
             }
             frame.intValue++
+            val e = game.engine
             val h = Hud(
-                game.phase, game.floor, game.clearedRooms, game.rooms.size,
-                game.hp, game.maxHp, game.runTimeSec, game.totalKills,
+                game.phase, game.floor, game.floorCleared, game.rooms.size,
+                e.hp, e.maxHp, e.level, game.runTimeSec, game.totalKills,
             )
             if (h != hud) hud = h
         }
@@ -105,7 +112,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         Modifier
             .fillMaxSize()
             .background(BG)
-            .onSizeChanged { game.setViewport(it.width.toFloat(), it.height.toFloat()) },
+            .onSizeChanged { game.viewW = it.width.toFloat(); game.viewH = it.height.toFloat() },
     ) {
         // ---------- 世界绘制 ----------
         Canvas(
@@ -115,34 +122,60 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     detectDragGestures(
                         onDragStart = { off ->
                             if (off.x <= size.width / 2f) {
-                                game.joyActive = true
-                                game.joyBaseX = off.x
-                                game.joyBaseY = off.y
-                                game.joyX = 0f
-                                game.joyY = 0f
+                                joyOn = true
+                                joyBase = off
+                                game.engine.joyActive = true
+                                game.engine.joyX = 0f
+                                game.engine.joyY = 0f
                             }
                         },
                         onDrag = { change, _ ->
                             change.consume()
-                            if (!game.joyActive) return@detectDragGestures
+                            if (!joyOn) return@detectDragGestures
                             val cur = change.position
-                            var dx = cur.x - game.joyBaseX
-                            var dy = cur.y - game.joyBaseY
+                            var dx = cur.x - joyBase.x
+                            var dy = cur.y - joyBase.y
                             val len = hypot(dx, dy)
                             if (len > joyMaxPx) { dx = dx / len * joyMaxPx; dy = dy / len * joyMaxPx }
-                            game.joyX = dx / joyMaxPx
-                            game.joyY = dy / joyMaxPx
+                            game.engine.joyX = dx / joyMaxPx
+                            game.engine.joyY = dy / joyMaxPx
                         },
-                        onDragEnd = { game.joyActive = false; game.joyX = 0f; game.joyY = 0f },
-                        onDragCancel = { game.joyActive = false; game.joyX = 0f; game.joyY = 0f },
+                        onDragEnd = { joyOn = false; game.engine.joyActive = false; game.engine.joyX = 0f; game.engine.joyY = 0f },
+                        onDragCancel = { joyOn = false; game.engine.joyActive = false; game.engine.joyX = 0f; game.engine.joyY = 0f },
                     )
                 },
         ) {
             frame.intValue   // 订阅：每帧重绘
-            EntityRenderer.drawWorld(this, game, frame.intValue / 60f)
-            for (d in game.dummies) EntityRenderer.drawDummy(this, game, d, frame.intValue / 60f)
-            EntityRenderer.drawPlayer(this, game, frame.intValue / 60f)
+            val t = frame.intValue / 60f
+            EntityRenderer.drawWorld(this, game, t)
+            EntityRenderer.drawProjectiles(this, game)
+            for (e in game.engine.enemies) EntityRenderer.drawEnemy(this, game, e, t)
+            EntityRenderer.drawPlayer(this, game, t)
+            // 挥砍弧光（剑士出刀瞬间）
+            val en = game.engine
+            if (en.attackTimer > en.attackInterval - 0.16f && en.attackInterval > 0f) {
+                val a = (en.attackTimer - (en.attackInterval - 0.16f)) / 0.16f
+                val psx = en.px - game.camX
+                val psy = en.py - game.camY
+                drawArc(
+                    Color(0x88FFFFFF).copy(alpha = 0.5f * a),
+                    startAngle = Math.toDegrees(en.facing.toDouble()).toFloat() - 50f,
+                    sweepAngle = 100f,
+                    useCenter = false,
+                    topLeft = Offset(psx - 95f, psy - 95f),
+                    size = Size(190f, 190f),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(8f),
+                )
+            }
             EntityRenderer.drawBars(this, game)
+            // 虚拟摇杆
+            if (joyOn) {
+                drawCircle(JOY_C, 56f, joyBase, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
+                drawCircle(
+                    JOY_C, 26f,
+                    Offset(joyBase.x + game.engine.joyX * joyMaxPx, joyBase.y + game.engine.joyY * joyMaxPx),
+                )
+            }
         }
 
         // ---------- HUD ----------
@@ -218,7 +251,6 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                     ) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            // 职业色块小模型预览
                             androidx.compose.foundation.Canvas(Modifier.width(34.dp).height(46.dp)) {
                                 drawRoundRect(Color(c.bodyColor), Offset(size.width / 2 - 9, size.height / 2 - 8), Size(18f, 20f), CornerRadius(5f))
                                 drawCircle(Color(c.accentColor), 8f, Offset(size.width / 2, size.height / 2 - 18f))
@@ -238,6 +270,29 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
+        // ---------- LevelUp 三选一（读引擎候选） ----------
+        if (hud.phase == DungeonGame.Phase.LEVELUP) {
+            Column(
+                Modifier.fillMaxSize().background(Color(0x99000000)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("⬆️ 升级！选择一项强化", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                game.engine.pendingUpgrades.forEach { up ->
+                    Card(
+                        onClick = { game.chooseUpgrade(up.id) },
+                        modifier = Modifier.fillMaxWidth(0.8f).padding(top = 10.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                    ) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text(up.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(up.desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+
         // ---------- Paused ----------
         if (hud.phase == DungeonGame.Phase.PAUSED) {
             Column(
@@ -251,7 +306,26 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // ---------- Victory（阶段 1 占位结算） ----------
+        // ---------- GameOver ----------
+        if (hud.phase == DungeonGame.Phase.GAMEOVER) {
+            Column(
+                Modifier.fillMaxSize().background(Color(0xCC0B0D14)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("💀 你倒在了地牢里", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(
+                    "第${hud.floor}层 · 存活 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Button(onClick = { game.reset(); game.toClassSelect() }, modifier = Modifier.padding(top = 16.dp).width(160.dp)) { Text("重新开始") }
+                OutlinedButton(onClick = { nav.popBackStack() }, modifier = Modifier.padding(top = 8.dp).width(160.dp)) { Text("返回应用") }
+            }
+        }
+
+        // ---------- Victory（正式结算在阶段 4 接入装备/地牢币） ----------
         if (hud.phase == DungeonGame.Phase.VICTORY) {
             Column(
                 Modifier.fillMaxSize().background(Color(0xCC0B0D14)),
@@ -260,17 +334,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             ) {
                 Text("🏆 地牢通关！", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F))
                 Text(
-                    "用时 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills}",
+                    "用时 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills} · 等级 ${hud.level}",
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     modifier = Modifier.padding(top = 8.dp),
                 )
-                Button(
-                    onClick = { vm.reportBest("dungeon_floor", DungeonGame.MAX_FLOOR) },
-                    enabled = false,
-                    modifier = Modifier.padding(top = 8.dp),
-                ) { Text("结算（阶段4开放）") }
-                Button(onClick = { game.reset(); game.toClassSelect() }, modifier = Modifier.padding(top = 12.dp).width(160.dp)) { Text("再来一局") }
+                Button(onClick = { vm.reportBest("dungeon_floor", DungeonGame.MAX_FLOOR) }, modifier = Modifier.padding(top = 16.dp).width(160.dp)) { Text("记录成绩") }
+                Button(onClick = { game.reset(); game.toClassSelect() }, modifier = Modifier.padding(top = 8.dp).width(160.dp)) { Text("再来一局") }
                 OutlinedButton(onClick = { nav.popBackStack() }, modifier = Modifier.padding(top = 8.dp).width(160.dp)) { Text("返回应用") }
             }
         }
@@ -315,13 +385,11 @@ private fun Minimap(game: DungeonGame, modifier: Modifier) {
         fun cell(r: com.brainquest.game.game.dungeon.model.Room): Offset =
             Offset((r.gx - minX + 0.5f) * cellW, (r.gy - minY + 0.5f) * cellH)
 
-        // 门连线（先画线后画块）
         for (room in rooms) {
             for ((d, n) in room.neighbors) {
                 if (d == Dir.LEFT || d == Dir.UP) continue
                 if (!room.discovered && !n.discovered) continue
-                val a = cell(room); val b = cell(n)
-                drawLine(Color(0x88AAAAAA), a, b, 3f)
+                drawLine(Color(0x88AAAAAA), cell(room), cell(n), 3f)
             }
         }
         for (room in rooms) {
@@ -335,7 +403,6 @@ private fun Minimap(game: DungeonGame, modifier: Modifier) {
             }
             drawRoundRect(fill, Offset(c.x - rw / 2, c.y - rh / 2), Size(rw, rh), CornerRadius(4f))
             if (current) drawRoundRect(Color.White, Offset(c.x - rw / 2, c.y - rh / 2), Size(rw, rh), CornerRadius(4f), style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
-            // 房型点
             val dot = when (room.type) {
                 RoomType.BOSS -> Color(0xFFE15A5A)
                 RoomType.ELITE -> Color(0xFFB388FF)

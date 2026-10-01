@@ -33,6 +33,18 @@ object EntityRenderer {
 
     private val SHADOW = Color(0x59000000)
     private val OUTLINE = Color(0xFF0E1016)
+    private val SLIME_C = Color(0xFF66BB6A)
+    private val SLIME_DARK = Color(0xFF2E7D32)
+    private val BONE_C = Color(0xFFECEFF1)
+    private val BONE_DARK = Color(0xFF90A4AE)
+    private val BAT_C = Color(0xFF7E57C2)
+    private val CASTER_C = Color(0xFF5C6BC0)
+    private val ENEMY_BULLET = Color(0xFFCE93D8)
+    private val FIRE_C = Color(0xFFFF7043)
+    private val ICE_C = Color(0xFF81D4FA)
+    private val THUNDER_C = Color(0xFFFFEE58)
+    private val ORB_C = Color(0xFF7EE38A)
+    private val BULLET_P = Color(0xFFFFD54F)
     private val DUMMY_WOOD = Color(0xFFB0885A)
     private val DUMMY_DARK = Color(0xFF7A5C3A)
     private val DUMMY_HEAD = Color(0xFFD8B98A)
@@ -96,6 +108,7 @@ object EntityRenderer {
                 scope.drawRect(DOOR_GLOW, Offset(sx + w / 2 - 14f, sy), Size(28f, h))
             }
         } else {
+            // 纵向走廊：上房底边 → 下房顶边
             val t = minOf(game.roomTop(a) + DungeonGame.ROOM_H, game.roomTop(b) + DungeonGame.ROOM_H) - DungeonGame.DOOR_PROBE
             val bb = maxOf(game.roomTop(a), game.roomTop(b)) + DungeonGame.DOOR_PROBE
             val cx = a.gx * DungeonGame.GRID_X
@@ -181,42 +194,120 @@ object EntityRenderer {
         drawLine(c, Offset(cx + 22f, cy - 4f), Offset(cx + 22f, cy - 22f), 6f)
     }
 
-    // ---------- 木桩占位怪 ----------
-    fun drawDummy(scope: DrawScope, game: DungeonGame, dummy: DungeonGame.Dummy, time: Float) {
-        val sx = dummy.x - game.camX
-        val sy = dummy.y - game.camY
-        val scale = if (dummy.big) 1.7f else 1f
-        val sway = sin(dummy.t * 2f) * 2f * scale
-        // 阴影
-        scope.drawOval(SHADOW, Offset(sx - 20f * scale, sy + 12f * scale), Size(40f * scale, 12f * scale))
-        // 底座
-        scope.drawOval(DUMMY_DARK, Offset(sx - 16f * scale, sy + 6f * scale), Size(32f * scale, 10f * scale))
-        // 立柱
-        scope.drawRect(DUMMY_WOOD, Offset(sx - 5f * scale + sway, sy - 30f * scale), Size(10f * scale, 38f * scale))
-        // 横杆
-        scope.drawRect(DUMMY_WOOD, Offset(sx - 22f * scale + sway, sy - 24f * scale), Size(44f * scale, 8f * scale))
-        // 头（木球）
-        scope.drawCircle(DUMMY_HEAD, 11f * scale, Offset(sx + sway, sy - 40f * scale))
-        scope.drawCircle(DUMMY_DARK, 11f * scale, Offset(sx + sway, sy - 40f * scale), style = Stroke(2f))
-        if (dummy.big) {
-            // Boss 预告：红头巾
-            scope.drawRect(Color(0xFFE15A5A), Offset(sx - 11f * scale + sway, sy - 48f * scale), Size(22f * scale, 7f * scale))
+    // ---------- 敌人（按种类差异化；受击闪白/元素状态/精英发光） ----------
+    fun drawEnemy(scope: DrawScope, game: DungeonGame, e: com.brainquest.game.game.core.CombatEngine.Enemy, time: Float) {
+        val sx = e.x - game.camX
+        val sy = e.y - game.camY
+        if (sx < -60f || sy < -60f || sx > scope.size.width + 60f || sy > scope.size.height + 60f) return
+        val hop = if (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME) abs(sin(time * 5f + e.wobbleSeed)) * 6f else 0f
+        val wing = sin(time * 14f + e.wobbleSeed)
+
+        if (e.elite) {
+            scope.drawCircle(Color(0x88B388FF), e.r + 6f, Offset(sx, sy), style = Stroke(4f))
+        }
+        when (e.kind) {
+            com.brainquest.game.game.dungeon.model.EnemyKind.SLIME -> {
+                val squash = 1f + sin(time * 8f + e.wobbleSeed) * 0.08f
+                scope.drawOval(SLIME_C, Offset(sx - e.r, sy - e.r * squash - hop), Size(e.r * 2, e.r * 2 * squash))
+                scope.drawCircle(SLIME_DARK, 2.5f, Offset(sx - 5f, sy - e.r * 0.6f - hop))
+                scope.drawCircle(SLIME_DARK, 2.5f, Offset(sx + 5f, sy - e.r * 0.6f - hop))
+            }
+            com.brainquest.game.game.dungeon.model.EnemyKind.SKELETON -> {
+                scope.drawCircle(BONE_C, e.r * 0.62f, Offset(sx, sy - e.r * 0.5f))
+                scope.drawCircle(Color(0xFFE53935), 2.5f, Offset(sx - 4f, sy - e.r * 0.55f))
+                scope.drawCircle(Color(0xFFE53935), 2.5f, Offset(sx + 4f, sy - e.r * 0.55f))
+                for (i in 0..2) {
+                    scope.drawLine(BONE_DARK, Offset(sx - e.r * 0.5f, sy + i * 8f - 4f), Offset(sx + e.r * 0.5f, sy + i * 8f - 4f), 3f)
+                }
+                scope.drawRect(BONE_C, Offset(sx - 3f, sy - e.r * 0.1f), Size(6f, e.r * 0.9f))
+            }
+            com.brainquest.game.game.dungeon.model.EnemyKind.BAT -> {
+                val wy = wing * 6f
+                scope.drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx - e.r * 1.5f, sy - 10f + wy), 5f)
+                scope.drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx + e.r * 1.5f, sy - 10f + wy), 5f)
+                scope.drawCircle(BAT_C, e.r * 0.7f, Offset(sx, sy))
+                scope.drawCircle(Color(0xFFFFEB3B), 2f, Offset(sx - 3f, sy - 2f))
+                scope.drawCircle(Color(0xFFFFEB3B), 2f, Offset(sx + 3f, sy - 2f))
+            }
+            com.brainquest.game.game.dungeon.model.EnemyKind.CASTER -> {
+                val c = CASTER_C
+                scope.drawLine(c, Offset(sx - e.r, sy + e.r * 0.8f), Offset(sx, sy - e.r * 0.9f), 10f)
+                scope.drawLine(c, Offset(sx + e.r, sy + e.r * 0.8f), Offset(sx, sy - e.r * 0.9f), 10f)
+                scope.drawLine(c, Offset(sx - e.r, sy + e.r * 0.8f), Offset(sx + e.r, sy + e.r * 0.8f), 10f)
+                scope.drawCircle(SLIME_DARK, e.r * 0.45f, Offset(sx, sy - e.r * 0.9f))
+                scope.drawLine(DUMMY_WOOD, Offset(sx + e.r * 0.9f, sy + e.r * 0.6f), Offset(sx + e.r * 1.1f, sy - e.r * 1.1f), 3f)
+                scope.drawCircle(THUNDER_C, 3.5f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
+            }
+            else -> drawDummyBody(scope, sx, sy, e.r, time, e.wobbleSeed, boss = e.r > 30f)
+        }
+        if (e.burnStacks > 0 && (time * 10f).toInt() % 2 == 0) {
+            scope.drawCircle(FIRE_C.copy(alpha = 0.25f), e.r + 2f, Offset(sx, sy))
+        }
+        if (e.frozen > 0f) {
+            scope.drawCircle(ICE_C.copy(alpha = 0.4f), e.r + 2f, Offset(sx, sy))
+        }
+        if (e.hitFlash > 0f) {
+            scope.drawCircle(Color(0xAAFFFFFF), e.r + 1f, Offset(sx, sy))
+        }
+        if (e.hp < e.maxHp) {
+            val w = e.r * 2f
+            scope.drawRect(BAR_BG, Offset(sx - e.r, sy - e.r - 10f), Size(w, 4f))
+            scope.drawRect(HP_C, Offset(sx - e.r, sy - e.r - 10f), Size(w * (e.hp / e.maxHp).coerceIn(0f, 1f), 4f))
         }
     }
 
-    // ---------- 玩家（分层） ----------
+    private fun abs(v: Float) = if (v < 0) -v else v
+
+    // ---------- 木桩身体（DUMMY 与 Boss 占位共用） ----------
+    fun drawDummyBody(scope: DrawScope, sx: Float, sy: Float, r: Float, time: Float, seed: Float, boss: Boolean) {
+        val scale = if (boss) 1.7f else 1f
+        val sway = sin(time * 2f + seed) * 2f * scale
+        scope.drawOval(SHADOW, Offset(sx - 20f * scale, sy + 12f * scale), Size(40f * scale, 12f * scale))
+        scope.drawOval(DUMMY_DARK, Offset(sx - 16f * scale, sy + 6f * scale), Size(32f * scale, 10f * scale))
+        scope.drawRect(DUMMY_WOOD, Offset(sx - 5f * scale + sway, sy - 30f * scale), Size(10f * scale, 38f * scale))
+        scope.drawRect(DUMMY_WOOD, Offset(sx - 22f * scale + sway, sy - 24f * scale), Size(44f * scale, 8f * scale))
+        scope.drawCircle(DUMMY_HEAD, 11f * scale, Offset(sx + sway, sy - 40f * scale))
+        scope.drawCircle(DUMMY_DARK, 11f * scale, Offset(sx + sway, sy - 40f * scale), style = Stroke(2f))
+        if (boss) scope.drawRect(Color(0xFFE15A5A), Offset(sx - 11f * scale + sway, sy - 48f * scale), Size(22f * scale, 7f * scale))
+    }
+
+    // ---------- 子弹与经验球 ----------
+    fun drawProjectiles(scope: DrawScope, game: DungeonGame) {
+        for (b in game.engine.bullets) {
+            if (!b.alive) continue
+            val sx = b.x - game.camX
+            val sy = b.y - game.camY
+            if (sx < -20f || sy < -20f || sx > scope.size.width + 20f || sy > scope.size.height + 20f) continue
+            val c = when (b.element) {
+                com.brainquest.game.game.core.Element.FIRE -> FIRE_C
+                com.brainquest.game.game.core.Element.ICE -> ICE_C
+                com.brainquest.game.game.core.Element.THUNDER -> THUNDER_C
+                else -> if (b.fromEnemy) ENEMY_BULLET else BULLET_P
+            }
+            scope.drawCircle(c, b.r, Offset(sx, sy))
+        }
+        for (o in game.engine.orbs) {
+            if (!o.alive) continue
+            val sx = o.x - game.camX
+            val sy = o.y - game.camY
+            if (sx < -20f || sy < -20f || sx > scope.size.width + 20f || sy > scope.size.height + 20f) continue
+            scope.drawCircle(ORB_C, 6f, Offset(sx, sy))
+            scope.drawCircle(Color(0xFF1B5E20), 2.5f, Offset(sx, sy))
+        }
+    }
+
     fun drawPlayer(scope: DrawScope, game: DungeonGame, time: Float) {
         val cls = game.cls ?: return
-        val sx = game.px - game.camX
-        val sy = game.py - game.camY
+        val sx = game.engine.px - game.camX
+        val sy = game.engine.py - game.camY
         val body = Color(cls.bodyColor)
         val accent = Color(cls.accentColor)
-        val swing = if (game.moving) sin(game.walkPhase) * 4f else 0f
-        val breathe = if (!game.moving) sin(time * 2.2f) * 1f else 0f
+        val swing = if (game.engine.moving) sin(game.engine.walkPhase) * 4f else 0f
+        val breathe = if (!game.engine.moving) sin(time * 2.2f) * 1f else 0f
 
         // 朝向四象限：右/左（眼睛左右偏）、上（背面，不画眼）、下（正面）
-        val fx = game.cosFacing()
-        val fy = game.sinFacing()
+        val fx = kotlin.math.cos(game.engine.facing)
+        val fy = kotlin.math.sin(game.engine.facing)
         val facingRight = fx >= 0f
         val facingUp = fy < -0.5f
 
@@ -269,7 +360,7 @@ object EntityRenderer {
         // 7 武器：跟手、随职业（右臂端点为支点，指向 facing）
         val handX = sx + 15f + swing * 0.6f
         val handY = bodyTop + 12f + swing * 0.6f
-        val deg = Math.toDegrees(game.weaponAngle().toDouble()).toFloat()
+        val deg = Math.toDegrees((game.engine.facing + sin(game.engine.walkPhase * 0.5f) * 0.2f).toDouble()).toFloat()
         scope.rotate(deg, pivot = Offset(handX, handY)) {
             when (cls.id) {
                 "knight" -> {
@@ -297,9 +388,9 @@ object EntityRenderer {
     // ---------- HUD 数值条（供 Screen 的 Canvas 调用） ----------
     fun drawBars(scope: DrawScope, game: DungeonGame) {
         val barW = (scope.size.width * 0.3f).coerceAtMost(300f)
-        // 血条
+        // 血条（权威数据在 engine）
         scope.drawRoundRect(BAR_BG, Offset(20f, 30f), Size(barW, 16f), CornerRadius(8f))
-        scope.drawRoundRect(HP_C, Offset(20f, 30f), Size(barW * (game.hp.toFloat() / game.maxHp).coerceIn(0f, 1f), 16f), CornerRadius(8f))
+        scope.drawRoundRect(HP_C, Offset(20f, 30f), Size(barW * (game.engine.hp.toFloat() / game.engine.maxHp).coerceIn(0f, 1f), 16f), CornerRadius(8f))
         // 经验条（阶段 2 接入升级体系后启用，先画空槽）
         scope.drawRoundRect(BAR_BG, Offset(20f, 52f), Size(barW, 8f), CornerRadius(4f))
     }
