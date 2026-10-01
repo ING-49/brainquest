@@ -7,10 +7,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.withTransform
 import com.brainquest.game.game.dungeon.DungeonGame
 import com.brainquest.game.game.dungeon.model.Dir
 import com.brainquest.game.game.dungeon.model.Room
 import com.brainquest.game.game.dungeon.model.RoomType
+import kotlin.math.abs
 import kotlin.math.sin
 
 /**
@@ -199,76 +202,91 @@ object EntityRenderer {
         val sx = e.x - game.camX
         val sy = e.y - game.camY
         if (sx < -60f || sy < -60f || sx > scope.size.width + 60f || sy > scope.size.height + 60f) return
-        val hop = if (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME) abs(sin(time * 5f + e.wobbleSeed)) * 6f else 0f
-        val wing = sin(time * 14f + e.wobbleSeed)
+        // 死亡动画：先弹大再缩没（deathTimer 0.3 → 0）
+        val dieK = if (e.dying) (e.deathTimer / 0.3f).coerceIn(0f, 1f) else 1f
+        if (dieK <= 0.02f) return
+        val popScale = if (e.dying) 0.4f + 1.1f * dieK * dieK else 1f
+        scope.withTransform({ scale(popScale, popScale, pivot = Offset(sx, sy)) }) {
+            val hop = if (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME) abs(sin(time * 5f + e.wobbleSeed)) * 6f else 0f
+            val wing = sin(time * 14f + e.wobbleSeed)
 
-        if (e.elite) {
-            scope.drawCircle(Color(0x88B388FF), e.r + 6f, Offset(sx, sy), style = Stroke(4f))
-        }
-        when (e.kind) {
-            com.brainquest.game.game.dungeon.model.EnemyKind.SLIME -> {
-                val squash = 1f + sin(time * 8f + e.wobbleSeed) * 0.08f
-                scope.drawOval(SLIME_C, Offset(sx - e.r, sy - e.r * squash - hop), Size(e.r * 2, e.r * 2 * squash))
-                scope.drawCircle(SLIME_DARK, 2.5f, Offset(sx - 5f, sy - e.r * 0.6f - hop))
-                scope.drawCircle(SLIME_DARK, 2.5f, Offset(sx + 5f, sy - e.r * 0.6f - hop))
+            if (e.elite && !e.dying) {
+                drawCircle(Color(0x88B388FF), e.r + 6f, Offset(sx, sy), style = Stroke(4f))
             }
-            com.brainquest.game.game.dungeon.model.EnemyKind.SKELETON -> {
-                scope.drawCircle(BONE_C, e.r * 0.62f, Offset(sx, sy - e.r * 0.5f))
-                scope.drawCircle(Color(0xFFE53935), 2.5f, Offset(sx - 4f, sy - e.r * 0.55f))
-                scope.drawCircle(Color(0xFFE53935), 2.5f, Offset(sx + 4f, sy - e.r * 0.55f))
-                for (i in 0..2) {
-                    scope.drawLine(BONE_DARK, Offset(sx - e.r * 0.5f, sy + i * 8f - 4f), Offset(sx + e.r * 0.5f, sy + i * 8f - 4f), 3f)
+            when (e.kind) {
+                com.brainquest.game.game.dungeon.model.EnemyKind.SLIME -> {
+                    val squash = 1f + sin(time * 8f + e.wobbleSeed) * 0.08f
+                    drawOval(SLIME_C, Offset(sx - e.r, sy - e.r * squash - hop), Size(e.r * 2, e.r * 2 * squash))
+                    drawCircle(SLIME_DARK, 2.5f, Offset(sx - 5f, sy - e.r * 0.6f - hop))
+                    drawCircle(SLIME_DARK, 2.5f, Offset(sx + 5f, sy - e.r * 0.6f - hop))
                 }
-                scope.drawRect(BONE_C, Offset(sx - 3f, sy - e.r * 0.1f), Size(6f, e.r * 0.9f))
+                com.brainquest.game.game.dungeon.model.EnemyKind.SKELETON -> drawSkeletonBody(sx, sy, e.r)
+                com.brainquest.game.game.dungeon.model.EnemyKind.BAT -> {
+                    val wy = wing * 6f
+                    drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx - e.r * 1.5f, sy - 10f + wy), 5f)
+                    drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx + e.r * 1.5f, sy - 10f + wy), 5f)
+                    drawCircle(BAT_C, e.r * 0.7f, Offset(sx, sy))
+                    drawCircle(Color(0xFFFFEB3B), 2f, Offset(sx - 3f, sy - 2f))
+                    drawCircle(Color(0xFFFFEB3B), 2f, Offset(sx + 3f, sy - 2f))
+                }
+                com.brainquest.game.game.dungeon.model.EnemyKind.CASTER -> {
+                    val c = CASTER_C
+                    drawLine(c, Offset(sx - e.r, sy + e.r * 0.8f), Offset(sx, sy - e.r * 0.9f), 10f)
+                    drawLine(c, Offset(sx + e.r, sy + e.r * 0.8f), Offset(sx, sy - e.r * 0.9f), 10f)
+                    drawLine(c, Offset(sx - e.r, sy + e.r * 0.8f), Offset(sx + e.r, sy + e.r * 0.8f), 10f)
+                    drawCircle(SLIME_DARK, e.r * 0.45f, Offset(sx, sy - e.r * 0.9f))
+                    drawLine(DUMMY_WOOD, Offset(sx + e.r * 0.9f, sy + e.r * 0.6f), Offset(sx + e.r * 1.1f, sy - e.r * 1.1f), 3f)
+                    drawCircle(THUNDER_C, 3.5f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
+                }
+                else -> drawDummyBody(sx, sy, e.r, time, e.wobbleSeed, boss = e.r > 30f)
             }
-            com.brainquest.game.game.dungeon.model.EnemyKind.BAT -> {
-                val wy = wing * 6f
-                scope.drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx - e.r * 1.5f, sy - 10f + wy), 5f)
-                scope.drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx + e.r * 1.5f, sy - 10f + wy), 5f)
-                scope.drawCircle(BAT_C, e.r * 0.7f, Offset(sx, sy))
-                scope.drawCircle(Color(0xFFFFEB3B), 2f, Offset(sx - 3f, sy - 2f))
-                scope.drawCircle(Color(0xFFFFEB3B), 2f, Offset(sx + 3f, sy - 2f))
+            if (e.dying) return@withTransform
+            // 元素状态特效（死亡动画期间不再叠加）
+            if (e.burnStacks > 0 && (time * 10f).toInt() % 2 == 0) {
+                drawCircle(FIRE_C.copy(alpha = 0.25f), e.r + 2f, Offset(sx, sy))
             }
-            com.brainquest.game.game.dungeon.model.EnemyKind.CASTER -> {
-                val c = CASTER_C
-                scope.drawLine(c, Offset(sx - e.r, sy + e.r * 0.8f), Offset(sx, sy - e.r * 0.9f), 10f)
-                scope.drawLine(c, Offset(sx + e.r, sy + e.r * 0.8f), Offset(sx, sy - e.r * 0.9f), 10f)
-                scope.drawLine(c, Offset(sx - e.r, sy + e.r * 0.8f), Offset(sx + e.r, sy + e.r * 0.8f), 10f)
-                scope.drawCircle(SLIME_DARK, e.r * 0.45f, Offset(sx, sy - e.r * 0.9f))
-                scope.drawLine(DUMMY_WOOD, Offset(sx + e.r * 0.9f, sy + e.r * 0.6f), Offset(sx + e.r * 1.1f, sy - e.r * 1.1f), 3f)
-                scope.drawCircle(THUNDER_C, 3.5f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
+            if (e.slowStacks > 0 && e.frozen <= 0f) {
+                drawCircle(ICE_C.copy(alpha = 0.12f * e.slowStacks), e.r + 2f, Offset(sx, sy))
             }
-            else -> drawDummyBody(scope, sx, sy, e.r, time, e.wobbleSeed, boss = e.r > 30f)
-        }
-        if (e.burnStacks > 0 && (time * 10f).toInt() % 2 == 0) {
-            scope.drawCircle(FIRE_C.copy(alpha = 0.25f), e.r + 2f, Offset(sx, sy))
-        }
-        if (e.frozen > 0f) {
-            scope.drawCircle(ICE_C.copy(alpha = 0.4f), e.r + 2f, Offset(sx, sy))
-        }
-        if (e.hitFlash > 0f) {
-            scope.drawCircle(Color(0xAAFFFFFF), e.r + 1f, Offset(sx, sy))
-        }
-        if (e.hp < e.maxHp) {
-            val w = e.r * 2f
-            scope.drawRect(BAR_BG, Offset(sx - e.r, sy - e.r - 10f), Size(w, 4f))
-            scope.drawRect(HP_C, Offset(sx - e.r, sy - e.r - 10f), Size(w * (e.hp / e.maxHp).coerceIn(0f, 1f), 4f))
+            if (e.frozen > 0f) {
+                drawCircle(ICE_C.copy(alpha = 0.4f), e.r + 2f, Offset(sx, sy))
+                // 冰晶：四根小刺
+                for (d in listOf(Offset(0f, -1f), Offset(0f, 1f), Offset(-1f, 0f), Offset(1f, 0f))) {
+                    drawLine(ICE_C, Offset(sx + d.x * e.r, sy + d.y * e.r), Offset(sx + d.x * (e.r + 7f), sy + d.y * (e.r + 7f)), 3f)
+                }
+            }
+            if (e.hitFlash > 0f) {
+                drawCircle(Color(0xAAFFFFFF), e.r + 1f, Offset(sx, sy))
+            }
+            if (e.hp < e.maxHp) {
+                val w = e.r * 2f
+                drawRect(BAR_BG, Offset(sx - e.r, sy - e.r - 10f), Size(w, 4f))
+                drawRect(HP_C, Offset(sx - e.r, sy - e.r - 10f), Size(w * (e.hp / e.maxHp).coerceIn(0f, 1f), 4f))
+            }
         }
     }
 
-    private fun abs(v: Float) = if (v < 0) -v else v
+    private fun DrawScope.drawSkeletonBody(sx: Float, sy: Float, r: Float) {
+        drawCircle(BONE_C, r * 0.62f, Offset(sx, sy - r * 0.5f))
+        drawCircle(Color(0xFFE53935), 2.5f, Offset(sx - 4f, sy - r * 0.55f))
+        drawCircle(Color(0xFFE53935), 2.5f, Offset(sx + 4f, sy - r * 0.55f))
+        for (i in 0..2) {
+            drawLine(BONE_DARK, Offset(sx - r * 0.5f, sy + i * 8f - 4f), Offset(sx + r * 0.5f, sy + i * 8f - 4f), 3f)
+        }
+        drawRect(BONE_C, Offset(sx - 3f, sy - r * 0.1f), Size(6f, r * 0.9f))
+    }
 
     // ---------- 木桩身体（DUMMY 与 Boss 占位共用） ----------
-    fun drawDummyBody(scope: DrawScope, sx: Float, sy: Float, r: Float, time: Float, seed: Float, boss: Boolean) {
+    fun DrawScope.drawDummyBody(sx: Float, sy: Float, r: Float, time: Float, seed: Float, boss: Boolean) {
         val scale = if (boss) 1.7f else 1f
         val sway = sin(time * 2f + seed) * 2f * scale
-        scope.drawOval(SHADOW, Offset(sx - 20f * scale, sy + 12f * scale), Size(40f * scale, 12f * scale))
-        scope.drawOval(DUMMY_DARK, Offset(sx - 16f * scale, sy + 6f * scale), Size(32f * scale, 10f * scale))
-        scope.drawRect(DUMMY_WOOD, Offset(sx - 5f * scale + sway, sy - 30f * scale), Size(10f * scale, 38f * scale))
-        scope.drawRect(DUMMY_WOOD, Offset(sx - 22f * scale + sway, sy - 24f * scale), Size(44f * scale, 8f * scale))
-        scope.drawCircle(DUMMY_HEAD, 11f * scale, Offset(sx + sway, sy - 40f * scale))
-        scope.drawCircle(DUMMY_DARK, 11f * scale, Offset(sx + sway, sy - 40f * scale), style = Stroke(2f))
-        if (boss) scope.drawRect(Color(0xFFE15A5A), Offset(sx - 11f * scale + sway, sy - 48f * scale), Size(22f * scale, 7f * scale))
+        drawOval(SHADOW, Offset(sx - 20f * scale, sy + 12f * scale), Size(40f * scale, 12f * scale))
+        drawOval(DUMMY_DARK, Offset(sx - 16f * scale, sy + 6f * scale), Size(32f * scale, 10f * scale))
+        drawRect(DUMMY_WOOD, Offset(sx - 5f * scale + sway, sy - 30f * scale), Size(10f * scale, 38f * scale))
+        drawRect(DUMMY_WOOD, Offset(sx - 22f * scale + sway, sy - 24f * scale), Size(44f * scale, 8f * scale))
+        drawCircle(DUMMY_HEAD, 11f * scale, Offset(sx + sway, sy - 40f * scale))
+        drawCircle(DUMMY_DARK, 11f * scale, Offset(sx + sway, sy - 40f * scale), style = Stroke(2f))
+        if (boss) drawRect(Color(0xFFE15A5A), Offset(sx - 11f * scale + sway, sy - 48f * scale), Size(22f * scale, 7f * scale))
     }
 
     // ---------- 子弹与经验球 ----------

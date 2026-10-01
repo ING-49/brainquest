@@ -32,6 +32,8 @@ class CombatEngine {
         val xpValue: Int = 1,
     ) {
         var alive = true
+        var dying = false          // 死亡动画中（0.3s 缩放淡出），不再参与逻辑
+        var deathTimer = 0f
         // 元素状态（由 ElementSystem 维护）
         var burnStacks = 0; var burnTimer = 0f
         var slowStacks = 0; var slowTimer = 0f
@@ -66,8 +68,12 @@ class CombatEngine {
         var magnet = false
     }
 
-    /** 帧事件（伤害飘字/粒子，渲染层消费） */
-    data class FxEvent(val x: Float, val y: Float, val text: String, val crit: Boolean, val element: Element?, val kind: Int) // kind 0=伤害 1=死亡 2=拾取
+    /** 帧事件（伤害飘字/粒子/闪电，渲染层消费后转成持续特效） */
+    data class FxEvent(
+        val x: Float, val y: Float, val text: String, val crit: Boolean,
+        val element: Element?, val kind: Int,   // kind 0=伤害 1=死亡 2=拾取 3=闪电段
+        val x2: Float = 0f, val y2: Float = 0f, // 闪电段终点
+    )
 
     /** 强化选项 */
     data class Upgrade(val id: String, val name: String, val desc: String)
@@ -185,8 +191,8 @@ class CombatEngine {
         tickOrbs(dt)
         tickPendingSpawns(dt)
 
-        // 清理
-        enemies.removeAll { !it.alive }
+        // 清理（死亡动画播完才回收）
+        enemies.removeAll { !it.alive && !it.dying }
         bullets.removeAll { !it.alive }
         orbs.removeAll { !it.alive }
     }
@@ -203,6 +209,10 @@ class CombatEngine {
 
     private fun tickEnemies(dt: Float) {
         for (e in enemies) {
+            if (e.dying) {
+                e.deathTimer -= dt
+                continue
+            }
             if (!e.alive) continue
             if (e.hitFlash > 0f) e.hitFlash -= dt
             // 元素状态
@@ -327,12 +337,17 @@ class CombatEngine {
         e.hitFlash = 0.12f
         events.add(FxEvent(e.x, e.y - e.r, "${dmg.toInt()}", crit, element, 0))
         if (element != null) ElementSystem.onHit(e, element, this)
-        if (e.hp <= 0f && e.alive) {
-            e.alive = false
-            events.add(FxEvent(e.x, e.y, "", false, null, 1))
-            if (orbs.size < MAX_ORBS) orbs.add(Orb(e.x, e.y, e.xpValue))
-            onEnemyKilled?.invoke(e)
-        }
+        if (e.hp <= 0f && e.alive) killEnemy(e)
+    }
+
+    /** 击杀：逻辑立即结算（掉落/计数/回调），尸体进入 0.3s 死亡动画由渲染淡出 */
+    fun killEnemy(e: Enemy) {
+        e.alive = false
+        e.dying = true
+        e.deathTimer = 0.3f
+        events.add(FxEvent(e.x, e.y, "", false, null, 1))
+        if (orbs.size < MAX_ORBS) orbs.add(Orb(e.x, e.y, e.xpValue))
+        onEnemyKilled?.invoke(e)
     }
 
     fun hurtPlayer(raw: Float) {

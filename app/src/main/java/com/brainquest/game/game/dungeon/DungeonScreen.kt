@@ -38,8 +38,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
@@ -84,6 +87,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     var joyOn by remember { mutableStateOf(false) }
     val frame = remember { mutableIntStateOf(0) }
     val joyMaxPx = with(LocalDensity.current) { 48.dp.toPx() }
+    val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+
+    // 特效层：把引擎的帧事件转成有生命周期的持续特效（飘字/粒子/闪电）
+    val floats = remember { ArrayList<FloatFx>(32) }
+    val parts = remember { ArrayList<ParticleFx>(64) }
+    val bolts = remember { ArrayList<BoltFx>(8) }
+    val rngFx = remember { kotlin.random.Random(7) }
 
     // 游戏循环
     LaunchedEffect(Unit) {
@@ -94,6 +104,38 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 last = t
             }
             frame.intValue++
+            val dtFx = 1f / 60f
+            // 消费引擎帧事件
+            for (ev in game.engine.events) {
+                when (ev.kind) {
+                    0 -> floats.add(FloatFx(ev.x, ev.y, ev.text,
+                        when {
+                            ev.element == com.brainquest.game.game.core.Element.FIRE -> Color(0xFFFF7043)
+                            ev.element == com.brainquest.game.game.core.Element.ICE -> Color(0xFF81D4FA)
+                            ev.element == com.brainquest.game.game.core.Element.THUNDER -> Color(0xFFFFEE58)
+                            ev.crit -> Color(0xFFFFD54F)
+                            else -> Color.White
+                        }, ev.crit))
+                    1 -> {   // 死亡爆裂粒子
+                        repeat(8) {
+                            val ang = rngFx.nextFloat() * 6.283f
+                            val sp = 90f + rngFx.nextFloat() * 140f
+                            parts.add(ParticleFx(ev.x, ev.y, kotlin.math.cos(ang) * sp, kotlin.math.sin(ang) * sp,
+                                0.4f, Color(0xFFE15A5A)))
+                        }
+                    }
+                    2 -> floats.add(FloatFx(ev.x, ev.y, ev.text, Color(0xFF7EE38A), false))
+                    3 -> bolts.add(BoltFx(ev.x, ev.y, ev.x2, ev.y2, 0.15f))
+                }
+            }
+            game.engine.events.clear()
+            // 特效寿命推进
+            floats.forEach { it.t += dtFx }
+            floats.removeAll { it.t > 0.7f }
+            parts.forEach { it.t += dtFx; it.x += it.vx * dtFx; it.y += it.vy * dtFx }
+            parts.removeAll { it.t > 0.4f }
+            bolts.forEach { it.t += dtFx }
+            bolts.removeAll { it.t > 0.15f }
             val e = game.engine
             val h = Hud(
                 game.phase, game.floor, game.floorCleared, game.rooms.size,
@@ -151,6 +193,31 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             EntityRenderer.drawProjectiles(this, game)
             for (e in game.engine.enemies) EntityRenderer.drawEnemy(this, game, e, t)
             EntityRenderer.drawPlayer(this, game, t)
+            // 特效：闪电 → 粒子 → 伤害飘字
+            for (b in bolts) {
+                val a = (1f - b.t / 0.15f).coerceIn(0f, 1f)
+                val c = Color(0xFFFFEE58).copy(alpha = a)
+                val mx = (b.x1 + b.x2) / 2 + (if ((b.x1 + b.x2).toInt() % 2 == 0) 14f else -14f)
+                val my = (b.y1 + b.y2) / 2 + (if ((b.y1 - b.y2).toInt() % 2 == 0) -12f else 12f)
+                drawLine(c, Offset(b.x1 - game.camX, b.y1 - game.camY), Offset(mx - game.camX, my - game.camY), 3f)
+                drawLine(c, Offset(mx - game.camX, my - game.camY), Offset(b.x2 - game.camX, b.y2 - game.camY), 3f)
+            }
+            for (pt in parts) {
+                val a = (1f - pt.t / 0.4f).coerceIn(0f, 1f)
+                drawCircle(pt.color.copy(alpha = a), 3.5f, Offset(pt.x - game.camX, pt.y - game.camY))
+            }
+            for (ft in floats) {
+                val a = (1f - ft.t / 0.7f).coerceIn(0f, 1f)
+                drawText(
+                    textMeasurer, ft.text,
+                    Offset(ft.x - game.camX, ft.y - game.camY - ft.t * 70f),
+                    style = androidx.compose.ui.text.TextStyle(
+                        color = ft.color.copy(alpha = a),
+                        fontSize = if (ft.crit) 22.sp else 15.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                )
+            }
             // 挥砍弧光（剑士出刀瞬间）
             val en = game.engine
             if (en.attackTimer > en.attackInterval - 0.16f && en.attackInterval > 0f) {
@@ -416,3 +483,14 @@ private fun Minimap(game: DungeonGame, modifier: Modifier) {
 }
 
 private fun formatTime(sec: Int): String = "%d:%02d".format(sec / 60, sec % 60)
+
+/** 伤害/拾取飘字（世界坐标，上浮淡出 0.7s） */
+private class FloatFx(var x: Float, var y: Float, val text: String, val color: Color, val crit: Boolean) {
+    var t = 0f
+}
+
+/** 击杀粒子 */
+private class ParticleFx(var x: Float, var y: Float, val vx: Float, val vy: Float, var t: Float, val color: Color)
+
+/** 闪电链段 */
+private class BoltFx(val x1: Float, val y1: Float, val x2: Float, val y2: Float, var t: Float)

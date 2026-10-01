@@ -46,11 +46,8 @@ object ElementSystem {
                     hit.add(next)
                     next.hitFlash = 0.12f
                     next.hp -= dmg
-                    if (next.hp <= 0f && next.alive) {
-                        next.alive = false
-                        engine.orbs.add(CombatEngine.Orb(next.x, next.y, next.xpValue))
-                        engine.onEnemyKilled?.invoke(next)
-                    }
+                    engine.events.add(CombatEngine.FxEvent(source.x, source.y, "", false, element, 3, next.x, next.y))
+                    if (next.hp <= 0f && next.alive) engine.killEnemy(next)
                     source = next
                     dmg *= 0.7f
                 }
@@ -73,11 +70,7 @@ object ElementSystem {
             if (e.burnTick >= 0.5f) {
                 e.burnTick -= 0.5f
                 e.hp -= BURN_DPS_PER_STACK * 0.5f * e.burnStacks
-                if (e.hp <= 0f && e.alive) {
-                    e.alive = false
-                    engine.orbs.add(CombatEngine.Orb(e.x, e.y, e.xpValue))
-                    engine.onEnemyKilled?.invoke(e)
-                }
+                if (e.hp <= 0f && e.alive) engine.killEnemy(e)
             }
             if (e.burnTimer <= 0f) e.burnStacks = 0
         }
