@@ -25,7 +25,7 @@ class CombatEngine {
         var x: Float, var y: Float,
         val r: Float,
         var hp: Float, val maxHp: Float,
-        val speed: Float,
+        var speed: Float,
         val dmg: Float,
         val kind: EnemyKind,
         val elite: Boolean = false,
@@ -34,6 +34,12 @@ class CombatEngine {
         var alive = true
         var dying = false          // 死亡动画中（0.3s 缩放淡出），不再参与逻辑
         var deathTimer = 0f
+        var bossFloor = 0          // >0 = 该层的 Boss（多阶段）
+        var phase = 1              // Boss 阶段（血量 <30% 进入狂暴 = 阶段 2）
+        var specialTimer = 4f      // Boss 特殊技计时
+        var shieldHp = 0f          // 精英「护盾」词缀 / Boss 护盾：先扣护盾
+        var reflect = false        // 反伤词缀
+        var affix: Affix? = null   // 精英词缀
         // 元素状态（由 ElementSystem 维护）
         var burnStacks = 0; var burnTimer = 0f
         var slowStacks = 0; var slowTimer = 0f
@@ -75,6 +81,9 @@ class CombatEngine {
         val x2: Float = 0f, val y2: Float = 0f, // 闪电段终点
     )
 
+    /** 精英词缀 */
+    enum class Affix { RAGE, SHIELD, SPLIT }
+
     /** 强化选项 */
     data class Upgrade(val id: String, val name: String, val desc: String)
 
@@ -112,6 +121,7 @@ class CombatEngine {
     val orbs = ArrayList<Orb>(64)
     val events = ArrayList<FxEvent>(16)
     private val pendingSpawns = ArrayList<Pair<Float, Enemy>>(8)   // 延迟刷怪（进房分波）
+    private val spawnNow = ArrayList<Enemy>(4)   // 迭代中的安全生成队列（Boss召唤/精英分裂）
 
     /** 场地边界（敌人不出当前房间）；null = 不限制 */
     var arenaLeft = 0f; var arenaTop = 0f
@@ -119,6 +129,58 @@ class CombatEngine {
 
     /** 职业被动 id（knight 格挡 / mage 击杀回血 / ranger 闪避），null = 无 */
     var passiveId: String? = null
+
+    // ---------- 主动技能 ----------
+    var skillId: String? = null; private set
+    var skillCd = 0f; private set
+    var skillCdMax = 14f
+    var timeScale = 1f; private set      // 时间减速/冰冻全局倍率（只作用于敌人）
+    private var timeScaleTimer = 0f
+    var shake = 0f; private set          // 震屏强度（渲染层读，随 tick 衰减）
+    var shieldTime = 0f; private set     // 护盾剩余时间
+    private var shieldLeft = 0f          // 护盾剩余吸收量
+
+    /** 每层结束的三选一技能池 */
+    fun rollSkills(rng: Random): List<String> = listOf(
+        "dash", "shield", "heal", "slowtime", "freeze", "meteor", "chain"
+    ).shuffled(rng).take(3)
+
+    fun setSkill(id: String) { skillId = id; skillCd = 0f }
+
+    fun useSkill(): Boolean {
+        val id = skillId ?: return false
+        if (phase != Phase.PLAYING || skillCd > 0f) return false
+        skillCd = skillCdMax
+        when (id) {
+            "dash" -> {   // 冲刺：朝面向位移 240px + 短无敌
+                px += cos(facing) * 240f; py += sin(facing) * 240f
+                invincible = invincibleSec
+                shake = 6f
+            }
+            "shield" -> { shieldTime = 8f; shieldLeft = 50f }
+            "heal" -> heal((maxHp * 0.4f).toInt())
+            "slowtime" -> { timeScaleTimer = 5f; timeScale = 0.3f }
+            "freeze" -> enemies.forEach { it.frozen = maxOf(it.frozen, 2.5f) }
+            "meteor" -> nearestEnemy(700f)?.let { t ->
+                aoe(t.x, t.y, 150f, attack * 4f, Element.FIRE)
+                shake = 10f
+            }
+            "chain" -> nearestEnemy(600f)?.let { t ->
+                var src = t; val hitSet = mutableSetOf(t); var dmg = attack * 2.5f
+                t.hitFlash = 0.15f; t.hp -= dmg
+                if (t.hp <= 0f && t.alive) killEnemy(t)
+                repeat(4) {
+                    val nx2 = queryNeighbors(src, 260f, hitSet).firstOrNull() ?: return@repeat
+                    hitSet.add(nx2)
+                    events.add(FxEvent(src.x, src.y, "", false, Element.THUNDER, 3, nx2.x, nx2.y))
+                    nx2.hitFlash = 0.15f; nx2.hp -= dmg
+                    if (nx2.hp <= 0f && nx2.alive) killEnemy(nx2)
+                    src = nx2; dmg *= 0.75f
+                }
+            }
+        }
+        return true
+    }
 
     /** 当前武器 */
     var weapon: Weapon = Weapon.RapidShot()
@@ -149,6 +211,8 @@ class CombatEngine {
         level = 1; xp = 0; xpNext = 6
         invincible = 0f; attackTimer = 0f; timeAcc = 0f; elapsed = 0f
         joyActive = false; joyX = 0f; joyY = 0f
+        skillCd = 0f; shieldTime = 0f; shieldLeft = 0f
+        timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         phase = Phase.IDLE
     }
 
@@ -159,6 +223,10 @@ class CombatEngine {
         val dt = dtRaw.coerceIn(0f, 0.05f)
         elapsed += dt
         if (invincible > 0f) invincible -= dt
+        if (skillCd > 0f) skillCd -= dt
+        if (shieldTime > 0f) shieldTime -= dt
+        if (timeScaleTimer > 0f) { timeScaleTimer -= dt; if (timeScaleTimer <= 0f) timeScale = 1f }
+        if (shake > 0f) shake -= dt
 
         // 玩家移动
         val jx = if (joyActive) joyX else 0f
@@ -228,7 +296,7 @@ class CombatEngine {
             val dx = px - e.x; val dy = py - e.y
             val d = hypot(dx, dy)
             if (d < 1f) continue
-            var sp = e.speed
+            var sp = e.speed * timeScale
             // 冰减速 / 冻结
             if (e.frozen > 0f) sp = 0f
             else if (e.slowStacks > 0) sp *= (1f - 0.22f * e.slowStacks).coerceAtLeast(0.3f)
@@ -263,9 +331,9 @@ class CombatEngine {
                         bullets.add(Bullet(e.x, e.y, dx / d * 230f, dy / d * 230f, 6f, e.dmg, null, fromEnemy = true, life = 3f))
                     }
                 }
-                else -> {   // SKELETON / DUMMY：直追
-                    e.x += dx / d * sp * dt
-                    e.y += dy / d * sp * dt
+                else -> {   // SKELETON / DUMMY：直追（Boss 走专属 AI）
+                    if (e.bossFloor > 0) bossAI(e, dx, dy, d, sp, dt)
+                    else { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt }
                 }
             }
             // 场地边界
@@ -340,7 +408,13 @@ class CombatEngine {
         val crit = Random.nextFloat() < critChance
         if (crit) dmg *= 2f
         if (element != null) dmg *= elemPower
+        if (e.shieldHp > 0f) {
+            val absorbed = minOf(e.shieldHp, dmg)
+            e.shieldHp -= absorbed
+            dmg -= absorbed
+        }
         e.hp -= dmg
+        if (e.reflect && e.bossFloor == 0 && dmg > 0f) hurtPlayer(dmg * 0.15f)
         e.hitFlash = 0.12f
         events.add(FxEvent(e.x, e.y - e.r, "${dmg.toInt()}", crit, element, 0))
         if (element != null) ElementSystem.onHit(e, element, this)
@@ -354,6 +428,13 @@ class CombatEngine {
         e.deathTimer = 0.3f
         events.add(FxEvent(e.x, e.y, "", false, null, 1))
         if (orbs.size < MAX_ORBS) orbs.add(Orb(e.x, e.y, e.xpValue))
+        // 精英「分裂」词缀：死亡分裂成两只小怪
+        if (e.affix == Affix.SPLIT && e.r > 12f && enemies.size + spawnNow.size < MAX_ENEMIES) {
+            repeat(2) { idx ->
+                spawnNow.add(Enemy(e.x + (idx * 2 - 1) * 20f, e.y, e.r * 0.55f, e.maxHp * 0.25f,
+                    e.maxHp * 0.25f, e.speed * 1.2f, e.dmg * 0.5f, e.kind, elite = false, xpValue = 1))
+            }
+        }
         onEnemyKilled?.invoke(e)
     }
 
@@ -366,6 +447,12 @@ class CombatEngine {
                 invincible = invincibleSec
                 return
             }
+        }
+        if (shieldTime > 0f && shieldLeft > 0f) {
+            val absorbed = minOf(shieldLeft, dmg)
+            shieldLeft -= absorbed
+            dmg -= absorbed
+            if (dmg <= 0f) { events.add(FxEvent(px, py - 30f, "格挡", false, null, 0)); return }
         }
         dmg = (dmg.toInt().coerceAtLeast(1)).toFloat()
         hp -= dmg.toInt()
@@ -381,6 +468,7 @@ class CombatEngine {
     fun setMaxHp(n: Int) { maxHp = n.coerceAtLeast(1); if (hp > maxHp) hp = maxHp }
     /** DEBUG 兜底：自动驾驶用（升级空队列时恢复探索） */
     fun forcePlaying() { phase = Phase.PLAYING }
+    fun addShake(v: Float) { shake = maxOf(shake, v) }
     fun buffAttack(delta: Int) { attack = (attack + delta).coerceAtLeast(1) }
     fun buffSpeed(delta: Float) { speed = (speed + delta).coerceAtLeast(60f) }
     fun buffCrit(delta: Float) { critChance = (critChance + delta).coerceIn(0f, 0.8f) }
@@ -434,6 +522,65 @@ class CombatEngine {
         if (bullets.size < MAX_BULLETS) {
             bullets.add(Bullet(x, y, dirX * speed, dirY * speed, r, dmg, element, fromEnemy = false, pierce = pierce))
         }
+    }
+
+    /** Boss 专属 AI：每层不同机制，血量 <30% 进入狂暴（阶段 2） */
+    private fun bossAI(e: Enemy, dx: Float, dy: Float, d: Float, sp: Float, dt: Float) {
+        val rage = e.phase >= 2
+        val mult = if (rage) 1.5f else 1f
+        if (e.phase == 1 && e.hp < e.maxHp * 0.3f) {
+            e.phase = 2
+            shake = 12f
+            events.add(FxEvent(e.x, e.y - e.r - 20f, "狂暴！", true, null, 0))
+        }
+        if (d > 1f && e.frozen <= 0f) {
+            e.x += dx / d * sp * mult * dt
+            e.y += dy / d * sp * mult * dt
+        }
+        e.specialTimer -= dt * mult
+        if (e.specialTimer > 0f) return
+        val floor = e.bossFloor
+        when (((floor - 1) % 4) + 1) {
+            1 -> {   // 冲刺 + 召唤小怪
+                e.specialTimer = if (rage) 3f else 5f
+                if (d > 120f) { e.x += dx / d * 300f; e.y += dy / d * 300f; shake = 6f }
+                repeat(2) { if (enemies.size < MAX_ENEMIES) spawnMinion(e, EnemyKind.SLIME) }
+            }
+            2 -> {   // 弹幕环 + 瞬移
+                e.specialTimer = if (rage) 2.5f else 4f
+                repeat(8) { i ->
+                    val ang = i * 0.785f
+                    if (bullets.size < MAX_BULLETS) bullets.add(Bullet(e.x, e.y, cos(ang) * 200f, sin(ang) * 200f, 6f, e.dmg * 0.6f, null, fromEnemy = true, life = 3f))
+                }
+                if (d > 200f) { e.x = px + (Random.nextFloat() - 0.5f) * 300f; e.y = py + (Random.nextFloat() - 0.5f) * 300f }
+            }
+            3 -> {   // 护盾 + 反伤
+                e.specialTimer = if (rage) 4f else 6f
+                e.shieldHp = e.maxHp * 0.15f
+                e.reflect = true
+            }
+            4 -> {   // 分身 + 环形弹幕
+                e.specialTimer = if (rage) 3f else 5f
+                repeat(2) { if (enemies.size < MAX_ENEMIES) spawnMinion(e, EnemyKind.BAT) }
+                repeat(6) { i ->
+                    val ang = i * 1.047f + elapsed
+                    if (bullets.size < MAX_BULLETS) bullets.add(Bullet(e.x, e.y, cos(ang) * 160f, sin(ang) * 160f, 7f, e.dmg * 0.5f, null, fromEnemy = true, life = 2.5f))
+                }
+            }
+        }
+        // 第 5 层 Boss 狂暴期：额外全屏弹幕
+        if (floor == 5 && rage) {
+            repeat(12) { i ->
+                val ang = i * 0.524f
+                if (bullets.size < MAX_BULLETS) bullets.add(Bullet(e.x, e.y, cos(ang) * 180f, sin(ang) * 180f, 6f, e.dmg * 0.5f, null, fromEnemy = true, life = 3f))
+            }
+        }
+    }
+
+    private fun spawnMinion(near: Enemy, kind: EnemyKind) {
+        val ang = Random.nextFloat() * 6.283f
+        enemies.add(Enemy(near.x + cos(ang) * 60f, near.y + sin(ang) * 60f, 13f,
+            18f, 18f, 80f, 6f, kind, xpValue = 1))
     }
 
     /** 最近敌人（武器索敌用） */

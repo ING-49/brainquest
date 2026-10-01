@@ -19,7 +19,7 @@ import kotlin.random.Random
  */
 class DungeonGame {
 
-    enum class Phase { READY, CLASS_SELECT, EXPLORING, LEVELUP, LOOT, SHOP, EVENT, PAUSED, GAMEOVER, VICTORY }
+    enum class Phase { READY, CLASS_SELECT, EXPLORING, LEVELUP, SKILL_SELECT, LOOT, SHOP, EVENT, PAUSED, GAMEOVER, VICTORY }
 
     companion object {
         const val ROOM_W = 1000f
@@ -186,11 +186,22 @@ class DungeonGame {
                 kind == EnemyKind.SLIME -> 15f
                 else -> 16f
             }
-            engine.spawnLater(engine.enemies.size * 0.12f, CombatEngine.Enemy(
+            val e = CombatEngine.Enemy(
                 x, y, r, baseHp, baseHp, speed,
                 (if (big) 12f else 7f) * scaleDmg * (if (elite) 1.4f else 1f),
                 kind, elite, xpValue = if (elite) 3 else 1,
-            ))
+            )
+            if (elite) {
+                // 精英词缀：狂暴（加速）/ 护盾（额外盾条）/ 分裂（死亡分小怪）
+                val affix = CombatEngine.Affix.entries.random(rng)
+                e.affix = affix
+                when (affix) {
+                    CombatEngine.Affix.RAGE -> e.speed *= 1.35f
+                    CombatEngine.Affix.SHIELD -> e.shieldHp = baseHp * 0.4f
+                    CombatEngine.Affix.SPLIT -> {}
+                }
+            }
+            engine.spawnLater(engine.enemies.size * 0.12f, e)
         }
 
         fun spot(minDist: Float): Pair<Float, Float> {
@@ -211,8 +222,15 @@ class DungeonGame {
                 }
             }
             RoomType.BOSS -> {
-                // 阶段 5 实装多阶段 Boss；当前为大体型占位怪
-                spawn(EnemyKind.DUMMY, elite = false, roomLeft(room) + ROOM_W / 2, roomTop(room) + ROOM_H / 2 - 40f, big = true)
+                // 每层 Boss：大体型 + 多阶段（<30% 狂暴）+ 每层不同机制（见 engine.bossAI）
+                val boss = CombatEngine.Enemy(
+                    roomLeft(room) + ROOM_W / 2, roomTop(room) + ROOM_H / 2 - 40f,
+                    42f, 320f * scaleHp, 320f * scaleHp, 62f + floor * 3f,
+                    11f * scaleDmg, EnemyKind.DUMMY, elite = false, xpValue = 8,
+                )
+                boss.bossFloor = floor
+                engine.spawnLater(0.4f, boss)
+                engine.addShake(10f)   // Boss 出场震屏
             }
             RoomType.BATTLE -> {
                 val n = 3 + rng.nextInt(2) + (floor - 1)   // 首层 3-4 只，逐层+1
@@ -232,8 +250,18 @@ class DungeonGame {
     }
 
     // ---------- 主循环 ----------
+    /** 本层的技能三选一候选（空 = 无待选） */
+    var pendingSkills: List<String> = emptyList(); private set
+
+    fun chooseSkill(id: String) {
+        if (phase != Phase.SKILL_SELECT) return
+        engine.setSkill(id)
+        pendingSkills = emptyList()
+        phase = Phase.EXPLORING
+    }
+
     fun tick(dtRaw: Float) {
-        if (phase != Phase.EXPLORING && phase != Phase.LEVELUP && phase != Phase.GAMEOVER) return
+        if (phase != Phase.EXPLORING && phase != Phase.LEVELUP && phase != Phase.SKILL_SELECT && phase != Phase.GAMEOVER) return
         val dt = dtRaw.coerceIn(0f, 0.05f)
         if ((runTimeSec * 2) != lastLogSec) {
             lastLogSec = runTimeSec * 2
@@ -255,9 +283,14 @@ class DungeonGame {
                     } else chooseUpgrade(first.id)
                     apWait = 0f
                 }
+            } else if (phase == Phase.SKILL_SELECT) {
+                apWait += dt
+                if (apWait > 0.6f) { pendingSkills.firstOrNull()?.let { chooseSkill(it) }; apWait = 0f }
             } else {
                 apWait = 0f
                 autopilotSteer()
+                // 战斗中技能好了就用
+                if (locked && engine.enemies.isNotEmpty() && engine.skillCd <= 0f) engine.useSkill()
             }
         }
         engine.tick(dt)
@@ -272,8 +305,14 @@ class DungeonGame {
                     clearedRooms++
                     floorCleared++
                     if (roomNow.type == RoomType.BOSS) {
-                        if (floor >= MAX_FLOOR) phase = Phase.VICTORY
-                        else { floor++; buildFloor() }
+                        if (floor >= MAX_FLOOR) {
+                            phase = Phase.VICTORY
+                        } else {
+                            floor++
+                            buildFloor()
+                            pendingSkills = engine.rollSkills(rng)
+                            phase = Phase.SKILL_SELECT
+                        }
                     }
                     apNext = null; apPhase = 0; apStuck = 0f
                 }
@@ -316,8 +355,14 @@ class DungeonGame {
                 clearedRooms++
                 floorCleared++
                 if (room.type == RoomType.BOSS) {
-                    if (floor >= MAX_FLOOR) phase = Phase.VICTORY
-                    else { floor++; buildFloor() }
+                    if (floor >= MAX_FLOOR) {
+                        phase = Phase.VICTORY
+                    } else {
+                        floor++
+                        buildFloor()
+                        pendingSkills = engine.rollSkills(rng)
+                        phase = Phase.SKILL_SELECT
+                    }
                 }
             }
         }

@@ -33,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -68,6 +70,10 @@ private data class Hud(
     val level: Int,
     val timeSec: Int,
     val kills: Int,
+    val bossHp: Float,      // 0..1，<=0 = 无 Boss
+    val bossPhase: Int,
+    val skillReady: Boolean,
+    val skillCd: Int,
 )
 
 /** 地牢幸存者：选职业 → 探索地牢（清怪开门选房间）→ 层末 Boss → 5 层通关 */
@@ -77,12 +83,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
 
     // 游戏实例全局唯一：重开走 reset()，防止摇杆 pointerInput(Unit) 闭包绑旧实例
     val game = remember { DungeonGame() }
+    val engineRef = game.engine
     // DEBUG：自动化验收的自动驾驶（intent extra 打开）
     LaunchedEffect(Unit) {
         game.autopilot = com.brainquest.game.util.DebugFlags.autopilot
     }
     var hud by remember {
-        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0))
+        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0f, 0, true, 0))
     }
     var confirmExit by remember { mutableStateOf(false) }
     var showBag by remember { mutableStateOf(false) }
@@ -140,9 +147,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             bolts.forEach { it.t += dtFx }
             bolts.removeAll { it.t > 0.15f }
             val e = game.engine
+            val boss = game.engine.enemies.firstOrNull { it.bossFloor > 0 && it.alive }
             val h = Hud(
                 game.phase, game.floor, game.floorCleared, game.rooms.size,
                 e.hp, e.maxHp, e.level, game.runTimeSec, game.totalKills,
+                if (boss != null) boss.hp / boss.maxHp else 0f,
+                boss?.phase ?: 0,
+                e.skillCd <= 0f, e.skillCd.toInt(),
             )
             if (h != hud) hud = h
         }
@@ -200,6 +211,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         ) {
             frame.intValue   // 订阅：每帧重绘
             val t = frame.intValue / 60f
+            // 震屏：引擎 shake 衰减期间相机随机抖动
+            val shk = game.engine.shake
+            val shx = if (shk > 0f) (kotlin.random.Random.nextFloat() - 0.5f) * shk * 2f else 0f
+            val shy = if (shk > 0f) (kotlin.random.Random.nextFloat() - 0.5f) * shk * 2f else 0f
+            withTransform({ translate(shx, shy) }) {
             EntityRenderer.drawWorld(this, game, t)
             EntityRenderer.drawProjectiles(this, game)
             EntityRenderer.drawDrops(this, game, t)
@@ -251,6 +267,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 )
             }
             EntityRenderer.drawBars(this, game)
+            }   // withTransform 震屏
             // 虚拟摇杆
             if (joyOn) {
                 drawCircle(JOY_C, 56f, joyBase, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
@@ -309,12 +326,37 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
         }
-        // 背包按钮
+        // 背包按钮 + 主动技能按钮
         if (hud.phase == DungeonGame.Phase.EXPLORING) {
-            OutlinedButton(
-                onClick = { showBag = !showBag },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).height(36.dp),
-            ) { Text("🎒") }
+            Row(
+                Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = { engineRef.useSkill() },
+                    enabled = engineRef.skillId != null && engineRef.skillCd <= 0f,
+                    modifier = Modifier.height(44.dp),
+                ) {
+                    Text(
+                        when (engineRef.skillId) {
+                            "dash" -> "💨 冲刺"
+                            "shield" -> "🛡 护盾"
+                            "heal" -> "💚 治疗"
+                            "slowtime" -> "⏳ 缓时"
+                            "freeze" -> "❄️ 冰冻"
+                            "meteor" -> "☄️ 陨石"
+                            "chain" -> "⚡ 闪电"
+                            else -> "技能"
+                        } + if (engineRef.skillCd > 0f) " " + engineRef.skillCd.toInt() + "s" else "",
+                        color = if (engineRef.skillCd <= 0f) Color(0xFF7EE38A) else Color(0xFF78909C),
+                    )
+                }
+                OutlinedButton(
+                    onClick = { showBag = !showBag },
+                    modifier = Modifier.height(44.dp),
+                ) { Text("🎒") }
+            }
         }
         if (showBag) {
             Column(
@@ -341,6 +383,29 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 }
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = { showBag = false }, modifier = Modifier.fillMaxWidth()) { Text("关闭") }
+            }
+        }
+
+        // Boss 血条（顶部中央）
+        if (hud.bossHp > 0f) {
+            Column(
+                Modifier.align(Alignment.TopCenter).padding(top = 52.dp).fillMaxWidth(0.62f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    "👹 第" + hud.floor + "层 Boss · 阶段 " + hud.bossPhase,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFFF8A80),
+                    fontWeight = FontWeight.Bold,
+                )
+                Box(
+                    Modifier.fillMaxWidth().height(10.dp).background(Color(0x66000000), RoundedCornerShape(5.dp)),
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth(hud.bossHp.coerceIn(0f, 1f)).height(10.dp)
+                            .background(Color(0xFFE15A5A), RoundedCornerShape(5.dp)),
+                    )
+                }
             }
         }
 
@@ -439,6 +504,38 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         Column(Modifier.padding(14.dp)) {
                             Text(up.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Text(up.desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+
+        // ---------- 技能三选一（每层结束） ----------
+        if (hud.phase == DungeonGame.Phase.SKILL_SELECT) {
+            Column(
+                Modifier.fillMaxSize().background(Color(0x99000000)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("✨ 选择一个主动技能", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                game.pendingSkills.forEach { id ->
+                    val pair = when (id) {
+                        "dash" -> "💨 冲刺" to "朝面向瞬移 240px 并短暂无敌"
+                        "shield" -> "🛡 护盾" to "8 秒内格挡 50 点伤害"
+                        "heal" -> "💚 治疗" to "立即回复 40% 生命"
+                        "slowtime" -> "⏳ 时间减速" to "5 秒内敌人减速 70%"
+                        "freeze" -> "❄️ 全屏冰冻" to "冻结所有敌人 2.5 秒"
+                        "meteor" -> "☄️ 陨石" to "最近敌人处大范围爆炸（4×攻击）"
+                        else -> "⚡ 闪电链" to "从最近敌人连跳 4 次（2.5×攻击起）"
+                    }
+                    Card(
+                        onClick = { game.chooseSkill(id) },
+                        modifier = Modifier.fillMaxWidth(0.8f).padding(top = 10.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                    ) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text(pair.first, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(pair.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
