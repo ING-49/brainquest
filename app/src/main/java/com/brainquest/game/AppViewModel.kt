@@ -298,6 +298,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return newBest
     }
 
+    /** 地牢幸存者结算：最高层数入档，金币（局内拾取 + 层数奖励）与经验入账 */
+    fun addDungeonResult(floor: Int, kills: Int, timeSec: Int, runCoins: Int): Boolean {
+        val newBest = reportBest("dungeon_floor", floor)
+        reportBest("dungeon_kills", kills)
+        addCoins(runCoins + floor * 10)
+        addXp(kills / 3 + floor * 8)
+        return newBest
+    }
+
+    /** 地牢永久升级：花费金币买一级，返回是否成功 */
+    fun buyDungeonPerk(id: String): Boolean {
+        val cost = dungeonPerkCost(id)
+        if (_player.value.coins < cost) return false
+        commit { it.copy(coins = it.coins - cost, dungeonPerks = it.dungeonPerks + (id to (it.dungeonPerks[id] ?: 0) + 1)) }
+        return true
+    }
+
+    fun dungeonPerkCost(id: String): Int {
+        val n = _player.value.dungeonPerks[id] ?: 0
+        return when (id) {
+            "hp" -> 30 + n * 25
+            "atk" -> 40 + n * 35
+            "spd" -> 30 + n * 30
+            else -> 9999
+        }
+    }
+
     /** 反向指标记录（越小越好，如最少步数）：首次记录或刷新更低值，返回是否破纪录 */
     fun reportBestLow(key: String, score: Int): Boolean {
         val old = _player.value.bestScores[key]

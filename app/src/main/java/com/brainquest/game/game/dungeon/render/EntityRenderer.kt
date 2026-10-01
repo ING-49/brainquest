@@ -5,11 +5,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
 import com.brainquest.game.game.dungeon.DungeonGame
+import com.brainquest.game.game.dungeon.Equipment
 import com.brainquest.game.game.dungeon.model.Dir
 import com.brainquest.game.game.dungeon.model.Room
 import com.brainquest.game.game.dungeon.model.RoomType
@@ -289,6 +291,24 @@ object EntityRenderer {
         if (boss) drawRect(Color(0xFFE15A5A), Offset(sx - 11f * scale + sway, sy - 48f * scale), Size(22f * scale, 7f * scale))
     }
 
+    // ---------- 装备掉落物（品质色脉动菱形） ----------
+    fun drawDrops(scope: DrawScope, game: DungeonGame, time: Float) {
+        for (d in game.drops) {
+            if (!d.alive) continue
+            val sx = d.x - game.camX
+            val sy = d.y - game.camY
+            if (sx < -30f || sy < -30f || sx > scope.size.width + 30f || sy > scope.size.height + 30f) continue
+            val c = Color(d.item.rarityColorLong)
+            val pulse = 1f + sin(time * 5f + d.t) * 0.15f
+            val r = 10f * pulse
+            scope.drawLine(c, Offset(sx, sy - r), Offset(sx + r, sy), 4f)
+            scope.drawLine(c, Offset(sx + r, sy), Offset(sx, sy + r), 4f)
+            scope.drawLine(c, Offset(sx, sy + r), Offset(sx - r, sy), 4f)
+            scope.drawLine(c, Offset(sx - r, sy), Offset(sx, sy - r), 4f)
+            scope.drawCircle(SHADOW, 8f, Offset(sx, sy + 12f))
+        }
+    }
+
     // ---------- 子弹与经验球 ----------
     fun drawProjectiles(scope: DrawScope, game: DungeonGame) {
         for (b in game.engine.bullets) {
@@ -318,8 +338,14 @@ object EntityRenderer {
         val cls = game.cls ?: return
         val sx = game.engine.px - game.camX
         val sy = game.engine.py - game.camY
-        val body = Color(cls.bodyColor)
-        val accent = Color(cls.accentColor)
+        val body0 = Color(cls.bodyColor)
+        val accent0 = Color(cls.accentColor)
+        // 装备外观：头盔/护甲/武器随品质变色
+        val helmetC = game.slots[Equipment.Slot.HELMET]?.let { Color(it.rarityColorLong) }
+        val weaponC = game.slots[Equipment.Slot.WEAPON]?.let { Color(it.rarityColorLong) } ?: accent0
+        val armorC = game.slots[Equipment.Slot.ARMOR]?.let { Color(it.rarityColorLong) }
+        val body = if (armorC != null) lerp(body0, armorC, 0.45f) else body0
+        val accent = helmetC ?: accent0
         val swing = if (game.engine.moving) sin(game.engine.walkPhase) * 4f else 0f
         val breathe = if (!game.engine.moving) sin(time * 2.2f) * 1f else 0f
 
@@ -384,7 +410,7 @@ object EntityRenderer {
                 "knight" -> {
                     // 剑：护手 + 刃
                     drawRect(Color(0xFF8D6E63), Offset(handX - 2f, handY - 4f), Size(4f, 10f))
-                    drawRect(accent, Offset(handX - 6f, handY - 8f), Size(12f, 3f))
+                    drawRect(weaponC, Offset(handX - 6f, handY - 8f), Size(12f, 3f))
                     drawRect(Color(0xFFECEFF1), Offset(handX - 2f, handY - 34f), Size(4f, 26f))
                 }
                 "mage" -> {

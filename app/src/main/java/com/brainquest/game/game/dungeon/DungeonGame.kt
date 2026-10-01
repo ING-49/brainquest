@@ -3,6 +3,7 @@ package com.brainquest.game.game.dungeon
 import com.brainquest.game.game.core.CombatEngine
 import com.brainquest.game.game.core.Weapon
 import com.brainquest.game.game.dungeon.model.ClassDef
+import com.brainquest.game.game.dungeon.Equipment
 import com.brainquest.game.game.dungeon.model.Dir
 import com.brainquest.game.game.dungeon.model.EnemyKind
 import com.brainquest.game.game.dungeon.model.Room
@@ -33,6 +34,17 @@ class DungeonGame {
 
     val engine = CombatEngine()
 
+    // ---------- 装备 ----------
+    val slots = HashMap<Equipment.Slot, Equipment.Item>()   // 六槽
+    val drops = ArrayList<Drop>(8)                          // 地上的掉落物
+    private var appliedBonus = Equipment.Bonus()            // 已应用到引擎的增量（换装时做差）
+
+    /** 地上的装备掉落物 */
+    class Drop(var x: Float, var y: Float, val item: Equipment.Item) {
+        var alive = true
+        var t = 0f
+    }
+
     // ---------- 对局状态 ----------
     var phase = Phase.READY; private set
     var floor = 1; private set
@@ -42,6 +54,7 @@ class DungeonGame {
     var clearedRooms = 0; private set
     var floorCleared = 0; private set   // 本层已清房数（HUD 显示用）
     var totalKills = 0; private set
+    var coins = 0; private set
     var runTimeSec = 0; private set
     private var timeAcc = 0f
     private var rng = Random(0)
@@ -55,9 +68,13 @@ class DungeonGame {
     private var apWait = 0f
     private var apNext: Room? = null   // 导航承诺：下一间要进的房
     private var apPhase = 0            // 0=去门口 1=穿门 2=拾球
+    private var apStuck = 0f           // 看门狗计时
+    private var lastLogSec = -1
 
     // ---------- 玩家职业（权威属性在 engine） ----------
     var cls: ClassDef? = null; private set
+    /** DEBUG/局外成长：永久升级（选职业前由 Screen 注入，startRun 应用） */
+    var pendingPerks: Map<String, Int> = emptyMap()
 
     // ---------- 视口 ----------
     var viewW = 1080f; var viewH = 2000f
@@ -81,6 +98,11 @@ class DungeonGame {
         timeAcc = 0f
         engine.reset()
         engine.setStats(c.maxHp, c.attack, c.attackInterval, c.speed)
+        // 永久升级（局外成长）：生命/攻击/移速
+        val perks = pendingPerks
+        engine.setMaxHp(engine.maxHp + 15 * (perks["hp"] ?: 0))
+        engine.buffAttack(2 * (perks["atk"] ?: 0))
+        engine.buffSpeed(8f * (perks["spd"] ?: 0))
         engine.passiveId = c.id
         engine.weapon = when (c.id) {
             "knight" -> Weapon.MeleeSlash()
@@ -88,9 +110,17 @@ class DungeonGame {
             else -> Weapon.RapidShot()
         }
         engine.canPass = canPass
-        engine.onEnemyKilled = { _ ->
+        engine.onEnemyKilled = { e ->
             totalKills++
             if (c.id == "mage") engine.heal(1)   // 法师被动：击杀回 1 血
+            // 掉落：普通 10%、精英必掉史诗、Boss 必掉传说
+            val item = when {
+                e.r > 30f -> Equipment.generateBoss(floor, rng)
+                e.elite -> Equipment.generateElite(floor, rng)
+                rng.nextFloat() < 0.10f -> Equipment.generate(floor, rng)
+                else -> null
+            }
+            if (item != null) drops.add(Drop(e.x, e.y, item))
         }
         buildFloor()
         engine.begin()
@@ -205,6 +235,10 @@ class DungeonGame {
     fun tick(dtRaw: Float) {
         if (phase != Phase.EXPLORING && phase != Phase.LEVELUP && phase != Phase.GAMEOVER) return
         val dt = dtRaw.coerceIn(0f, 0.05f)
+        if ((runTimeSec * 2) != lastLogSec) {
+            lastLogSec = runTimeSec * 2
+            android.util.Log.d("DGBG", "st phase=$phase locked=$locked room=${currentRoom?.gx},${currentRoom?.gy} en=${engine.enemies.size} pend=${engine.hasPendingSpawns()} lvl=${engine.level} hp=${engine.hp} dt=$dt dtRaw=$dtRaw apNext=${apNext?.gx},${apNext?.gy} apP=$apPhase enP=${engine.phase} pUp=${engine.pendingUpgrades.size}")
+        }
         if (phase == Phase.EXPLORING) {
             timeAcc += dt
             if (timeAcc >= 1f) { runTimeSec += 1; timeAcc -= 1f }
@@ -212,19 +246,59 @@ class DungeonGame {
         if (autopilot) {
             if (phase == Phase.LEVELUP) {
                 apWait += dt
-                if (apWait > 0.6f) { engine.pendingUpgrades.firstOrNull()?.let { chooseUpgrade(it.id) }; apWait = 0f }
+                if (apWait > 0.6f) {
+                    val first = engine.pendingUpgrades.firstOrNull()
+                    if (first == null) {
+                        // 兜底：升级队列意外为空 → 直接回探索，防止卡死
+                        engine.forcePlaying()
+                        phase = Phase.EXPLORING
+                    } else chooseUpgrade(first.id)
+                    apWait = 0f
+                }
             } else {
                 apWait = 0f
                 autopilotSteer()
             }
         }
         engine.tick(dt)
+        // 看门狗（自动驾驶）：锁门房里敌人已清光却没触发清房 → 强制开门，防任何边角状态卡死
+        if (autopilot && phase == Phase.EXPLORING) {
+            val roomNow = currentRoom
+            if (locked && roomNow != null && engine.enemies.isEmpty() && !engine.hasPendingSpawns()) {
+                apStuck += dt
+                if (apStuck > 1.5f) {
+                    roomNow.cleared = true
+                    locked = false
+                    clearedRooms++
+                    floorCleared++
+                    if (roomNow.type == RoomType.BOSS) {
+                        if (floor >= MAX_FLOOR) phase = Phase.VICTORY
+                        else { floor++; buildFloor() }
+                    }
+                    apNext = null; apPhase = 0; apStuck = 0f
+                }
+            } else apStuck = 0f
+        }
 
         // 引擎状态 → 地牢状态
         if (engine.phase == CombatEngine.Phase.LEVELUP && phase == Phase.EXPLORING) {
             phase = Phase.LEVELUP
         } else if (engine.phase == CombatEngine.Phase.GAMEOVER && phase == Phase.EXPLORING) {
             phase = Phase.GAMEOVER
+        }
+
+        // 掉落物：动画 + 触碰拾取（自动穿戴/分解）
+        val dropIt = drops.iterator()
+        while (dropIt.hasNext()) {
+            val d = dropIt.next()
+            d.t += dt
+            val dx = d.x - engine.px; val dy = d.y - engine.py
+            val rr = engine.playerR + 16f
+            if (dx * dx + dy * dy <= rr * rr) {
+                d.alive = false
+                dropIt.remove()
+                pickupEquip(d.item)
+            }
         }
 
         // 走进新房间
@@ -261,9 +335,10 @@ class DungeonGame {
             val dx = enemy.x - engine.px; val dy = enemy.y - engine.py
             val d = kotlin.math.hypot(dx, dy).coerceAtLeast(1f)
             val melee = engine.weapon is Weapon.MeleeSlash
+            val fleeFar = engine.hp < engine.maxHp * 0.4f   // 低血：更早拉开距离
             val pull = when {
                 melee -> d - 55f                       // 近战：贴到攻击距离
-                d < 200f -> (d - 200f) * 1.5f          // 远程太近：逃离（负 = 远离敌人）
+                d < (if (fleeFar) 300f else 200f) -> (d - (if (fleeFar) 300f else 200f)) * 1.5f
                 d > 420f -> (d - 420f) * 1.5f          // 太远：靠近
                 else -> 0f
             }
@@ -379,6 +454,45 @@ class DungeonGame {
     private fun roomCenter(r: Room): Pair<Float, Float> =
         Pair(r.gx * GRID_X, r.gy * GRID_Y)
 
+    /** 拾取装备：空槽穿上；已有则评分比较，胜者穿戴、败者分解（金币 + 飘字） */
+    private fun pickupEquip(item: Equipment.Item) {
+        val cur = slots[item.slot]
+        val coinGain = when (item.rarity) {
+            Equipment.Rarity.COMMON -> 2
+            Equipment.Rarity.RARE -> 5
+            Equipment.Rarity.EPIC -> 10
+            Equipment.Rarity.LEGENDARY -> 20
+        }
+        if (cur == null || item.score > cur.score) {
+            slots[item.slot] = item
+            if (cur != null) {
+                coins += coinGain / 2
+                engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 40f,
+                    "分解 +${coinGain / 2}🪙", false, null, 2))
+            }
+            engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 60f,
+                "${item.name}！", false, null, 2))
+            reapplyBonus(cur, item)
+        } else {
+            coins += coinGain
+            engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 40f,
+                "${item.name} 分解 +${coinGain}🪙", false, null, 2))
+        }
+    }
+
+    /** 换装后把装备增量重新应用到引擎（差量式） */
+    private fun reapplyBonus(oldItem: Equipment.Item?, newItem: Equipment.Item) {
+        val oldB = Equipment.Bonus()
+        if (oldItem != null) oldB.fromItem(oldItem)
+        val newB = Equipment.aggregate(slots)
+        engine.buffAttack(newB.atk - oldB.atk)
+        engine.setMaxHp(engine.maxHp + newB.hp - oldB.hp)
+        engine.buffSpeed((newB.spd - oldB.spd).toFloat())
+        engine.buffCrit((newB.crit - oldB.crit) / 100f)
+        engine.buffPickupMult(1f + (newB.pickup - oldB.pickup) / 100f)
+        engine.buffElem((newB.elem - oldB.elem) / 100f)
+    }
+
     fun chooseUpgrade(id: String) {
         if (phase != Phase.LEVELUP) return
         engine.chooseUpgrade(id)
@@ -437,6 +551,10 @@ class DungeonGame {
         clearedRooms = 0
         floorCleared = 0
         totalKills = 0
+        coins = 0
+        slots.clear()
+        drops.clear()
+        appliedBonus = Equipment.Bonus()
         runTimeSec = 0
         timeAcc = 0f
         cls = null

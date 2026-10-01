@@ -191,8 +191,8 @@ class CombatEngine {
         tickOrbs(dt)
         tickPendingSpawns(dt)
 
-        // 清理（死亡动画播完才回收）
-        enemies.removeAll { !it.alive && !it.dying }
+        // 清理：非死亡动画的尸体立即回收；死亡动画播完（deathTimer≤0）再回收
+        enemies.removeAll { !it.alive && (!it.dying || it.deathTimer <= 0f) }
         bullets.removeAll { !it.alive }
         orbs.removeAll { !it.alive }
     }
@@ -208,6 +208,13 @@ class CombatEngine {
     }
 
     private fun tickEnemies(dt: Float) {
+        if ((elapsed * 5).toInt() != lastEnemyLog) {
+            lastEnemyLog = (elapsed * 5).toInt()
+            enemies.firstOrNull()?.let {
+                android.util.Log.d("ENGN2", "e0=%.0f,%.0f hp=%.0f sp=%.0f dt=%.4f alive=%s px=%.0f"
+                    .format(it.x, it.y, it.hp, it.speed, dt, it.alive, px))
+            }
+        }
         for (e in enemies) {
             if (e.dying) {
                 e.deathTimer -= dt
@@ -368,6 +375,17 @@ class CombatEngine {
     }
 
     fun heal(n: Int) { if (phase != Phase.GAMEOVER) hp = min(hp + n, maxHp) }
+
+    // ---------- 装备增量（换装差量应用） ----------
+    private var lastEnemyLog = -1
+    fun setMaxHp(n: Int) { maxHp = n.coerceAtLeast(1); if (hp > maxHp) hp = maxHp }
+    /** DEBUG 兜底：自动驾驶用（升级空队列时恢复探索） */
+    fun forcePlaying() { phase = Phase.PLAYING }
+    fun buffAttack(delta: Int) { attack = (attack + delta).coerceAtLeast(1) }
+    fun buffSpeed(delta: Float) { speed = (speed + delta).coerceAtLeast(60f) }
+    fun buffCrit(delta: Float) { critChance = (critChance + delta).coerceIn(0f, 0.8f) }
+    fun buffPickupMult(mult: Float) { pickupRange = (pickupRange * mult).coerceIn(40f, 600f) }
+    fun buffElem(delta: Float) { elemPower += delta }
 
     private fun gainXp(v: Int) {
         xp += v
