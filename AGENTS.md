@@ -91,4 +91,7 @@ adb exec-out screencap -p > screen.png
 23. **`reportBestLow` 是反向指标**（越小越好，用于步数/用时）；普通成绩用 `reportBest`
 24. **PK 服务器地址要做合法性校验**（`validPkUrl`）：残缺地址（如只填 `ws://`）会直接崩溃
 25. **`pointerInput` 的 key 不要绑 `version`**：每次落子都重建手势检测器，拖动会断触
-26. **`pointerInput` 闭包陈旧**：key 不变时协程不重启，lambda 里捕获的实例是旧的——切关/换实例必须把新实例加进 key（如 `pointerInput(block.id, game)`），否则操作全落在废弃对象上（v1.6.18 华容道「下一关不能拖」根因）；`pointerInput(Unit)` 同理
+26. **模拟器屏幕休眠＝游戏"卡死"假象**：屏幕自动熄灭后 `withFrameNanos` 停止产帧，游戏整体冻结（计时器停/敌人不动/日志静默）。跑长时间自动化前必须 `adb shell svc power stayon true` + `settings put system screen_off_timeout 1800000`，否则会误判成死锁（曾排查数小时）
+27. **迭代中改集合 = CME 崩溃/死局**：`for (e in enemies)` 里做召唤/分裂（`enemies.add`）会抛 `ConcurrentModificationException`；用索引循环 `while (i < enemies.size)` 或安全生成队列（`spawnNow` 末尾 addAll）。同源教训：`killEnemy` 置 `dying=true` 后，清理条件若写成 `!alive && !dying`，尸体会永远留在列表里 → 房间永远清不掉 → 锁门死局
+28. **`drawText` 落点必须在画布内**：文字超出右/下边缘时 Compose 的 textLayoutConstraints 出现负 maxWidth 直接崩（`maxWidth(-N) must be >= than minWidth(0)`）；漂移中的伤害飘字要按画布边界跳过
+29. **pointerInput 闭包陈旧（旧 26）**：key 不变时协程不重启，lambda 里捕获的实例是旧的——切关/换实例必须把新实例加进 key（如 `pointerInput(block.id, game)`），否则操作全落在废弃对象上（v1.6.18 华容道「下一关不能拖」根因）；`pointerInput(Unit)` 同理
