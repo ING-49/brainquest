@@ -292,21 +292,31 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     ),
                 )
             }
-            // 挥砍弧光（剑士出刀瞬间）
+            // 挥砍轨迹：前摇淡显 → 挥出扇形渐扫 → 后摇淡出（由引擎 activeSlash 驱动）
             val en = game.engine
-            if (en.attackTimer > en.attackInterval - 0.16f && en.attackInterval > 0f) {
-                val a = (en.attackTimer - (en.attackInterval - 0.16f)) / 0.16f
+            en.activeSlash?.let { s ->
                 val psx = en.px - game.camX
                 val psy = en.py - game.camY
-                drawArc(
-                    Color(0x88FFFFFF).copy(alpha = 0.5f * a),
-                    startAngle = Math.toDegrees(en.facing.toDouble()).toFloat() - 50f,
-                    sweepAngle = 100f,
-                    useCenter = false,
-                    topLeft = Offset(psx - 95f, psy - 95f),
-                    size = Size(190f, 190f),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(8f),
-                )
+                val inSwing = s.timer >= s.windup && s.timer <= s.windup + 0.15f
+                val after = s.timer > s.windup + 0.15f
+                val alpha = when {
+                    s.timer < s.windup -> 0.15f
+                    inSwing -> 0.55f
+                    else -> (0.55f * (1f - (s.timer - s.windup - 0.15f) / 0.1f)).coerceIn(0f, 0.55f)
+                }
+                val sweep = if (inSwing) 100f * ((s.timer - s.windup) / 0.15f).coerceIn(0f, 1f)
+                            else if (after || s.fired) 100f else 0f
+                if (alpha > 0.02f && sweep > 1f) {
+                    drawArc(
+                        Color(0x88FFFFFF).copy(alpha = alpha),
+                        startAngle = Math.toDegrees(en.facing.toDouble()).toFloat() - 50f,
+                        sweepAngle = sweep,
+                        useCenter = false,
+                        topLeft = Offset(psx - 95f, psy - 95f),
+                        size = Size(190f, 190f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(8f),
+                    )
+                }
             }
             if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
                 EntityRenderer.drawBars(this, game)

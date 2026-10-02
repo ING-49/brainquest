@@ -401,6 +401,8 @@ object EntityRenderer {
 
     fun drawPlayer(scope: DrawScope, game: DungeonGame, time: Float) {
         val cls = game.cls ?: return
+        // 无敌帧闪烁：10Hz 跳过绘制（借鉴幸存者模式）
+        if (game.engine.invincible > 0f && (time * 10f).toInt() % 2 == 0) return
         val sx = game.engine.px - game.camX
         val sy = game.engine.py - game.camY
         val body0 = Color(cls.bodyColor)
@@ -466,6 +468,11 @@ object EntityRenderer {
             val ex = if (facingRight) 3f else -3f
             scope.drawCircle(OUTLINE, 1.8f, Offset(sx - 4f + ex, headY - 1f))
             scope.drawCircle(OUTLINE, 1.8f, Offset(sx + 4f + ex, headY - 1f))
+        }
+
+        // 7.5 受击红闪
+        if (game.engine.playerFlash > 0f) {
+            scope.drawCircle(Color(0x66FF5252), 24f, Offset(sx, sy - 6f))
         }
 
         // 7 武器：跟手、随职业（右臂端点为支点，指向 facing）

@@ -50,6 +50,9 @@ class CombatEngine {
         var aiTimer = 0f
         var burnTick = 0f
         var wobbleSeed = Random.nextFloat() * 6.28f
+        // 打击感：击退速度/剩余时间、硬直
+        var kbVX = 0f; var kbVY = 0f; var kbT = 0f
+        var stun = 0f
     }
 
     class Bullet(
@@ -67,7 +70,7 @@ class CombatEngine {
     }
 
     /** 近战挥砍的前摇→判定（阶段 2 武器） */
-    class Slash(var timer: Float, val windup: Float, val range: Float, val arcDeg: Float, var dmg: Float, val fired: Boolean = false)
+    class Slash(var timer: Float, val windup: Float, val range: Float, val arcDeg: Float, var dmg: Float, var fired: Boolean = false)
 
     class Orb(var x: Float, var y: Float, val value: Int) {
         var alive = true
@@ -111,6 +114,12 @@ class CombatEngine {
     var attackTimer = 0f; private set
     private var timeAcc = 0f
     var elapsed = 0f; private set
+    // 打击感：命中停顿 / 玩家受击闪白 / 移动惯性
+    var hitStop = 0f; private set
+    var playerFlash = 0f; private set
+    private var velX = 0f; private var velY = 0f
+    /** 进行中的近战挥砍（前摇→判定→后摇），渲染层读来画轨迹 */
+    var activeSlash: Slash? = null; private set
 
     // ---------- 输入 ----------
     var joyActive = false
@@ -214,6 +223,7 @@ class CombatEngine {
         joyActive = false; joyX = 0f; joyY = 0f
         skillCd = 0f; shieldTime = 0f; shieldLeft = 0f
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
+        hitStop = 0f; playerFlash = 0f; velX = 0f; velY = 0f; activeSlash = null
         phase = Phase.IDLE
     }
 
@@ -221,26 +231,41 @@ class CombatEngine {
     fun tick(dtRaw: Float) {
         events.clear()
         if (phase != Phase.PLAYING) return
-        val dt = dtRaw.coerceIn(0f, 0.05f)
+        val dt0 = dtRaw.coerceIn(0f, 0.05f)
+        if (hitStop > 0f) hitStop -= dt0
+        // 命中停顿：世界以 5% 速度推进（打击感核心）
+        val dt = dt0 * if (hitStop > 0f) 0.05f else 1f
         elapsed += dt
         if (invincible > 0f) invincible -= dt
+        if (playerFlash > 0f) playerFlash -= dt
         if (skillCd > 0f) skillCd -= dt
         if (shieldTime > 0f) shieldTime -= dt
         if (timeScaleTimer > 0f) { timeScaleTimer -= dt; if (timeScaleTimer <= 0f) timeScale = 1f }
         if (shake > 0f) shake -= dt
 
-        // 玩家移动
-        val jx = if (joyActive) joyX else 0f
-        val jy = if (joyActive) joyY else 0f
-        moving = jx != 0f || jy != 0f
+        // 玩家移动：摇杆 → 目标速度，惯性插值（加速 1200 / 减速 1500）；挥砍期间移速减半
+        var jx = if (joyActive) joyX else 0f
+        var jy = if (joyActive) joyY else 0f
+        val inLen = hypot(jx, jy)
+        if (inLen > 1f) { jx /= inLen; jy /= inLen }
+        val slowK = if (activeSlash != null) 0.5f else 1f
+        val tx = jx * speed * slowK
+        val ty = jy * speed * slowK
+        val accel = if (inLen > 0.01f) 1200f else 1500f
+        val dvx = tx - velX; val dvy = ty - velY
+        val dl = hypot(dvx, dvy)
+        if (dl > 0.01f) {
+            val step = accel * dt
+            if (dl <= step) { velX = tx; velY = ty } else { velX += dvx / dl * step; velY += dvy / dl * step }
+        }
+        val vx = hypot(velX, velY)
+        moving = vx > 20f
+        if (inLen > 0.01f) facing = atan2(velY, velX)   // facing 只跟随真实输入；惯性滑行不抢朝向（faceTo 锁敌不被覆盖）
         if (moving) {
-            val len = hypot(jx, jy)
-            val nx = jx / len; val ny = jy / len
-            facing = atan2(ny, nx)
             walkPhase += dt * 10f
             val wall = canPass
-            val stepX = nx * speed * dt
-            val stepY = ny * speed * dt
+            val stepX = velX * dt
+            val stepY = velY * dt
             if (wall == null) { px += stepX; py += stepY }
             else {
                 if (wall(px + stepX, py)) px += stepX
@@ -252,6 +277,15 @@ class CombatEngine {
         attackTimer -= dt
         if (attackTimer <= 0f) {
             if (weapon.attack(this)) attackTimer = attackInterval
+        }
+        // 近战挥砍推进：前摇结束瞬间判定，播完后摇收刀
+        activeSlash?.let { s ->
+            s.timer += dt
+            if (!s.fired && s.timer >= s.windup) {
+                s.fired = true
+                meleeArc(s.range, Math.toRadians(s.arcDeg.toDouble()).toFloat(), s.dmg, Element.PHYSICAL)
+            }
+            if (s.timer >= s.windup + 0.25f) activeSlash = null
         }
 
         // 延迟刷怪（进房分波）
@@ -304,7 +338,7 @@ class CombatEngine {
             if (e.frozen > 0f) sp = 0f
             else if (e.slowStacks > 0) sp *= (1f - 0.22f * e.slowStacks).coerceAtLeast(0.3f)
 
-            when (e.kind) {
+            if (e.stun > 0f) { e.stun -= dt } else when (e.kind) {
                 EnemyKind.SLIME -> {
                     // 弹跳：跳-停节奏
                     e.aiTimer -= dt
@@ -339,6 +373,11 @@ class CombatEngine {
                     else { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt }
                 }
             }
+            // 击退推进（衰减到 0 停）
+            if (e.kbT > 0f) {
+                e.x += e.kbVX * dt; e.y += e.kbVY * dt
+                e.kbT -= dt
+            } else { e.kbVX = 0f; e.kbVY = 0f }
             // 不沉入玩家圆心：贴到接触环即止（多怪堆进圆心会让近战扇形永远背对目标打空）
             val minD = e.r + playerR + 2f
             if (d < minD) {
@@ -384,7 +423,10 @@ class CombatEngine {
                 val dx = e.x - b.x; val dy = e.y - b.y
                 val rr = e.r + b.r
                 if (dx * dx + dy * dy <= rr * rr) {
-                    hitEnemy(e, b.dmg, b.element)
+                    val bl = hypot(b.dx, b.dy)
+                    val knx = if (bl > 1f) b.dx / bl else 0f
+                    val kny = if (bl > 1f) b.dy / bl else 0f
+                    hitEnemy(e, b.dmg, b.element, knx, kny)
                     if (b.pierce > 0) b.pierce-- else { b.alive = false }
                     break
                 }
@@ -415,7 +457,7 @@ class CombatEngine {
     }
 
     // ---------- 伤害与状态 ----------
-    fun hitEnemy(e: Enemy, baseDmg: Float, element: Element?) {
+    fun hitEnemy(e: Enemy, baseDmg: Float, element: Element?, kx: Float = 0f, ky: Float = 0f) {
         var dmg = baseDmg
         val crit = Random.nextFloat() < critChance
         if (crit) dmg *= 2f
@@ -428,6 +470,14 @@ class CombatEngine {
         e.hp -= dmg
         if (e.reflect && e.bossFloor == 0 && dmg > 0f) hurtPlayer(dmg * 0.15f)
         e.hitFlash = 0.12f
+        // 打击感：击退（Boss/精英减半）+ 硬直 + 命中停顿（暴击更长）
+        if (kx != 0f || ky != 0f) {
+            val power = if (e.bossFloor > 0 || e.elite) 130f else 260f
+            e.kbVX = kx * power; e.kbVY = ky * power
+            e.kbT = 0.12f
+        }
+        e.stun = maxOf(e.stun, if (crit) 0.15f else 0.1f)
+        hitStop = maxOf(hitStop, if (crit) 0.06f else 0.025f)
         events.add(FxEvent(e.x, e.y - e.r, "${dmg.toInt()}", crit, element, 0))
         if (element != null) ElementSystem.onHit(e, element, this)
         if (e.hp <= 0f && e.alive) killEnemy(e)
@@ -476,6 +526,7 @@ class CombatEngine {
         dmg = (dmg.toInt().coerceAtLeast(1)).toFloat()
         hp -= dmg.toInt()
         invincible = invincibleSec
+        playerFlash = 0.15f
         events.add(FxEvent(px, py - 30f, "-${dmg.toInt()}", false, null, 0))
         if (hp <= 0) { hp = 0; phase = Phase.GAMEOVER }
     }
@@ -487,6 +538,8 @@ class CombatEngine {
     fun setMaxHp(n: Int) { maxHp = n.coerceAtLeast(1); if (hp > maxHp) hp = maxHp }
     /** DEBUG 兜底：自动驾驶用（升级空队列时恢复探索） */
     fun forcePlaying() { phase = Phase.PLAYING }
+    /** 武器发起近战挥砍（前摇→判定→后摇由 tick 推进）；已有挥砍进行中则忽略 */
+    fun beginSlash(s: Slash) { if (activeSlash == null) activeSlash = s }
     /** 原地转向（不移动；自动驾驶近战站定输出用——facing 平时只随移动更新） */
     fun faceTo(x: Float, y: Float) { facing = atan2(y - py, x - px) }
     fun addShake(v: Float) { shake = maxOf(shake, v) }
@@ -635,7 +688,10 @@ class CombatEngine {
         for (e in enemies) {
             if (!e.alive) continue
             val dx = e.x - x; val dy = e.y - y
-            if (dx * dx + dy * dy <= r2) hitEnemy(e, dmg, element)
+            if (dx * dx + dy * dy <= r2) {
+                val d = hypot(dx, dy)
+                hitEnemy(e, dmg, element, if (d > 1f) dx / d else 0f, if (d > 1f) dy / d else 0f)
+            }
         }
     }
 
@@ -648,7 +704,11 @@ class CombatEngine {
             val d = hypot(dx, dy)
             if (d > range + e.r) continue
             val ang = abs(angleDiff(atan2(dy, dx), facing))
-            if (ang <= arcRad / 2f) { hitEnemy(e, dmg, element); hits++ }
+            if (ang <= arcRad / 2f) {
+                val knx = if (d > 1f) dx / d else 0f
+                val kny = if (d > 1f) dy / d else 0f
+                hitEnemy(e, dmg, element, knx, kny); hits++
+            }
         }
         if (android.os.SystemClock.elapsedRealtime() - lastSlashLog > 2000) {
             lastSlashLog = android.os.SystemClock.elapsedRealtime()
@@ -683,11 +743,12 @@ interface Weapon {
     fun attack(engine: CombatEngine): Boolean
 
     /** 近战挥砍：前摇后对朝向扇形判定（剑士） */
-    class MeleeSlash(val range: Float = 95f, val arcDeg: Float = 100f, val windup: Float = 0.2f) : Weapon {
+    class MeleeSlash(val range: Float = 95f, val arcDeg: Float = 100f, val windup: Float = 0.1f) : Weapon {
         override fun attack(engine: CombatEngine): Boolean {
             val t = engine.nearestEnemy(range + 30f) ?: return false
-            // 有目标才出刀：前摇后判定（用引擎事件近似：直接立即判定 + 事件标记）
-            engine.meleeArc(range, Math.toRadians(arcDeg.toDouble()).toFloat(), engine.attack.toFloat(), Element.PHYSICAL)
+            // 有目标才出刀：前摇 0.1s → 判定 → 后摇收刀（期间移速减半，tick 推进 activeSlash）
+            if (engine.activeSlash != null) return false   // 上一刀没收完不连挥
+            engine.beginSlash(CombatEngine.Slash(0f, windup, range, arcDeg, engine.attack.toFloat()))
             return true
         }
     }
