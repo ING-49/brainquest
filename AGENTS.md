@@ -95,3 +95,4 @@ adb exec-out screencap -p > screen.png
 27. **迭代中改集合 = CME 崩溃/死局**：`for (e in enemies)` 里做召唤/分裂（`enemies.add`）会抛 `ConcurrentModificationException`；用索引循环 `while (i < enemies.size)` 或安全生成队列（`spawnNow` 末尾 addAll）。同源教训：`killEnemy` 置 `dying=true` 后，清理条件若写成 `!alive && !dying`，尸体会永远留在列表里 → 房间永远清不掉 → 锁门死局
 28. **`drawText` 落点必须在画布内**：文字超出右/下边缘时 Compose 的 textLayoutConstraints 出现负 maxWidth 直接崩（`maxWidth(-N) must be >= than minWidth(0)`）；漂移中的伤害飘字要按画布边界跳过
 29. **pointerInput 闭包陈旧（旧 26）**：key 不变时协程不重启，lambda 里捕获的实例是旧的——切关/换实例必须把新实例加进 key（如 `pointerInput(block.id, game)`），否则操作全落在废弃对象上（v1.6.18 华容道「下一关不能拖」根因）；`pointerInput(Unit)` 同理
+30. **近战扇形「贴脸必空」双因（v1.6.21 地牢）**：① 敌人 AI 无限逼近玩家圆心且无接触环，多怪会全部叠进玩家坐标（d<1 冻结）；② tick 内**移动在攻击之前**，追击穿模过怪堆时摇杆逐帧翻转 180°，挥砍判定时刻的 facing 永远背对目标 → `meleeArc` 打空。修法：敌人贴到接触环（`e.r+playerR+2`）即止 + 自动驾驶站定后用 `faceTo()` 原地锁敌（facing 平时只随移动更新）
