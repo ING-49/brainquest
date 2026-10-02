@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.unit.dp
 import com.brainquest.game.game.dungeon.DungeonGame
 import com.brainquest.game.game.dungeon.Equipment
 import com.brainquest.game.game.dungeon.model.Dir
@@ -25,42 +26,35 @@ import kotlin.math.sin
  */
 object EntityRenderer {
 
-    // ---------- 每层地牢色调（地板/墙/地板线） ----------
-    private data class Palette(val floor: Color, val wall: Color, val line: Color, val door: Color)
+    // ---------- 每层地牢色调：统一由 GamePalette 派生 ----------
+    private fun pal(game: DungeonGame) = GamePalette.floorPalette(game.floor)
 
-    private val PALETTES = listOf(
-        Palette(Color(0xFF2B2F45), Color(0xFF14161F), Color(0xFF353A54), Color(0xFF4A5170)),  // 1 石窟
-        Palette(Color(0xFF25333D), Color(0xFF111A20), Color(0xFF304552), Color(0xFF43606F)),  // 2 冰窟
-        Palette(Color(0xFF273427), Color(0xFF121A12), Color(0xFF33452F), Color(0xFF4A6642)),  // 3 毒沼
-        Palette(Color(0xFF332A44), Color(0xFF181322), Color(0xFF453862), Color(0xFF5E4E86)),  // 4 幽殿
-        Palette(Color(0xFF3D2626), Color(0xFF1D1010), Color(0xFF553232), Color(0xFF7A4747)),  // 5 熔核
-    )
-
-    private val SHADOW = Color(0x59000000)
-    private val OUTLINE = Color(0xFF0E1016)
-    private val SLIME_C = Color(0xFF66BB6A)
-    private val SLIME_DARK = Color(0xFF2E7D32)
-    private val BONE_C = Color(0xFFECEFF1)
-    private val BONE_DARK = Color(0xFF90A4AE)
-    private val BAT_C = Color(0xFF7E57C2)
-    private val CASTER_C = Color(0xFF5C6BC0)
-    private val ENEMY_BULLET = Color(0xFFCE93D8)
-    private val FIRE_C = Color(0xFFFF7043)
-    private val ICE_C = Color(0xFF81D4FA)
-    private val THUNDER_C = Color(0xFFFFEE58)
-    private val ORB_C = Color(0xFF7EE38A)
-    private val BULLET_P = Color(0xFFFFD54F)
+    // 颜色别名：全部指向 GamePalette（唯一取色处）
+    private val SHADOW = GamePalette.SHADOW
+    private val OUTLINE = GamePalette.PLAYER_OUTLINE
+    private val SLIME_C = GamePalette.ENEMY_SLIME
+    private val SLIME_DARK = GamePalette.ENEMY_SLIME_DARK
+    private val BONE_C = GamePalette.ENEMY_SKELETON
+    private val BONE_DARK = GamePalette.ENEMY_SKELETON_DARK
+    private val BAT_C = GamePalette.ENEMY_BAT
+    private val CASTER_C = GamePalette.ENEMY_CASTER
+    private val ENEMY_BULLET = GamePalette.ENEMY_BULLET
+    private val FIRE_C = GamePalette.ELEM_FIRE
+    private val ICE_C = GamePalette.ELEM_ICE
+    private val THUNDER_C = GamePalette.ELEM_LIGHTNING
+    private val ORB_C = GamePalette.UI_ORB
+    private val BULLET_P = GamePalette.UI_BULLET_PLAYER
     private val DUMMY_WOOD = Color(0xFFB0885A)
     private val DUMMY_DARK = Color(0xFF7A5C3A)
     private val DUMMY_HEAD = Color(0xFFD8B98A)
-    private val SKIN = Color(0xFFE8C39E)
+    private val SKIN = GamePalette.PLAYER_SKIN
     private val WHITE = Color(0xFFFFFFFF)
-    private val DOOR_GLOW = Color(0x66FFD54F)
-    private val LABEL_C = Color(0x55FFFFFF)
+    private val DOOR_GLOW = GamePalette.UI_DOOR_GLOW
+    private val LABEL_C = GamePalette.UI_SHOUT
 
     // ---------- 世界 ----------
     fun drawWorld(scope: DrawScope, game: DungeonGame, time: Float) {
-        val pal = PALETTES[(game.floor - 1).coerceIn(0, 4)]
+        val pal = pal(game)
         val vw = scope.size.width
         val vh = scope.size.height
         // 视口包围盒（世界坐标）
@@ -92,7 +86,7 @@ object EntityRenderer {
         return r < vl || b < vt || l > vr || t > vb
     }
 
-    private fun drawCorridor(scope: DrawScope, game: DungeonGame, a: Room, b: Room, pal: Palette) {
+    private fun drawCorridor(scope: DrawScope, game: DungeonGame, a: Room, b: Room, pal: GamePalette.FloorTone) {
         val open = game.doorOpen(a, b)
         if (a.gy == b.gy) {
             val l = minOf(game.roomLeft(a) + DungeonGame.ROOM_W, game.roomLeft(b) + DungeonGame.ROOM_W) - DungeonGame.DOOR_PROBE
@@ -132,7 +126,7 @@ object EntityRenderer {
         }
     }
 
-    private fun drawRoom(scope: DrawScope, game: DungeonGame, room: Room, pal: Palette, time: Float) {
+    private fun drawRoom(scope: DrawScope, game: DungeonGame, room: Room, pal: GamePalette.FloorTone, time: Float) {
         val l = game.roomLeft(room) - game.camX
         val t = game.roomTop(room) - game.camY
         val w = DungeonGame.ROOM_W
@@ -429,16 +423,27 @@ object EntityRenderer {
 
     private val BULLET_ORB = Color(0xFFFF7043)
 
-    // ---------- HUD 数值条（供 Screen 的 Canvas 调用） ----------
+    // ---------- HUD 数值条（供 Screen 的 Canvas 调用；dp 定位适配横竖屏） ----------
     fun drawBars(scope: DrawScope, game: DungeonGame) {
-        val barW = (scope.size.width * 0.3f).coerceAtMost(300f)
+        val barW = with(scope) { (scope.size.width * 0.26f).coerceAtMost(300.dp.toPx()) }
+        val x = with(scope) { 12.dp.toPx() }
+        val hpY = with(scope) { 44.dp.toPx() }
+        val hpH = with(scope) { 10.dp.toPx() }
+        val xpY = with(scope) { 58.dp.toPx() }
+        val xpH = with(scope) { 5.dp.toPx() }
         // 血条（权威数据在 engine）
-        scope.drawRoundRect(BAR_BG, Offset(20f, 30f), Size(barW, 16f), CornerRadius(8f))
-        scope.drawRoundRect(HP_C, Offset(20f, 30f), Size(barW * (game.engine.hp.toFloat() / game.engine.maxHp).coerceIn(0f, 1f), 16f), CornerRadius(8f))
-        // 经验条（阶段 2 接入升级体系后启用，先画空槽）
-        scope.drawRoundRect(BAR_BG, Offset(20f, 52f), Size(barW, 8f), CornerRadius(4f))
+        scope.drawRoundRect(BAR_BG, Offset(x, hpY), Size(barW, hpH), CornerRadius(hpH / 2))
+        scope.drawRoundRect(HP_C, Offset(x, hpY), Size(barW * (game.engine.hp.toFloat() / game.engine.maxHp).coerceIn(0f, 1f), hpH), CornerRadius(hpH / 2))
+        // 经验条（真实数据）
+        scope.drawRoundRect(BAR_BG, Offset(x, xpY), Size(barW, xpH), CornerRadius(xpH / 2))
+        scope.drawRoundRect(
+            GamePalette.UI_EXP,
+            Offset(x, xpY),
+            Size(barW * (game.engine.xp.toFloat() / game.engine.xpNext).coerceIn(0f, 1f), xpH),
+            CornerRadius(xpH / 2),
+        )
     }
 
-    private val BAR_BG = Color(0x66000000)
-    private val HP_C = Color(0xFFEF5350)
+    private val BAR_BG = GamePalette.UI_BAR_BG
+    private val HP_C = GamePalette.UI_HP
 }

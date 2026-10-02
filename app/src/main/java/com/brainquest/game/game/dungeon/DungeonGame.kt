@@ -83,7 +83,7 @@ class DungeonGame {
     var pendingPerks: Map<String, Int> = emptyMap()
 
     // ---------- 视口 ----------
-    var viewW = 1080f; var viewH = 2000f
+    var viewW = 2000f; var viewH = 1080f   // 横屏视口（onSizeChanged 会覆盖）
     val camX: Float get() = engine.px - viewW / 2
     val camY: Float get() = engine.py - viewH / 2
 

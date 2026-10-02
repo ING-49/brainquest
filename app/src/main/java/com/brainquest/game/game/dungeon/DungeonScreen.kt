@@ -5,6 +5,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,9 +25,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,10 +58,11 @@ import androidx.compose.foundation.border
 import com.brainquest.game.game.dungeon.model.Dir
 import com.brainquest.game.game.dungeon.model.RoomType
 import com.brainquest.game.game.dungeon.render.EntityRenderer
+import com.brainquest.game.game.dungeon.render.GamePalette
 import kotlin.math.hypot
 
-private val BG = Color(0xFF0B0D14)
-private val JOY_C = Color(0x55FFFFFF)
+private val BG = com.brainquest.game.game.dungeon.render.GamePalette.BG_DEEP
+private val JOY_C = com.brainquest.game.game.dungeon.render.GamePalette.UI_SHOUT
 
 /** HUD 快照：只在变化时写 Compose 状态（数值条由 Canvas 每帧绘制） */
 private data class Hud(
@@ -96,8 +101,29 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     var joyBase by remember { mutableStateOf(Offset.Zero) }
     var joyOn by remember { mutableStateOf(false) }
     val frame = remember { mutableIntStateOf(0) }
+    val animT = remember { mutableFloatStateOf(0f) }   // 统一动画时间源（真实 dt 累计，秒）
     val joyMaxPx = with(LocalDensity.current) { 48.dp.toPx() }
     val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+
+    // 地牢内锁横屏（manifest 已加 configChanges，旋转不重建、游戏局不丢）；退出恢复竖屏
+    // 同步进入沉浸模式（隐藏状态栏/导航栏），退出时恢复
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    DisposableEffect(Unit) {
+        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        val win = activity?.window
+        val ctrl = win?.let { w ->
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, false)
+            androidx.core.view.WindowInsetsControllerCompat(w, w.decorView).apply {
+                hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        }
+        onDispose {
+            activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            ctrl?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            win?.let { androidx.core.view.WindowCompat.setDecorFitsSystemWindows(it, true) }
+        }
+    }
 
     // 特效层：把引擎的帧事件转成有生命周期的持续特效（飘字/粒子/闪电）
     val floats = remember { ArrayList<FloatFx>(32) }
@@ -109,32 +135,34 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     LaunchedEffect(Unit) {
         var last = 0L
         while (true) {
+            var dt = 0f
             androidx.compose.runtime.withFrameNanos { t ->
-                if (last != 0L) game.tick((t - last) / 1e9f)
+                if (last != 0L) { dt = ((t - last) / 1e9f).coerceIn(0f, 0.05f); game.tick(dt) }
                 last = t
             }
             frame.intValue++
-            val dtFx = 1f / 60f
+            animT.floatValue += dt
+            val dtFx = dt.coerceAtLeast(1f / 120f)
             // 消费引擎帧事件
             for (ev in game.engine.events) {
                 when (ev.kind) {
                     0 -> floats.add(FloatFx(ev.x, ev.y, ev.text,
                         when {
-                            ev.element == com.brainquest.game.game.core.Element.FIRE -> Color(0xFFFF7043)
-                            ev.element == com.brainquest.game.game.core.Element.ICE -> Color(0xFF81D4FA)
-                            ev.element == com.brainquest.game.game.core.Element.THUNDER -> Color(0xFFFFEE58)
-                            ev.crit -> Color(0xFFFFD54F)
-                            else -> Color.White
+                            ev.element == com.brainquest.game.game.core.Element.FIRE -> GamePalette.ELEM_FIRE
+                            ev.element == com.brainquest.game.game.core.Element.ICE -> GamePalette.ELEM_ICE
+                            ev.element == com.brainquest.game.game.core.Element.THUNDER -> GamePalette.ELEM_LIGHTNING
+                            ev.crit -> GamePalette.UI_GOLD
+                            else -> GamePalette.UI_TEXT
                         }, ev.crit))
                     1 -> {   // 死亡爆裂粒子
                         repeat(8) {
                             val ang = rngFx.nextFloat() * 6.283f
                             val sp = 90f + rngFx.nextFloat() * 140f
                             parts.add(ParticleFx(ev.x, ev.y, kotlin.math.cos(ang) * sp, kotlin.math.sin(ang) * sp,
-                                0.4f, Color(0xFFE15A5A)))
+                                0.4f, GamePalette.UI_HP))
                         }
                     }
-                    2 -> floats.add(FloatFx(ev.x, ev.y, ev.text, Color(0xFF7EE38A), false))
+                    2 -> floats.add(FloatFx(ev.x, ev.y, ev.text, GamePalette.UI_ORB, false))
                     3 -> bolts.add(BoltFx(ev.x, ev.y, ev.x2, ev.y2, 0.15f))
                 }
             }
@@ -210,7 +238,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 },
         ) {
             frame.intValue   // 订阅：每帧重绘
-            val t = frame.intValue / 60f
+            val t = animT.floatValue
             // 震屏：引擎 shake 衰减期间相机随机抖动
             val shk = game.engine.shake
             val shx = if (shk > 0f) (kotlin.random.Random.nextFloat() - 0.5f) * shk * 2f else 0f
@@ -224,7 +252,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             // 特效：闪电 → 粒子 → 伤害飘字
             for (b in bolts) {
                 val a = (1f - b.t / 0.15f).coerceIn(0f, 1f)
-                val c = Color(0xFFFFEE58).copy(alpha = a)
+                val c = GamePalette.ELEM_LIGHTNING.copy(alpha = a)
                 val mx = (b.x1 + b.x2) / 2 + (if ((b.x1 + b.x2).toInt() % 2 == 0) 14f else -14f)
                 val my = (b.y1 + b.y2) / 2 + (if ((b.y1 - b.y2).toInt() % 2 == 0) -12f else 12f)
                 drawLine(c, Offset(b.x1 - game.camX, b.y1 - game.camY), Offset(mx - game.camX, my - game.camY), 3f)
@@ -266,7 +294,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     style = androidx.compose.ui.graphics.drawscope.Stroke(8f),
                 )
             }
-            EntityRenderer.drawBars(this, game)
+            if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
+                EntityRenderer.drawBars(this, game)
+            }
             }   // withTransform 震屏
             // 虚拟摇杆
             if (joyOn) {
@@ -278,7 +308,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // ---------- HUD ----------
+        // ---------- HUD（横屏布局：顶行文字 / 左上数值条+装备 / 右上小地图 / 左下摇杆 / 右下技能） ----------
+        if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -290,7 +321,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
-                modifier = Modifier.weight(1f).padding(top = 14.dp),
+                modifier = Modifier.weight(1f),
             )
             Text(
                 "🏰 第${hud.floor}层 · 房间 ${hud.cleared}/${hud.roomsTotal} · ⏱ ${formatTime(hud.timeSec)}",
@@ -302,13 +333,14 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             OutlinedButton(
                 onClick = { game.pause() },
                 enabled = hud.phase == DungeonGame.Phase.EXPLORING,
-                modifier = Modifier.padding(top = 10.dp).height(40.dp),
+                modifier = Modifier.height(36.dp),
             ) { Text("⏸") }
         }
-        // 六槽装备芯片（品质色）
+        }   // HUD 阶段门控（READY/CLASS_SELECT 不显示）
+        // 六槽装备芯片（品质色）：横屏下移到左上数值条下方，给摇杆留出整个左下区域
         if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
             Row(
-                Modifier.align(Alignment.BottomStart).padding(12.dp),
+                Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 74.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Equipment.Slot.entries.forEach { slot ->
@@ -386,10 +418,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // Boss 血条（顶部中央）
+        // Boss 血条（顶部中央，横屏压窄）
         if (hud.bossHp > 0f) {
             Column(
-                Modifier.align(Alignment.TopCenter).padding(top = 52.dp).fillMaxWidth(0.62f),
+                Modifier.align(Alignment.TopCenter).padding(top = 44.dp).fillMaxWidth(0.5f),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -409,9 +441,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // 小地图（右上，暂停按钮下方）
+        // 小地图（右上，暂停按钮下方；横屏压缩尺寸）
         if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
-            Minimap(game, Modifier.align(Alignment.TopEnd).padding(top = 64.dp, end = 12.dp))
+            Minimap(game, Modifier.align(Alignment.TopEnd).padding(top = 48.dp, end = 12.dp))
         }
 
         // ---------- Ready ----------
@@ -436,9 +468,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         // ---------- 职业选择 ----------
         if (hud.phase == DungeonGame.Phase.CLASS_SELECT) {
             Column(
-                Modifier.fillMaxSize().background(Color(0xF00B0D14)),
+                Modifier
+                    .fillMaxSize()
+                    .background(Color(0xF00B0D14))
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
             ) {
                 Text("选择职业", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
                 Text(
@@ -616,7 +650,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
 /** 小地图：房间缩略矩形，已探索亮起、当前高亮、连线表门 */
 @Composable
 private fun Minimap(game: DungeonGame, modifier: Modifier) {
-    Canvas(modifier.width(150.dp).height(110.dp).background(Color(0x66000000), RoundedCornerShape(8.dp))) {
+    Canvas(modifier.width(120.dp).height(84.dp).background(Color(0x66000000), RoundedCornerShape(8.dp))) {
         val rooms = game.rooms
         if (rooms.isEmpty()) return@Canvas
         val minX = rooms.minOf { it.gx }
