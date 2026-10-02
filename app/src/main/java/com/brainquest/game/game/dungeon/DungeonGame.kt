@@ -115,6 +115,21 @@ class DungeonGame {
     }
 
     // ---------- 流程 ----------
+    // ---------- 大厅 ----------
+    var lobbyClassId = "knight"   // 大厅当前预览职业
+
+    fun cycleClass(dir: Int) {
+        val ids = ClassDef.ALL.map { it.id }
+        val i = ids.indexOf(lobbyClassId).coerceAtLeast(0)
+        lobbyClassId = ids[(i + dir + ids.size) % ids.size]
+    }
+
+    fun startFromLobby() {
+        if (phase != Phase.READY) return
+        cls = ClassDef.byId(lobbyClassId)
+        startRun()
+    }
+
     fun toClassSelect() { if (phase == Phase.READY) phase = Phase.CLASS_SELECT }
 
     fun selectClass(id: String) {

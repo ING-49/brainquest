@@ -538,4 +538,68 @@ object EntityRenderer {
 
     private val BAR_BG = GamePalette.UI_BAR_BG
     private val HP_C = GamePalette.UI_HP
+
+    // ---------- 大厅人物立绘（放大版分层模型，无相机耦合） ----------
+    fun drawPortrait(scope: DrawScope, cls: com.brainquest.game.game.dungeon.model.ClassDef, cx: Float, cy: Float, scale: Float, time: Float) {
+        val body0 = Color(cls.bodyColor)
+        val accent0 = Color(cls.accentColor)
+        val breathe = sin(time * 2.2f) * 2f * scale
+        val s = scale
+        scope.run {
+            // 地台光圈
+            drawOval(GamePalette.SHADOW, Offset(cx - 46f * s, cy + 62f * s), Size(92f * s, 22f * s))
+            drawCircle(accent0.copy(alpha = 0.10f), 88f * s, Offset(cx, cy + 20f * s))
+            // 脚
+            drawRoundRect(OUTLINE, Offset(cx - 22f * s, cy + 44f * s), Size(20f * s, 26f * s), CornerRadius(8f * s))
+            drawRoundRect(OUTLINE, Offset(cx + 2f * s, cy + 44f * s), Size(20f * s, 26f * s), CornerRadius(8f * s))
+            // 身体 + 高光 + 金腰带
+            val bodyTop = cy - 34f * s + breathe
+            drawRoundRect(body0, Offset(cx - 28f * s, bodyTop), Size(56f * s, 62f * s), CornerRadius(14f * s))
+            drawRect(Color(0x26FFFFFF), Offset(cx - 24f * s, bodyTop + 4f * s), Size(48f * s, 14f * s))
+            drawRect(GamePalette.UI_GOLD, Offset(cx - 28f * s, bodyTop + 40f * s), Size(56f * s, 6f * s))
+            drawRoundRect(OUTLINE, Offset(cx - 28f * s, bodyTop), Size(56f * s, 62f * s), CornerRadius(14f * s), style = Stroke(2.5f))
+            // 手臂
+            drawRoundRect(body0, Offset(cx - 42f * s, bodyTop + 12f * s), Size(15f * s, 34f * s), CornerRadius(6f * s))
+            drawRoundRect(body0, Offset(cx + 27f * s, bodyTop + 12f * s), Size(15f * s, 34f * s), CornerRadius(6f * s))
+            // 头 + 头饰
+            val headY = bodyTop - 26f * s
+            drawCircle(GamePalette.PLAYER_SKIN, 24f * s, Offset(cx, headY))
+            drawCircle(OUTLINE, 24f * s, Offset(cx, headY), style = Stroke(2.5f))
+            when (cls.id) {
+                "knight" -> {
+                    drawArc(accent0, 180f, 180f, false, Offset(cx - 24f * s, headY - 24f * s), Size(48f * s, 44f * s), style = Stroke(10f))
+                    drawRect(accent0, Offset(cx - 4f * s, headY - 48f * s), Size(8f * s, 16f * s))
+                }
+                "mage" -> {
+                    drawRect(accent0, Offset(cx - 30f * s, headY - 26f * s), Size(60f * s, 10f * s))
+                    drawLine(accent0, Offset(cx - 20f * s, headY - 26f * s), Offset(cx, headY - 66f * s), 16f)
+                    drawLine(accent0, Offset(cx + 20f * s, headY - 26f * s), Offset(cx, headY - 66f * s), 16f)
+                }
+                "ranger" -> {
+                    drawArc(accent0, -30f, 120f, false, Offset(cx - 26f * s, headY - 26f * s), Size(52f * s, 52f * s), style = Stroke(10f))
+                }
+            }
+            // 眼睛（正面）
+            drawCircle(OUTLINE, 4f * s, Offset(cx - 9f * s, headY - 2f * s))
+            drawCircle(OUTLINE, 4f * s, Offset(cx + 9f * s, headY - 2f * s))
+            // 武器（右手侧竖直）
+            val wx = cx + 40f * s
+            val wy = bodyTop + 26f * s
+            when (cls.id) {
+                "knight" -> {
+                    drawRect(Color(0xFF8D6E63), Offset(wx - 4f * s, wy - 8f * s), Size(8f * s, 20f * s))
+                    drawRect(accent0, Offset(wx - 13f * s, wy - 16f * s), Size(26f * s, 6f * s))
+                    drawRect(Color(0xFFECEFF1), Offset(wx - 4f * s, wy - 72f * s), Size(8f * s, 56f * s))
+                }
+                "mage" -> {
+                    drawRect(Color(0xFF8D6E63), Offset(wx - 4f * s, wy - 64f * s), Size(8f * s, 72f * s))
+                    drawCircle(GamePalette.ELEM_FIRE, 10f * s, Offset(wx, wy - 68f * s))
+                }
+                "ranger" -> {
+                    drawArc(Color(0xFF8D6E63), -80f, 160f, false, Offset(wx - 8f * s, wy - 38f * s), Size(16f * s, 76f * s), style = Stroke(6f))
+                    drawLine(Color(0xFFECEFF1), Offset(wx, wy - 37f * s), Offset(wx, wy + 37f * s), 2.5f)
+                }
+            }
+        }
+    }
 }
