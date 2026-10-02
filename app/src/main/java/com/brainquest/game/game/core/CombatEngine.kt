@@ -77,8 +77,9 @@ class CombatEngine {
     /** 帧事件（伤害飘字/粒子/闪电，渲染层消费后转成持续特效） */
     data class FxEvent(
         val x: Float, val y: Float, val text: String, val crit: Boolean,
-        val element: Element?, val kind: Int,   // kind 0=伤害 1=死亡 2=拾取 3=闪电段
+        val element: Element?, val kind: Int,   // kind 0=伤害 1=死亡 2=拾取 3=闪电段 4=冲击环
         val x2: Float = 0f, val y2: Float = 0f, // 闪电段终点
+        val tint: Int = 0,                      // 死亡粒子着色（ARGB，0=默认）
     )
 
     /** 精英词缀 */
@@ -437,7 +438,14 @@ class CombatEngine {
         e.alive = false
         e.dying = true
         e.deathTimer = 0.3f
-        events.add(FxEvent(e.x, e.y, "", false, null, 1))
+        val tint = when (e.kind) {
+            EnemyKind.SLIME -> 0xFF66BB6A
+            EnemyKind.SKELETON -> 0xFFECEFF1
+            EnemyKind.BAT -> 0xFF7E57C2
+            EnemyKind.CASTER -> 0xFFEF5350
+            else -> if (e.bossFloor > 0) 0xFFFFD54F else 0xFFB0885A
+        }.toInt()
+        events.add(FxEvent(e.x, e.y, "", false, null, 1, tint = tint))
         if (orbs.size < MAX_ORBS) orbs.add(Orb(e.x, e.y, e.xpValue))
         // 精英「分裂」词缀：死亡分裂成两只小怪
         if (e.affix == Affix.SPLIT && e.r > 12f && enemies.size + spawnNow.size < MAX_ENEMIES) {

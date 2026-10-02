@@ -238,6 +238,7 @@ class DungeonGame {
                 boss.bossFloor = floor
                 engine.spawnLater(0.4f, boss)
                 engine.addShake(10f)   // Boss 出场震屏
+                engine.events.add(CombatEngine.FxEvent(boss.x, boss.y, "", false, null, 4))   // 出场冲击环
             }
             RoomType.BATTLE -> {
                 val n = 3 + rng.nextInt(2) + (floor - 1)   // 首层 3-4 只，逐层+1

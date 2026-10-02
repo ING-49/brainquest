@@ -207,23 +207,32 @@ object EntityRenderer {
             val wing = sin(time * 14f + e.wobbleSeed)
 
             if (e.elite && !e.dying) {
-                drawCircle(Color(0x88B388FF), e.r + 6f, Offset(sx, sy), style = Stroke(4f))
+                // 精英：金色发光外圈 + 环绕粒子
+                drawCircle(GamePalette.ELITE_GLOW.copy(alpha = 0.4f), e.r + 8f, Offset(sx, sy), style = Stroke(4f))
+                for (i in 0..2) {
+                    val a = time * 2.4f + i * 2.094f
+                    drawCircle(GamePalette.ELITE_GLOW.copy(alpha = 0.8f), 2.5f,
+                        Offset(sx + kotlin.math.cos(a) * (e.r + 14f), sy + kotlin.math.sin(a) * (e.r + 14f)))
+                }
             }
             when (e.kind) {
                 com.brainquest.game.game.dungeon.model.EnemyKind.SLIME -> {
                     val squash = 1f + sin(time * 8f + e.wobbleSeed) * 0.08f
                     drawOval(SLIME_C, Offset(sx - e.r, sy - e.r * squash - hop), Size(e.r * 2, e.r * 2 * squash))
+                    drawOval(SLIME_DARK, Offset(sx - e.r, sy - e.r * squash - hop), Size(e.r * 2, e.r * 2 * squash), style = Stroke(2f))
+                    drawCircle(Color(0x40FFFFFF), e.r * 0.28f, Offset(sx - e.r * 0.4f, sy - e.r * 1.1f - hop))   // 顶部高光
                     drawCircle(SLIME_DARK, 2.5f, Offset(sx - 5f, sy - e.r * 0.6f - hop))
                     drawCircle(SLIME_DARK, 2.5f, Offset(sx + 5f, sy - e.r * 0.6f - hop))
                 }
-                com.brainquest.game.game.dungeon.model.EnemyKind.SKELETON -> drawSkeletonBody(sx, sy, e.r)
+                com.brainquest.game.game.dungeon.model.EnemyKind.SKELETON -> drawSkeletonBody(sx, sy, e.r, time, e.wobbleSeed)
                 com.brainquest.game.game.dungeon.model.EnemyKind.BAT -> {
                     val wy = wing * 6f
                     drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx - e.r * 1.5f, sy - 10f + wy), 5f)
                     drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx + e.r * 1.5f, sy - 10f + wy), 5f)
                     drawCircle(BAT_C, e.r * 0.7f, Offset(sx, sy))
-                    drawCircle(Color(0xFFFFEB3B), 2f, Offset(sx - 3f, sy - 2f))
-                    drawCircle(Color(0xFFFFEB3B), 2f, Offset(sx + 3f, sy - 2f))
+                    drawCircle(GamePalette.PLAYER_OUTLINE, e.r * 0.7f, Offset(sx, sy), style = Stroke(2f))
+                    drawCircle(GamePalette.ENEMY_BAT_EYE, 2f, Offset(sx - 3f, sy - 2f))
+                    drawCircle(GamePalette.ENEMY_BAT_EYE, 2f, Offset(sx + 3f, sy - 2f))
                 }
                 com.brainquest.game.game.dungeon.model.EnemyKind.CASTER -> {
                     val c = CASTER_C
@@ -232,9 +241,12 @@ object EntityRenderer {
                     drawLine(c, Offset(sx - e.r, sy + e.r * 0.8f), Offset(sx + e.r, sy + e.r * 0.8f), 10f)
                     drawCircle(SLIME_DARK, e.r * 0.45f, Offset(sx, sy - e.r * 0.9f))
                     drawLine(DUMMY_WOOD, Offset(sx + e.r * 0.9f, sy + e.r * 0.6f), Offset(sx + e.r * 1.1f, sy - e.r * 1.1f), 3f)
-                    drawCircle(THUNDER_C, 3.5f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
+                    // 蓄力发光：放弹幕前 0.5s 杖顶宝珠变大发光
+                    val charging = e.aiTimer < 0.5f
+                    if (charging) drawCircle(THUNDER_C.copy(alpha = 0.35f), 9f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
+                    drawCircle(THUNDER_C, if (charging) 5f else 3.5f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
                 }
-                else -> drawDummyBody(sx, sy, e.r, time, e.wobbleSeed, boss = e.r > 30f)
+                else -> if (e.bossFloor > 0) drawBossBody(this, sx, sy, e, time) else drawDummyBody(sx, sy, e.r, time, e.wobbleSeed, boss = false)
             }
             if (e.dying) return@withTransform
             // 元素状态特效（死亡动画期间不再叠加）
@@ -259,17 +271,76 @@ object EntityRenderer {
                 drawRect(BAR_BG, Offset(sx - e.r, sy - e.r - 10f), Size(w, 4f))
                 drawRect(HP_C, Offset(sx - e.r, sy - e.r - 10f), Size(w * (e.hp / e.maxHp).coerceIn(0f, 1f), 4f))
             }
+            // 精英词缀标识（头顶小菱形）：狂暴=红 / 护盾=冰蓝 / 分裂=绿
+            if (e.affix != null && !e.dying) {
+                val c = when (e.affix) {
+                    com.brainquest.game.game.core.CombatEngine.Affix.RAGE -> GamePalette.BOSS_GLOW
+                    com.brainquest.game.game.core.CombatEngine.Affix.SHIELD -> GamePalette.ELEM_ICE
+                    else -> GamePalette.ENEMY_SLIME
+                }
+                val iy = sy - e.r - 20f
+                drawLine(c, Offset(sx - 5f, iy), Offset(sx, iy - 5f), 3f)
+                drawLine(c, Offset(sx, iy - 5f), Offset(sx + 5f, iy), 3f)
+                drawLine(c, Offset(sx + 5f, iy), Offset(sx, iy + 5f), 3f)
+                drawLine(c, Offset(sx, iy + 5f), Offset(sx - 5f, iy), 3f)
+            }
         }
     }
 
-    private fun DrawScope.drawSkeletonBody(sx: Float, sy: Float, r: Float) {
-        drawCircle(BONE_C, r * 0.62f, Offset(sx, sy - r * 0.5f))
-        drawCircle(Color(0xFFE53935), 2.5f, Offset(sx - 4f, sy - r * 0.55f))
-        drawCircle(Color(0xFFE53935), 2.5f, Offset(sx + 4f, sy - r * 0.55f))
+    private fun DrawScope.drawSkeletonBody(sx: Float, sy: Float, r: Float, time: Float, seed: Float) {
+        val bob = sin(time * 9f + seed) * 1.5f          // 骨架上下轻晃
+        val armS = sin(time * 9f + seed) * 3f           // 肋骨横摆
+        drawCircle(BONE_C, r * 0.62f, Offset(sx, sy - r * 0.5f + bob))
+        drawCircle(GamePalette.PLAYER_OUTLINE, r * 0.62f, Offset(sx, sy - r * 0.5f + bob), style = Stroke(2f))
+        drawCircle(Color(0xFFE53935), 2.5f, Offset(sx - 4f, sy - r * 0.55f + bob))
+        drawCircle(Color(0xFFE53935), 2.5f, Offset(sx + 4f, sy - r * 0.55f + bob))
         for (i in 0..2) {
-            drawLine(BONE_DARK, Offset(sx - r * 0.5f, sy + i * 8f - 4f), Offset(sx + r * 0.5f, sy + i * 8f - 4f), 3f)
+            val off = armS * (i + 1) * 0.3f
+            drawLine(BONE_DARK, Offset(sx - r * 0.5f + off, sy + i * 8f - 4f + bob), Offset(sx + r * 0.5f + off, sy + i * 8f - 4f + bob), 3f)
         }
-        drawRect(BONE_C, Offset(sx - 3f, sy - r * 0.1f), Size(6f, r * 0.9f))
+        drawRect(BONE_C, Offset(sx - 3f, sy - r * 0.1f + bob), Size(6f, r * 0.9f))
+    }
+
+    /** Boss 专属外观：黑甲武士——大躯干+王冠+发光眼，狂暴期变亮红 */
+    private fun drawBossBody(scope: DrawScope, sx: Float, sy: Float, e: com.brainquest.game.game.core.CombatEngine.Enemy, time: Float) {
+        val r = e.r
+        val rage = e.phase >= 2
+        val body = if (rage) androidx.compose.ui.graphics.lerp(Color(0xFF8E2424), GamePalette.BOSS_GLOW, 0.3f + 0.1f * sin(time * 10f)) else Color(0xFF6D2A2A)
+        val dark = Color(0xFF3A1414)
+        val sway = sin(time * 2f + e.wobbleSeed) * 3f
+        scope.run {
+            // 阴影
+            drawOval(GamePalette.SHADOW, Offset(sx - 52f, sy + 22f), Size(104f, 24f))
+            // 双肩甲
+            drawCircle(dark, r * 0.32f, Offset(sx - r * 0.78f + sway, sy - r * 0.5f))
+            drawCircle(dark, r * 0.32f, Offset(sx + r * 0.78f + sway, sy - r * 0.5f))
+            // 躯干（黑甲圆角矩形）+ 描边
+            drawRoundRect(body, Offset(sx - r * 0.72f + sway, sy - r * 0.85f), Size(r * 1.44f, r * 1.6f), CornerRadius(14f))
+            drawRoundRect(GamePalette.PLAYER_OUTLINE, Offset(sx - r * 0.72f + sway, sy - r * 0.85f), Size(r * 1.44f, r * 1.6f), CornerRadius(14f), style = Stroke(3f))
+            // 胸口纹章（金色菱形）
+            val cx = sx + sway
+            val cy = sy - r * 0.15f
+            drawLine(GamePalette.UI_GOLD, Offset(cx - 8f, cy), Offset(cx, cy - 8f), 3f)
+            drawLine(GamePalette.UI_GOLD, Offset(cx, cy - 8f), Offset(cx + 8f, cy), 3f)
+            drawLine(GamePalette.UI_GOLD, Offset(cx + 8f, cy), Offset(cx, cy + 8f), 3f)
+            drawLine(GamePalette.UI_GOLD, Offset(cx, cy + 8f), Offset(cx - 8f, cy), 3f)
+            // 头（黑盔）+ 发光眼
+            val headY = sy - r * 1.3f
+            drawCircle(dark, r * 0.42f, Offset(cx, headY))
+            drawCircle(GamePalette.PLAYER_OUTLINE, r * 0.42f, Offset(cx, headY), style = Stroke(2.5f))
+            val eyeC = if (rage) GamePalette.BOSS_GLOW else Color(0xFFFF8A80)
+            val pulse = 0.5f + 0.5f * sin(time * 6f)
+            drawCircle(eyeC.copy(alpha = 0.35f + 0.2f * pulse), 7f, Offset(cx - 8f, headY - 2f))
+            drawCircle(eyeC.copy(alpha = 0.35f + 0.2f * pulse), 7f, Offset(cx + 8f, headY - 2f))
+            drawCircle(eyeC, 3.5f, Offset(cx - 8f, headY - 2f))
+            drawCircle(eyeC, 3.5f, Offset(cx + 8f, headY - 2f))
+            // 王冠（金色三尖）
+            val crownY = headY - r * 0.42f
+            drawRect(GamePalette.UI_GOLD, Offset(cx - 18f, crownY - 8f), Size(36f, 8f))
+            drawLine(GamePalette.UI_GOLD, Offset(cx - 18f, crownY - 8f), Offset(cx - 14f, crownY - 20f), 5f)
+            drawLine(GamePalette.UI_GOLD, Offset(cx, crownY - 8f), Offset(cx, crownY - 24f), 5f)
+            drawLine(GamePalette.UI_GOLD, Offset(cx + 18f, crownY - 8f), Offset(cx + 14f, crownY - 20f), 5f)
+        }
     }
 
     // ---------- 木桩身体（DUMMY 与 Boss 占位共用） ----------
@@ -356,9 +427,11 @@ object EntityRenderer {
         scope.drawRoundRect(OUTLINE, Offset(sx - 10f, sy + 6f + swing), Size(9f, 12f), CornerRadius(4f))
         scope.drawRoundRect(OUTLINE, Offset(sx + 1f, sy + 6f - swing), Size(9f, 12f), CornerRadius(4f))
 
-        // 3 身体：职业色圆角矩形 + 呼吸起伏
+        // 3 身体：职业色圆角矩形 + 呼吸起伏 + 顶部高光 + 金腰带
         val bodyTop = sy - 20f + breathe
         scope.drawRoundRect(body, Offset(sx - 13f, bodyTop), Size(26f, 30f), CornerRadius(7f))
+        scope.drawRect(Color(0x26FFFFFF), Offset(sx - 11f, bodyTop + 2f), Size(22f, 7f))   // 顶部高光
+        scope.drawRect(GamePalette.UI_GOLD, Offset(sx - 13f, bodyTop + 19f), Size(26f, 3f))   // 腰带
         scope.drawRoundRect(OUTLINE, Offset(sx - 13f, bodyTop), Size(26f, 30f), CornerRadius(7f), style = Stroke(2f))
 
         // 4 手臂：走路反向摆

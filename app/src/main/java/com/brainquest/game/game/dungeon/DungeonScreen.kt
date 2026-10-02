@@ -129,6 +129,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val floats = remember { ArrayList<FloatFx>(32) }
     val parts = remember { ArrayList<ParticleFx>(64) }
     val bolts = remember { ArrayList<BoltFx>(8) }
+    val rings = remember { ArrayList<RingFx>(4) }
     val rngFx = remember { kotlin.random.Random(7) }
 
     // 游戏循环
@@ -154,16 +155,18 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                             ev.crit -> GamePalette.UI_GOLD
                             else -> GamePalette.UI_TEXT
                         }, ev.crit))
-                    1 -> {   // 死亡爆裂粒子
-                        repeat(8) {
+                    1 -> {   // 死亡爆裂粒子（按敌人主色）
+                        val pc = if (ev.tint != 0) Color(ev.tint) else GamePalette.UI_HP
+                        repeat(10) {
                             val ang = rngFx.nextFloat() * 6.283f
                             val sp = 90f + rngFx.nextFloat() * 140f
                             parts.add(ParticleFx(ev.x, ev.y, kotlin.math.cos(ang) * sp, kotlin.math.sin(ang) * sp,
-                                0.4f, GamePalette.UI_HP))
+                                0.4f, pc))
                         }
                     }
                     2 -> floats.add(FloatFx(ev.x, ev.y, ev.text, GamePalette.UI_ORB, false))
                     3 -> bolts.add(BoltFx(ev.x, ev.y, ev.x2, ev.y2, 0.15f))
+                    4 -> rings.add(RingFx(ev.x, ev.y))
                 }
             }
             game.engine.events.clear()
@@ -174,6 +177,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             parts.removeAll { it.t > 0.4f }
             bolts.forEach { it.t += dtFx }
             bolts.removeAll { it.t > 0.15f }
+            rings.forEach { it.t += dtFx }
+            rings.removeAll { it.t > 0.6f }
             val e = game.engine
             val boss = game.engine.enemies.firstOrNull { it.bossFloor > 0 && it.alive }
             val h = Hud(
@@ -261,6 +266,15 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             for (pt in parts) {
                 val a = (1f - pt.t / 0.4f).coerceIn(0f, 1f)
                 drawCircle(pt.color.copy(alpha = a), 3.5f, Offset(pt.x - game.camX, pt.y - game.camY))
+            }
+            for (rg in rings) {   // Boss 出场冲击环
+                val k = rg.t / 0.6f
+                drawCircle(
+                    GamePalette.BOSS_GLOW.copy(alpha = (0.6f * (1f - k)).coerceIn(0f, 1f)),
+                    20f + k * 220f,
+                    Offset(rg.x - game.camX, rg.y - game.camY),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(6f * (1f - k) + 1f),
+                )
             }
             for (ft in floats) {
                 val a = (1f - ft.t / 0.7f).coerceIn(0f, 1f)
@@ -709,3 +723,8 @@ private class ParticleFx(var x: Float, var y: Float, val vx: Float, val vy: Floa
 
 /** 闪电链段 */
 private class BoltFx(val x1: Float, val y1: Float, val x2: Float, val y2: Float, var t: Float)
+
+/** Boss 出场冲击环 */
+private class RingFx(val x: Float, val y: Float) {
+    var t = 0f
+}
