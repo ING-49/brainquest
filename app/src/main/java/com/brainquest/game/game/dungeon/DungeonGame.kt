@@ -22,10 +22,11 @@ class DungeonGame {
     enum class Phase { READY, CLASS_SELECT, EXPLORING, LEVELUP, SKILL_SELECT, LOOT, SHOP, EVENT, PAUSED, GAMEOVER, VICTORY, TRANSITION }
 
     companion object {
-        const val ROOM_W = 1340f
-        const val ROOM_H = 860f
-        const val GRID_X = 1740f   // 房间横向间距（含走廊）
-        const val GRID_Y = 1280f   // 纵向间距
+        const val ROOM_W = 2000f
+        const val ROOM_H = 1300f
+        const val GRID_X = 2400f   // 房间横向间距（含走廊）
+        const val GRID_Y = 1700f   // 纵向间距
+        const val BASE_ZOOM = 1.5f // 世界基础缩放：屏幕只看世界的一部分（房间远大于视口，相机跟随人物居中）
         const val DOOR_H = 150f    // 门/走廊宽度
         const val DOOR_PROBE = 44f // 走廊端头向房间内伸的长度（保证与房间收边区无缝穿门）
         const val WALL = 26f       // 墙厚（绘制）
@@ -98,19 +99,18 @@ class DungeonGame {
         val bossHere = engine.enemies.any { it.bossFloor > 0 && it.alive }
         val targetZoom = if (bossHere) 1.15f else 1f
         camZoom += (targetZoom - camZoom) * (dt * 4f).coerceIn(0f, 1f)
-        val lookX = if (engine.joyActive) engine.joyX * 90f / camZoom else 0f
-        val lookY = if (engine.joyActive) engine.joyY * 90f / camZoom else 0f
-        val tx = engine.px + lookX - viewW / 2f / camZoom
-        val ty = engine.py + lookY - viewH / 2f / camZoom
+        val eff = camZoom * BASE_ZOOM
+        // 人物保持在屏幕中央（平滑跟随；房间大于视口时钳制不出房）
+        val tx = engine.px - viewW / 2f / eff
+        val ty = engine.py - viewH / 2f / eff
         if (!camInit) { camX = tx; camY = ty; camInit = true }
         else {
-            val k = (dt * 6f).coerceIn(0f, 1f)
+            val k = (dt * 8f).coerceIn(0f, 1f)
             camX += (tx - camX) * k; camY += (ty - camY) * k
         }
-        // 相机不越出当前房间（视口比房大则居中）
         currentRoom?.let { r ->
             val l = roomLeft(r); val t = roomTop(r)
-            val vw = viewW / camZoom; val vh = viewH / camZoom
+            val vw = viewW / eff; val vh = viewH / eff
             camX = if (vw >= ROOM_W + 60f) l + ROOM_W / 2 - vw / 2
                    else camX.coerceIn(l - 30f, l + ROOM_W + 30f - vw)
             camY = if (vh >= ROOM_H + 60f) t + ROOM_H / 2 - vh / 2
@@ -154,9 +154,9 @@ class DungeonGame {
         camInit = false
         // 永久升级（局外成长）：生命/攻击/移速
         val perks = pendingPerks
-        engine.setMaxHp(engine.maxHp + 15 * (perks["hp"] ?: 0))
-        engine.buffAttack(2 * (perks["atk"] ?: 0))
-        engine.buffSpeed(8f * (perks["spd"] ?: 0))
+        engine.setMaxHp(engine.maxHp + 8 * (perks["hp"] ?: 0))
+        engine.buffAttack(1 * (perks["atk"] ?: 0))
+        engine.buffSpeed(4f * (perks["spd"] ?: 0))
         engine.passiveId = c.id
         engine.weapon = when (c.id) {
             "knight" -> Weapon.MeleeSlash()
@@ -249,7 +249,7 @@ class DungeonGame {
         val scaleDmg = 1f + 0.2f * (floor - 1)
 
         fun spawn(kind: EnemyKind, elite: Boolean, x: Float, y: Float, big: Boolean = false) {
-            val baseHp = (if (big) 260f else 20f) * scaleHp * (if (elite) 2.2f else 1f)
+            val baseHp = (if (big) 260f else 30f) * scaleHp * (if (elite) 2.2f else 1f)
             val speed = (when (kind) {
                 EnemyKind.BAT -> 95f
                 EnemyKind.SLIME -> 55f
@@ -293,7 +293,7 @@ class DungeonGame {
         when (room.type) {
             RoomType.ELITE -> {
                 repeat(2) { val (x, y) = spot(220f); spawn(EnemyKind.SKELETON, elite = true, x, y) }
-                repeat(2) {
+                repeat(3) {
                     val kind = if (rng.nextBoolean()) EnemyKind.SLIME else EnemyKind.BAT
                     val (x, y) = spot(220f); spawn(kind, elite = false, x, y)
                 }
@@ -311,7 +311,7 @@ class DungeonGame {
                 engine.events.add(CombatEngine.FxEvent(boss.x, boss.y, "", false, null, 4))   // 出场冲击环
             }
             RoomType.BATTLE -> {
-                val n = 4 + rng.nextInt(2) + (floor - 1)   // 房间加大后首层 4-5 只，逐层+1
+                val n = 5 + rng.nextInt(2) + (floor - 1)   // 大房间：首层 5-6 只，逐层+1
                 repeat(n) {
                     val kind = when {
                         floor >= 2 && rng.nextInt(5) == 0 -> EnemyKind.CASTER

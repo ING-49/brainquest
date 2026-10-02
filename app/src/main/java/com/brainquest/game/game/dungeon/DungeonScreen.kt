@@ -343,7 +343,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             val shy = if (shk > 0f) (kotlin.random.Random.nextFloat() - 0.5f) * shk * 2f else 0f
             withTransform({
                 translate(shx, shy)
-                scale(game.camZoom, game.camZoom, pivot = Offset(size.width / 2f, size.height / 2f))
+                scale(game.camZoom * DungeonGame.BASE_ZOOM, game.camZoom * DungeonGame.BASE_ZOOM, pivot = Offset(size.width / 2f, size.height / 2f))
             }) {
             EntityRenderer.drawWorld(this, game, t)
             EntityRenderer.drawPortal(this, game, t)
