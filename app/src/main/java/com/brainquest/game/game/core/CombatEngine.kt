@@ -283,7 +283,9 @@ class CombatEngine {
                     .format(it.x, it.y, it.hp, it.speed, dt, it.alive, px))
             }
         }
-        for (e in enemies) {
+        // 索引循环：Boss召唤/精英分裂会在迭代中向 enemies 追加（indices 固定，新增者下一帧处理，免疫 CME）
+        for (ei in enemies.indices) {
+            val e = enemies[ei]
             if (e.dying) {
                 e.deathTimer -= dt
                 continue
@@ -336,6 +338,12 @@ class CombatEngine {
                     else { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt }
                 }
             }
+            // 不沉入玩家圆心：贴到接触环即止（多怪堆进圆心会让近战扇形永远背对目标打空）
+            val minD = e.r + playerR + 2f
+            if (d < minD) {
+                e.x = px - dx / d * minD
+                e.y = py - dy / d * minD
+            }
             // 场地边界
             if (arenaRight > arenaLeft) {
                 e.x = e.x.coerceIn(arenaLeft, arenaRight)
@@ -352,7 +360,8 @@ class CombatEngine {
     }
 
     private fun tickBullets(dt: Float) {
-        for (b in bullets) {
+        for (bi in bullets.indices) {
+            val b = bullets[bi]
             if (!b.alive) continue
             b.x += b.dx * dt; b.y += b.dy * dt
             b.age += dt
@@ -367,8 +376,9 @@ class CombatEngine {
                 }
                 continue
             }
-            // 玩家子弹 × 敌人
-            for (e in enemies) {
+            // 玩家子弹 × 敌人（索引循环：命中触发的 killEnemy→分裂 只进 spawnNow，防迭代中变更）
+            for (ei in enemies.indices) {
+                val e = enemies[ei]
                 if (!e.alive) continue
                 val dx = e.x - b.x; val dy = e.y - b.y
                 val rr = e.r + b.r
@@ -382,7 +392,8 @@ class CombatEngine {
     }
 
     private fun tickOrbs(dt: Float) {
-        for (o in orbs) {
+        for (oi in orbs.indices) {
+            val o = orbs[oi]
             if (!o.alive) continue
             val dx = px - o.x; val dy = py - o.y
             val d2 = dx * dx + dy * dy
@@ -468,6 +479,8 @@ class CombatEngine {
     fun setMaxHp(n: Int) { maxHp = n.coerceAtLeast(1); if (hp > maxHp) hp = maxHp }
     /** DEBUG 兜底：自动驾驶用（升级空队列时恢复探索） */
     fun forcePlaying() { phase = Phase.PLAYING }
+    /** 原地转向（不移动；自动驾驶近战站定输出用——facing 平时只随移动更新） */
+    fun faceTo(x: Float, y: Float) { facing = atan2(y - py, x - px) }
     fun addShake(v: Float) { shake = maxOf(shake, v) }
     fun buffAttack(delta: Int) { attack = (attack + delta).coerceAtLeast(1) }
     fun buffSpeed(delta: Float) { speed = (speed + delta).coerceAtLeast(60f) }
@@ -620,15 +633,27 @@ class CombatEngine {
 
     /** 近战扇形判定（挥砍用）：朝向 facing、范围 range、张角 arc */
     fun meleeArc(range: Float, arcRad: Float, dmg: Float, element: Element?) {
+        var hits = 0
         for (e in enemies) {
             if (!e.alive) continue
             val dx = e.x - px; val dy = e.y - py
             val d = hypot(dx, dy)
             if (d > range + e.r) continue
             val ang = abs(angleDiff(atan2(dy, dx), facing))
-            if (ang <= arcRad / 2f) hitEnemy(e, dmg, element)
+            if (ang <= arcRad / 2f) { hitEnemy(e, dmg, element); hits++ }
+        }
+        if (android.os.SystemClock.elapsedRealtime() - lastSlashLog > 2000) {
+            lastSlashLog = android.os.SystemClock.elapsedRealtime()
+            val detail = enemies.filter { it.alive }.take(4).joinToString(";") { e ->
+                val dx = e.x - px; val dy = e.y - py
+                "%.0f@%.2f".format(hypot(dx, dy), atan2(dy, dx))
+            }
+            android.util.Log.d("DGAIP", "slash facing=%.2f hits=%d px=%.0f,py=%.0f arena=(%.0f,%.0f,%.0f,%.0f) eng=%s enemies=[%s]"
+                .format(facing, hits, px, py, arenaLeft, arenaTop, arenaRight, arenaBottom,
+                    Integer.toHexString(System.identityHashCode(this)), detail))
         }
     }
+    private var lastSlashLog = 0L
 
     private fun angleDiff(a: Float, b: Float): Float {
         var d = a - b

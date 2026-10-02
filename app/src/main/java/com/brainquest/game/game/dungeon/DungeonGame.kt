@@ -70,6 +70,12 @@ class DungeonGame {
     private var apPhase = 0            // 0=去门口 1=穿门 2=拾球
     private var apStuck = 0f           // 看门狗计时
     private var lastLogSec = -1
+    private var apOrbT = 0f
+    private var navStuckT = 0f
+    private var navLastX = 0f; private var navLastY = 0f
+    private var navStuckRoom: Room? = null
+    private var navStuckN = 0
+    private val apSkipped = HashSet<Room>()   // 本层导航反复失败的房间（跳过）
 
     // ---------- 玩家职业（权威属性在 engine） ----------
     var cls: ClassDef? = null; private set
@@ -130,6 +136,7 @@ class DungeonGame {
     private fun buildFloor() {
         rng = Random(floor * 7919 + clearedRooms + totalKills)
         apNext = null; apPhase = 0   // 换层：上一层楼的导航承诺全部作废
+        apSkipped.clear(); navStuckT = 0f; navStuckN = 0; navStuckRoom = null
         val result = DungeonGenerator.generate(floor, rng)
         rooms = result.rooms
         floorCleared = 0
@@ -288,7 +295,21 @@ class DungeonGame {
                 if (apWait > 0.6f) { pendingSkills.firstOrNull()?.let { chooseSkill(it) }; apWait = 0f }
             } else {
                 apWait = 0f
-                autopilotSteer()
+                // 导航停滞看门狗：未锁门时位置 3 秒几乎不动 → 重规划；同一目标 3 次停滞 → 本层跳过
+                if (!locked) {
+                    val moved = kotlin.math.abs(engine.px - navLastX) + kotlin.math.abs(engine.py - navLastY)
+                    navStuckT = if (moved < 2f) navStuckT + dt else 0f
+                    navLastX = engine.px; navLastY = engine.py
+                    if (navStuckT > 3f) {
+                        val tgt = apNext
+                        if (tgt != null && tgt === navStuckRoom) navStuckN++ else { navStuckRoom = tgt; navStuckN = 1 }
+                        android.util.Log.d("DGAIP", "nav stuck n=$navStuckN tgt=${tgt?.gx},${tgt?.gy} at %.0f,%.0f pass=%s"
+                            .format(engine.px, engine.py, canPass(engine.px, engine.py)))
+                        if (tgt != null && navStuckN >= 3) apSkipped.add(tgt)
+                        apNext = null; apPhase = 0; navStuckT = 0f
+                    }
+                }
+                autopilotSteer(dt)
                 // 战斗中技能好了就用
                 if (locked && engine.enemies.isNotEmpty() && engine.skillCd <= 0f) engine.useSkill()
             }
@@ -369,7 +390,7 @@ class DungeonGame {
     }
 
     /** DEBUG：自动驾驶的摇杆决策——带承诺的导航状态机（阈值切换会自激振荡，必须记状态） */
-    private fun autopilotSteer() {
+    private fun autopilotSteer(dt: Float) {
         val room = currentRoom ?: return
         if (locked) {
             // 战斗走位：近战贴脸保证命中与朝向；远程保持 200~420 距离风筝
@@ -387,9 +408,27 @@ class DungeonGame {
                 d > 420f -> (d - 420f) * 1.5f          // 太远：靠近
                 else -> 0f
             }
-            if (kotlin.math.abs(pull) < 20f) { engine.joyActive = false; return }
+            if (melee) {
+                // 残血：背离最近敌人撤退并混向房心，避免站桩换血暴毙
+                if (engine.hp < engine.maxHp * 0.35f) {
+                    val cx = (engine.arenaLeft + engine.arenaRight) / 2
+                    val cy = (engine.arenaTop + engine.arenaBottom) / 2
+                    apSteerTo((engine.px * 2 - enemy.x + cx) / 2, (engine.py * 2 - enemy.y + cy) / 2)
+                    return
+                }
+                // 近战：停在 55px 站位点（不冲进怪堆——穿过敌群时朝向逐帧翻转 180°，
+                // 挥砍永远背对目标；站定后敌人在接触环上、正面朝向，扇形必中）
+                if (d < 75f) {
+                    engine.joyActive = false
+                    engine.faceTo(enemy.x, enemy.y)   // 站定输出：facing 只随移动更新，必须原地转向锁定目标
+                } else {
+                    apSteerTo(engine.px + dx / d * (d - 55f), engine.py + dy / d * (d - 55f))
+                }
+                return
+            }
             var gx = engine.px + dx / d * pull
             var gy = engine.py + dy / d * pull
+            if (kotlin.math.abs(pull) < 20f) { engine.joyActive = false; return }
             // 靠墙时向房心规避，防止被逼进墙角
             val cx = (engine.arenaLeft + engine.arenaRight) / 2
             val cy = (engine.arenaTop + engine.arenaBottom) / 2
@@ -402,16 +441,24 @@ class DungeonGame {
             return
         }
 
-        // 0) 战斗结束的房间：先扫一圈经验球（升级必须捡球）
+        // 0) 战斗结束的房间：先扫一圈经验球（升级必须捡球）；只追可达的球（怪死在墙缝外会留下够不到的球）
         if (apPhase == 2) {
-            val orb = engine.orbs.filter { it.alive }.minByOrNull {
+            val orb = engine.orbs.filter { it.alive && canPass(it.x, it.y) }.minByOrNull {
                 (it.x - engine.px) * (it.x - engine.px) + (it.y - engine.py) * (it.y - engine.py)
             }
             if (orb != null) {
+                apOrbT += dt
+                if (apOrbT > 6f) {
+                    // 看门狗：球卡在不可达位置（墙缝/门外）→ 放弃拾取继续导航
+                    android.util.Log.d("DGAIP", "orb giveup at %.0f,%.0f player=%.0f,%.0f pass=%s"
+                        .format(orb.x, orb.y, engine.px, engine.py, canPass(orb.x, orb.y)))
+                    apPhase = 0; apOrbT = 0f; engine.joyActive = false
+                    return
+                }
                 apSteerTo(orb.x, orb.y)
                 return
             }
-            apPhase = 0   // 没球了，继续导航
+            apPhase = 0; apOrbT = 0f   // 没球了，继续导航
         }
 
         // 1) 无航程 → 选最近的未清房并规划首段
@@ -428,7 +475,7 @@ class DungeonGame {
 
         // 2) 已进入 next 房：承诺完成，重规划
         if (room === next) {
-            if (room.cleared) { apPhase = 2 }   // 清完：先拾球
+            if (room.cleared) { apPhase = 2; apOrbT = 0f }   // 清完：先拾球
             apNext = null
             return
         }
@@ -466,7 +513,8 @@ class DungeonGame {
         var best: Room? = null
         var bestD = Float.MAX_VALUE
         for (r in rooms) {
-            if (r.cleared || r.type == RoomType.START) continue
+            if (r.cleared || r.type == RoomType.START || r in apSkipped) continue
+            if (apBfsPath(from, r).isEmpty()) continue   // 图不连通的孤立房 → 跳过，防止朝墙死推
             val d = kotlin.math.abs(r.gx - from.gx) + kotlin.math.abs(r.gy - from.gy)
             val df = d.toFloat(); if (df < bestD) { bestD = df; best = r }
         }
