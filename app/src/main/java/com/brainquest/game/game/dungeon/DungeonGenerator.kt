@@ -18,19 +18,21 @@ object DungeonGenerator {
         val floor: Int,
     )
 
+    /**
+     * 主线一条线：起点 → 线性 5-8 个战斗房（允许拐弯，不与已占格重叠）→ 链尾 Boss；
+     * 沿主线随机挂 2-4 个支房（宝箱/商店/精英），形成岔路探索感。
+     */
     fun generate(floor: Int, rng: Random = Random): Result {
-        val target = 6 + rng.nextInt(7)   // 6..12
         val grid = HashMap<Pair<Int, Int>, Room>()
-        val rooms = ArrayList<Room>(target)
+        val rooms = ArrayList<Room>(12)
         var nextId = 0
 
-        fun roomAt(gx: Int, gy: Int) = grid[gy to gx]   // 键 = (行,列) 避免与 x/y 混淆
+        fun roomAt(gx: Int, gy: Int) = grid[gy to gx]
 
         fun place(gx: Int, gy: Int, type: RoomType): Room {
             val r = Room(nextId++, gx, gy, type)
             grid[gy to gx] = r
             rooms.add(r)
-            // 邻接表双向登记
             for (d in Dir.entries) {
                 roomAt(gx + d.dx, gy + d.dy)?.let { n ->
                     r.neighbors[d] = n
@@ -41,39 +43,54 @@ object DungeonGenerator {
         }
 
         val start = place(0, 0, RoomType.START)
-        var frontier = listOf(start)
+        var cur = start
+        var dir = Dir.entries.random(rng)
+        val mainLen = 5 + rng.nextInt(4)   // 5..8 个主线战斗房
 
-        // 随机扩展：每次从已有房间随机挑一个、随机方向尝试放新房间
-        while (rooms.size < target) {
-            val base = frontier.random(rng)
-            val d = Dir.entries.random(rng)
-            val nx = base.gx + d.dx
-            val ny = base.gy + d.dy
-            if (roomAt(nx, ny) == null) frontier = frontier + place(nx, ny, RoomType.BATTLE)
-            // frontier 偶尔收紧：全部用 rooms 也行，frontier 保偏向树状生长
-            if (rng.nextInt(4) == 0) frontier = rooms
+        repeat(mainLen) {
+            // 优先延续当前方向，撞占格则换向（不回头）
+            val tries = listOf(dir) +
+                Dir.entries.filter { it != dir && it != opposite(dir) }.shuffled(rng) +
+                listOf(opposite(dir))
+            var placed = false
+            for (d in tries) {
+                val nx = cur.gx + d.dx
+                val ny = cur.gy + d.dy
+                if (roomAt(nx, ny) == null) {
+                    dir = d
+                    cur = place(nx, ny, RoomType.BATTLE)
+                    placed = true
+                    break
+                }
+            }
+            if (!placed) return@repeat   // 被围死：提前收链
         }
 
-        // Boss 房 = 距起点最远（曼哈顿距离，平手取 id 大者）
-        val bossRoom = rooms.filter { it !== start }.maxBy { abs(it.gx) + abs(it.gy) * 2 + it.id * 0.01 }
-        bossRoom.type = RoomType.BOSS
+        // Boss = 链尾（主线走多远 Boss 就多远）
+        val boss = cur
+        boss.type = RoomType.BOSS
 
-        // 其余房间按权重分配类型
-        val pool = rooms.filter { it !== start && it !== bossRoom }
-        pool.shuffled(rng).forEach { r ->
-            val roll = rng.nextFloat()
-            r.type = when {
-                roll < 0.15f -> RoomType.ELITE
-                roll < 0.25f -> RoomType.CHEST
-                roll < 0.35f -> RoomType.SHOP
-                else -> RoomType.BATTLE
+        // 支房：挂在主线中段房间的空闲邻格
+        val branchTypes = listOf(RoomType.CHEST, RoomType.SHOP, RoomType.ELITE)
+        val anchors = rooms.filter { it !== start && it !== boss }.shuffled(rng)
+        var branches = 0
+        for (base in anchors) {
+            if (branches >= 2 + rng.nextInt(3)) break
+            for (d in Dir.entries.shuffled(rng)) {
+                val nx = base.gx + d.dx
+                val ny = base.gy + d.dy
+                if (roomAt(nx, ny) == null) {
+                    place(nx, ny, branchTypes[rng.nextInt(branchTypes.size)])
+                    branches++
+                    break
+                }
             }
         }
 
-        return Result(rooms, start, bossRoom, floor)
+        return Result(rooms, start, boss, floor)
     }
 
-    private fun opposite(d: Dir) = when (d) {
+private fun opposite(d: Dir) = when (d) {
         Dir.UP -> Dir.DOWN
         Dir.DOWN -> Dir.UP
         Dir.LEFT -> Dir.RIGHT

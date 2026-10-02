@@ -376,6 +376,25 @@ object EntityRenderer {
         }
     }
 
+    // ---------- 传送门（Boss 后：旋转漩涡） ----------
+    fun drawPortal(scope: DrawScope, game: DungeonGame, time: Float) {
+        val pt = game.portal ?: return
+        val sx = pt.first - game.camX
+        val sy = pt.second - game.camY
+        scope.run {
+            // 外圈光晕
+            drawCircle(Color(0x33BA68C8), 60f + sin(time * 3f) * 5f, Offset(sx, sy))
+            drawCircle(GamePalette.UI_COIN.copy(alpha = 0.5f), 34f, Offset(sx, sy), style = Stroke(5f))
+            // 旋转漩涡：三段弧随时间转
+            repeat(3) { i ->
+                val a = time * 140f + i * 120f
+                drawArc(GamePalette.UI_COIN, a, 100f, false, Offset(sx - 26f, sy - 26f), Size(52f, 52f), style = Stroke(4f))
+            }
+            drawCircle(Color(0xFFE1BEE7), 7f, Offset(sx, sy))
+            // 靠近提示字由 Screen 层绘制（Compose 文本）
+        }
+    }
+
     // ---------- 子弹与经验球 ----------
     fun drawProjectiles(scope: DrawScope, game: DungeonGame) {
         for (b in game.engine.bullets) {

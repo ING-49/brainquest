@@ -86,6 +86,9 @@ private data class Hud(
     val skillCd: Int,
     val streak: Int,
     val lobbyCls: String,
+    val portalNear: Boolean,
+    val hasPortal: Boolean,
+    val transition: Float,
 )
 
 /** 地牢幸存者：选职业 → 探索地牢（清怪开门选房间）→ 层末 Boss → 5 层通关 */
@@ -104,7 +107,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         game.engine.autoAttack = game.autopilot   // 手动模式走攻击键；自动驾驶保持持续攻击
     }
     var hud by remember {
-        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0f, 0, true, 0, 0, "knight"))
+        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0f, 0, true, 0, 0, "knight", false, false, 0f))
     }
     var confirmExit by remember { mutableStateOf(false) }
     var showBag by remember { mutableStateOf(false) }
@@ -252,6 +255,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 e.skillCd <= 0f, e.skillCd.toInt(),
                 e.killStreak,
                 game.lobbyClassId,
+                game.portalNear,
+                game.portal != null,
+                game.transition,
             )
             if (h != hud) hud = h
         }
@@ -340,6 +346,22 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 scale(game.camZoom, game.camZoom, pivot = Offset(size.width / 2f, size.height / 2f))
             }) {
             EntityRenderer.drawWorld(this, game, t)
+            EntityRenderer.drawPortal(this, game, t)
+            // 靠近传送门：头顶「进入传送门」提示
+            if (game.portal != null && hud.portalNear) {
+                val pt = game.portal!!
+                val px2 = pt.first - game.camX
+                val py2 = pt.second - game.camY - 78f
+                if (px2 > 8f && px2 < size.width - 8f && py2 > 8f && py2 < size.height - 8f) {
+                    val key = "portal#hint"
+                    var layout = textCache[key]
+                    if (layout == null) {
+                        layout = textMeasurer.measure("进入传送门", androidx.compose.ui.text.TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                        textCache[key] = layout
+                    }
+                    drawText(layout, color = GamePalette.UI_COIN, topLeft = Offset(px2 - layout.size.width / 2f, py2))
+                }
+            }
             EntityRenderer.drawProjectiles(this, game)
             EntityRenderer.drawDrops(this, game, t)
             for (e in game.engine.enemies) EntityRenderer.drawEnemy(this, game, e, t)
@@ -532,7 +554,22 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     },
                 ) { Text("🎒") }
             }
-            // 攻击按钮：按住出招（批次 C 里靠近传送门时变「进入」交互键）
+            // 攻击按钮：按住出招；靠近传送门时变「进入」交互键
+            if (hud.hasPortal && hud.portalNear) {
+                Box(
+                    Modifier
+                        .size(76.dp)
+                        .background(Color(0x66BA68C8), androidx.compose.foundation.shape.CircleShape)
+                        .border(2.dp, GamePalette.UI_COIN, androidx.compose.foundation.shape.CircleShape)
+                        .pointerInput(Unit) { detectTapGestures(onTap = { game.enterPortal() }) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("进入", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = GamePalette.UI_COIN)
+                        Text("传送门", style = MaterialTheme.typography.labelSmall, color = GamePalette.UI_COIN)
+                    }
+                }
+            } else {
             Box(
                 Modifier
                     .size(76.dp)
@@ -549,6 +586,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 contentAlignment = Alignment.Center,
             ) {
                 Text("🗡", style = MaterialTheme.typography.headlineMedium)
+            }
             }
             }
         }
@@ -617,6 +655,22 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 fontWeight = FontWeight.Bold,
                 color = if (hud.streak >= 10) Color(0xFFFFD54F) else Color.White,
             )
+        }
+
+        // ---------- 过场：黑幕 + 「第 X 层」 ----------
+        if (hud.transition > 0f) {
+            val a = (minOf(hud.transition / 0.25f, (1.2f - hud.transition) / 0.25f)).coerceIn(0f, 1f)
+            Box(
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f * a)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "第 ${hud.floor + 1} 层",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = a),
+                )
+            }
         }
 
         // ---------- 游戏大厅（选职业 → 开始冒险） ----------

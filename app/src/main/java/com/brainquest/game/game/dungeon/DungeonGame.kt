@@ -19,13 +19,13 @@ import kotlin.random.Random
  */
 class DungeonGame {
 
-    enum class Phase { READY, CLASS_SELECT, EXPLORING, LEVELUP, SKILL_SELECT, LOOT, SHOP, EVENT, PAUSED, GAMEOVER, VICTORY }
+    enum class Phase { READY, CLASS_SELECT, EXPLORING, LEVELUP, SKILL_SELECT, LOOT, SHOP, EVENT, PAUSED, GAMEOVER, VICTORY, TRANSITION }
 
     companion object {
-        const val ROOM_W = 1000f
-        const val ROOM_H = 640f
-        const val GRID_X = 1400f   // 房间横向间距（含走廊）
-        const val GRID_Y = 960f    // 纵向间距
+        const val ROOM_W = 1340f
+        const val ROOM_H = 860f
+        const val GRID_X = 1740f   // 房间横向间距（含走廊）
+        const val GRID_Y = 1280f   // 纵向间距
         const val DOOR_H = 150f    // 门/走廊宽度
         const val DOOR_PROBE = 44f // 走廊端头向房间内伸的长度（保证与房间收边区无缝穿门）
         const val WALL = 26f       // 墙厚（绘制）
@@ -89,6 +89,10 @@ class DungeonGame {
     var camZoom = 1f; private set          // >1 = 拉远（Boss 战看更多）
     private var camInit = false
     var hpGhost = 100f                     // 血条残影值（渲染用）
+    // 传送门（Boss 清完后出现；走近交互进入下一层）与过场
+    var portal: Pair<Float, Float>? = null; private set
+    var portalNear = false; private set    // 靠近可交互（攻击键变「进入」）
+    var transition = 0f; private set       // >0 = 过场进行中（秒）
 
     private fun tickCamera(dt: Float) {
         val bossHere = engine.enemies.any { it.bossFloor > 0 && it.alive }
@@ -181,6 +185,8 @@ class DungeonGame {
         rng = Random(floor * 7919 + clearedRooms + totalKills)
         apNext = null; apPhase = 0   // 换层：上一层楼的导航承诺全部作废
         apSkipped.clear(); navStuckT = 0f; navStuckN = 0; navStuckRoom = null
+        portal = null; portalNear = false; transition = 0f
+        engine.enemies.clear(); engine.bullets.clear()
         val result = DungeonGenerator.generate(floor, rng)
         rooms = result.rooms
         floorCleared = 0
@@ -208,23 +214,42 @@ class DungeonGame {
             room.visited = true
             if (room.cleared) { clearedRooms++; floorCleared++ }
         }
-        // 场地 = 本房矩形（敌人不出房）；清空上一房实体（经验球保留在世界上）
-        engine.enemies.clear()
+        // 场地 = 本房矩形（敌人不出房）；跨房实体保留（预刷新敌人待机中），子弹清空
         engine.bullets.clear()
         engine.arenaLeft = roomLeft(room) + 30f
         engine.arenaTop = roomTop(room) + 30f
         engine.arenaRight = roomLeft(room) + ROOM_W - 30f
         engine.arenaBottom = roomTop(room) + ROOM_H - 30f
-        if (!room.cleared) populateRoom(room)
+        if (!room.cleared && !room.populated) populateRoom(room)
+        // 激活本房待机敌人（进房即战）
+        for (e in engine.enemies) {
+            if (e.dormant && roomContains(room, e.x, e.y)) e.dormant = false
+        }
+        // 预刷新：相邻未清房提前布置敌人（待机可见）
+        for (n in room.neighbors.values) {
+            if (!n.cleared && !n.populated) populateRoom(n)
+        }
     }
 
-    /** 按房型布置敌人（数量/强度随层数成长） */
+    /** 敌人坐标是否在房间矩形内 */
+    private fun roomContains(r: Room, x: Float, y: Float): Boolean {
+        val l = roomLeft(r); val t = roomTop(r)
+        return x >= l && x <= l + ROOM_W && y >= t && y <= t + ROOM_H
+    }
+
+    /** 当前房剩余活敌（预刷新的其他房敌人不计入清房判定） */
+    private fun roomEnemiesLeft(r: Room): Int =
+        engine.enemies.count { it.alive && !it.dormant && roomContains(r, it.x, it.y) }
+
+    /** 按房型布置敌人（数量/强度随层数成长）；幂等，出生为待机态，进房才激活 */
     private fun populateRoom(room: Room) {
-        val scaleHp = 1f + 0.35f * (floor - 1)
+        if (room.populated) return
+        room.populated = true
+        val scaleHp = 1f + 0.40f * (floor - 1)
         val scaleDmg = 1f + 0.2f * (floor - 1)
 
         fun spawn(kind: EnemyKind, elite: Boolean, x: Float, y: Float, big: Boolean = false) {
-            val baseHp = (if (big) 260f else 24f) * scaleHp * (if (elite) 2.2f else 1f)
+            val baseHp = (if (big) 260f else 20f) * scaleHp * (if (elite) 2.2f else 1f)
             val speed = (when (kind) {
                 EnemyKind.BAT -> 95f
                 EnemyKind.SLIME -> 55f
@@ -239,7 +264,7 @@ class DungeonGame {
             }
             val e = CombatEngine.Enemy(
                 x, y, r, baseHp, baseHp, speed,
-                (if (big) 12f else 7f) * scaleDmg * (if (elite) 1.4f else 1f),
+                (if (big) 12f else 6f) * scaleDmg * (if (elite) 1.4f else 1f),
                 kind, elite, xpValue = if (elite) 3 else 1,
             )
             if (elite) {
@@ -252,6 +277,7 @@ class DungeonGame {
                     CombatEngine.Affix.SPLIT -> {}
                 }
             }
+            e.dormant = true   // 预刷新待机：进房激活
             engine.spawnLater(engine.enemies.size * 0.12f, e)
         }
 
@@ -276,7 +302,7 @@ class DungeonGame {
                 // 每层 Boss：大体型 + 多阶段（<30% 狂暴）+ 每层不同机制（见 engine.bossAI）
                 val boss = CombatEngine.Enemy(
                     roomLeft(room) + ROOM_W / 2, roomTop(room) + ROOM_H / 2 - 40f,
-                    42f, 320f * scaleHp, 320f * scaleHp, 62f + floor * 3f,
+                    42f, 400f * scaleHp, 400f * scaleHp, 62f + floor * 3f,
                     11f * scaleDmg, EnemyKind.DUMMY, elite = false, xpValue = 8,
                 )
                 boss.bossFloor = floor
@@ -285,7 +311,7 @@ class DungeonGame {
                 engine.events.add(CombatEngine.FxEvent(boss.x, boss.y, "", false, null, 4))   // 出场冲击环
             }
             RoomType.BATTLE -> {
-                val n = 3 + rng.nextInt(2) + (floor - 1)   // 首层 3-4 只，逐层+1
+                val n = 4 + rng.nextInt(2) + (floor - 1)   // 房间加大后首层 4-5 只，逐层+1
                 repeat(n) {
                     val kind = when {
                         floor >= 2 && rng.nextInt(5) == 0 -> EnemyKind.CASTER
@@ -312,8 +338,16 @@ class DungeonGame {
         phase = Phase.EXPLORING
     }
 
+    /** 传送门交互：靠近 + 确认才进下层 */
+    fun enterPortal() {
+        if (phase != Phase.EXPLORING || portal == null || !portalNear) return
+        transition = 1.2f
+        phase = Phase.TRANSITION
+        engine.joyActive = false
+    }
+
     fun tick(dtRaw: Float) {
-        if (phase != Phase.EXPLORING && phase != Phase.LEVELUP && phase != Phase.SKILL_SELECT && phase != Phase.GAMEOVER) return
+        if (phase != Phase.EXPLORING && phase != Phase.LEVELUP && phase != Phase.SKILL_SELECT && phase != Phase.GAMEOVER && phase != Phase.TRANSITION) return
         val dt = dtRaw.coerceIn(0f, 0.05f)
         if ((runTimeSec * 2) != lastLogSec) {
             lastLogSec = runTimeSec * 2
@@ -359,6 +393,22 @@ class DungeonGame {
                 if (locked && engine.enemies.isNotEmpty() && engine.skillCd <= 0f) engine.useSkill()
             }
         }
+        // 过场：黑幕期间冻结世界，倒计时结束进下层
+        if (phase == Phase.TRANSITION) {
+            transition -= dt
+            if (transition <= 0f) {
+                phase = Phase.EXPLORING
+                floor++
+                buildFloor()
+                pendingSkills = engine.rollSkills(rng)
+                phase = Phase.SKILL_SELECT
+            }
+            return
+        }
+        // 传送门接近检测
+        portal?.let { pt ->
+            portalNear = kotlin.math.hypot(engine.px - pt.first, engine.py - pt.second) < 95f
+        }
         engine.tick(dt)
         tickCamera(dt)
         // 血条白色残影：hpGhost 慢速跟随真实 hp（掉血时白色部分延迟消失）
@@ -367,22 +417,17 @@ class DungeonGame {
         // 看门狗（自动驾驶）：锁门房里敌人已清光却没触发清房 → 强制开门，防任何边角状态卡死
         if (autopilot && phase == Phase.EXPLORING) {
             val roomNow = currentRoom
-            if (locked && roomNow != null && engine.enemies.isEmpty() && !engine.hasPendingSpawns()) {
+            if (locked && roomNow != null && roomEnemiesLeft(roomNow) == 0 && !engine.hasPendingSpawns()) {
                 apStuck += dt
                 if (apStuck > 1.5f) {
                     roomNow.cleared = true
                     locked = false
                     clearedRooms++
                     floorCleared++
-                    if (roomNow.type == RoomType.BOSS) {
-                        if (floor >= MAX_FLOOR) {
-                            phase = Phase.VICTORY
-                        } else {
-                            floor++
-                            buildFloor()
-                            pendingSkills = engine.rollSkills(rng)
-                            phase = Phase.SKILL_SELECT
-                        }
+                    if (roomNow.type == RoomType.BOSS && floor < MAX_FLOOR) {
+                        portal = roomLeft(roomNow) + ROOM_W / 2 to roomTop(roomNow) + ROOM_H / 2
+                    } else if (roomNow.type == RoomType.BOSS) {
+                        phase = Phase.VICTORY
                     }
                     apNext = null; apPhase = 0; apStuck = 0f
                 }
@@ -410,6 +455,12 @@ class DungeonGame {
             }
         }
 
+        // 本房待机敌持续激活（延迟刷怪落地时玩家已进房：进门瞬间的激活会漏掉它们）
+        currentRoom?.let { cur ->
+            for (e in engine.enemies) {
+                if (e.dormant && roomContains(cur, e.x, e.y)) e.dormant = false
+            }
+        }
         // 走进新房间
         if (phase == Phase.EXPLORING) {
             val here = rooms.firstOrNull { r ->
@@ -417,9 +468,9 @@ class DungeonGame {
                 engine.px >= l && engine.px <= l + ROOM_W && engine.py >= t && engine.py <= t + ROOM_H
             }
             if (here != null && here !== currentRoom) enterRoom(here)
-            // 清房判定（延迟刷怪全落地且清空才开门）
+            // 清房判定（本房延迟刷怪全落地且清空才开门）
             val room = currentRoom
-            if (room != null && locked && engine.enemies.isEmpty() && !engine.hasPendingSpawns()) {
+            if (room != null && locked && roomEnemiesLeft(room) == 0 && !engine.hasPendingSpawns()) {
                 room.cleared = true
                 locked = false
                 clearedRooms++
@@ -428,10 +479,8 @@ class DungeonGame {
                     if (floor >= MAX_FLOOR) {
                         phase = Phase.VICTORY
                     } else {
-                        floor++
-                        buildFloor()
-                        pendingSkills = engine.rollSkills(rng)
-                        phase = Phase.SKILL_SELECT
+                        // Boss 后生成传送门：走近按「进入」交互（不碰即传）
+                        portal = roomLeft(room) + ROOM_W / 2 to roomTop(room) + ROOM_H / 2
                     }
                 }
             }
@@ -443,7 +492,7 @@ class DungeonGame {
         val room = currentRoom ?: return
         if (locked) {
             // 战斗走位：近战贴脸保证命中与朝向；远程保持 200~420 距离风筝
-            val enemy = engine.enemies.filter { it.alive }.minByOrNull {
+            val enemy = engine.enemies.filter { it.alive && !it.dormant }.minByOrNull {
                 (it.x - engine.px) * (it.x - engine.px) + (it.y - engine.py) * (it.y - engine.py)
             }
             if (enemy == null) { engine.joyActive = false; return }
@@ -487,6 +536,17 @@ class DungeonGame {
             if (engine.py - engine.arenaTop < edge) gy += edge - (engine.py - engine.arenaTop)
             if (engine.arenaBottom - engine.py < edge) gy -= edge - (engine.arenaBottom - engine.py)
             apSteerTo(gx, gy)
+            return
+        }
+
+        // 传送门：直接走向传送门并触发交互
+        if (portal != null) {
+            val pt = portal!!
+            val d = kotlin.math.hypot(pt.first - engine.px, pt.second - engine.py)
+            if (portalNear) {
+                engine.joyActive = false
+                enterPortal()
+            } else apSteerTo(pt.first, pt.second)
             return
         }
 

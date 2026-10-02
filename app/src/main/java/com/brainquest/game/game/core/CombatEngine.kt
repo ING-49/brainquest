@@ -53,6 +53,7 @@ class CombatEngine {
         // 打击感：击退速度/剩余时间、硬直
         var kbVX = 0f; var kbVY = 0f; var kbT = 0f
         var stun = 0f
+        var dormant = false   // 待机（预刷新可见但未激活：不动/不伤人/不可被击）
     }
 
     class Bullet(
@@ -99,7 +100,7 @@ class CombatEngine {
     var attack = 10; private set
     var attackInterval = 0.8f; private set
     var speed = 220f; private set
-    var pickupRange = 100f; private set
+    var pickupRange = 55f; private set
     var elemPower = 1f; private set        // 元素伤害倍率
     var critChance = 0.05f; private set
     var facing = 0f; private set
@@ -180,7 +181,7 @@ class CombatEngine {
             "shield" -> { shieldTime = 8f; shieldLeft = 50f }
             "heal" -> { heal((maxHp * 0.4f).toInt()); events.add(FxEvent(px, py, "", false, null, 6)) }
             "slowtime" -> { timeScaleTimer = 5f; timeScale = 0.3f }
-            "freeze" -> enemies.forEach { it.frozen = maxOf(it.frozen, 2.5f) }
+            "freeze" -> enemies.forEach { if (!it.dormant) it.frozen = maxOf(it.frozen, 2.5f) }
             "meteor" -> nearestEnemy(700f)?.let { t ->
                 aoe(t.x, t.y, 150f, attack * 4f, Element.FIRE)
                 shake = 10f
@@ -346,6 +347,7 @@ class CombatEngine {
                 continue
             }
             if (!e.alive) continue
+            if (e.dormant) continue   // 待机敌人：不 AI/不接触伤害（渲染层照常显示）
             if (e.hitFlash > 0f) e.hitFlash -= dt
             // 元素状态
             ElementSystem.tickStatus(e, dt, this)
@@ -439,7 +441,7 @@ class CombatEngine {
             // 玩家子弹 × 敌人（索引循环：命中触发的 killEnemy→分裂 只进 spawnNow，防迭代中变更）
             for (ei in enemies.indices) {
                 val e = enemies[ei]
-                if (!e.alive) continue
+                if (!e.alive || e.dormant) continue
                 val dx = e.x - b.x; val dy = e.y - b.y
                 val rr = e.r + b.r
                 if (dx * dx + dy * dy <= rr * rr) {
@@ -602,7 +604,7 @@ class CombatEngine {
     var pendingUpgrades: List<Upgrade> = emptyList(); private set
 
     private fun rollUpgrades(): List<Upgrade> = listOf(
-        Upgrade("atk", "⚔️ 攻击力", "伤害 +25%"),
+        Upgrade("atk", "⚔️ 攻击力", "伤害 +15%"),
         Upgrade("aspd", "⚡ 攻速", "攻击间隔 −15%"),
         Upgrade("spd", "👟 移速", "移动速度 +10%"),
         Upgrade("hp", "❤️ 生命", "生命上限 +25 并回复 25"),
@@ -613,12 +615,12 @@ class CombatEngine {
     fun chooseUpgrade(id: String) {
         if (phase != Phase.LEVELUP) return
         when (id) {
-            "atk" -> attack = (attack * 1.25f).toInt().coerceAtLeast(attack + 1)
-            "aspd" -> attackInterval *= 0.85f
+            "atk" -> attack = (attack * 1.15f).toInt().coerceAtLeast(attack + 1)
+            "aspd" -> attackInterval *= 0.90f
             "spd" -> speed *= 1.10f
             "hp" -> { maxHp += 25; hp = min(hp + 25, maxHp) }
             "pickup" -> pickupRange *= 1.30f
-            "elem" -> elemPower *= 1.25f
+            "elem" -> elemPower *= 1.18f
         }
         pendingUpgrades = emptyList()
         phase = Phase.PLAYING
@@ -701,7 +703,7 @@ class CombatEngine {
         var best: Enemy? = null
         var bestD = maxDist * maxDist
         for (e in enemies) {
-            if (!e.alive) continue
+            if (!e.alive || e.dormant) continue
             val dx = e.x - px; val dy = e.y - py
             val d2 = dx * dx + dy * dy
             if (d2 <= bestD) { bestD = d2; best = e }
@@ -725,7 +727,7 @@ class CombatEngine {
     fun aoe(x: Float, y: Float, radius: Float, dmg: Float, element: Element?) {
         val r2 = radius * radius
         for (e in enemies) {
-            if (!e.alive) continue
+            if (!e.alive || e.dormant) continue
             val dx = e.x - x; val dy = e.y - y
             if (dx * dx + dy * dy <= r2) {
                 val d = hypot(dx, dy)
@@ -738,7 +740,7 @@ class CombatEngine {
     fun meleeArc(range: Float, arcRad: Float, dmg: Float, element: Element?) {
         var hits = 0
         for (e in enemies) {
-            if (!e.alive) continue
+            if (!e.alive || e.dormant) continue
             val dx = e.x - px; val dy = e.y - py
             val d = hypot(dx, dy)
             if (d > range + e.r) continue

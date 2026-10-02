@@ -30,6 +30,7 @@ class Room(
     var type: RoomType,   // 生成器先生成后定型（Boss 房取最远点），故 var
 ) {
     var visited = false          // 玩家进过
+    var populated = false        // 敌人已布置（预刷新幂等）
     var cleared = type == RoomType.START  // 清怪开门；起点房常开
     val discovered: Boolean get() = visited || neighbors.values.any { it.visited }
 
@@ -58,17 +59,17 @@ data class ClassDef(
         val ALL = listOf(
             ClassDef(
                 "knight", "⚔️ 剑士", "高血近战，稳扎稳打",
-                0xFFFF8A50, 0xFFB45309, 130, 200f, 13, 0.85f,
+                0xFFFF8A50, 0xFFB45309, 130, 200f, 10, 0.85f,
                 weaponName = "挥砍", passiveName = "格挡：受击伤害 −15%", skillName = "旋风斩",
             ),
             ClassDef(
                 "mage", "🔥 法师", "低血高伤，火球远轰",
-                0xFFB388FF, 0xFF6A1B9A, 85, 210f, 17, 1.0f,
+                0xFFB388FF, 0xFF6A1B9A, 85, 210f, 13, 1.0f,
                 weaponName = "火球", passiveName = "法力回复：击杀回 1 血", skillName = "暴风雪",
             ),
             ClassDef(
                 "ranger", "🏹 游侠", "高移速高攻速，风筝流",
-                0xFF7EE38A, 0xFF1B5E20, 95, 245f, 9, 0.55f,
+                0xFF7EE38A, 0xFF1B5E20, 95, 245f, 7, 0.55f,
                 weaponName = "连射", passiveName = "闪避：20% 概率免伤", skillName = "箭雨",
             ),
         )
