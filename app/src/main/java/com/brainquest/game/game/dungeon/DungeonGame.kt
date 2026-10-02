@@ -88,6 +88,7 @@ class DungeonGame {
     var camY = 0f; private set
     var camZoom = 1f; private set          // >1 = 拉远（Boss 战看更多）
     private var camInit = false
+    var hpGhost = 100f                     // 血条残影值（渲染用）
 
     private fun tickCamera(dt: Float) {
         val bossHere = engine.enemies.any { it.bossFloor > 0 && it.alive }
@@ -130,6 +131,8 @@ class DungeonGame {
         timeAcc = 0f
         engine.reset()
         engine.setStats(c.maxHp, c.attack, c.attackInterval, c.speed)
+        hpGhost = engine.maxHp.toFloat()
+        camInit = false
         // 永久升级（局外成长）：生命/攻击/移速
         val perks = pendingPerks
         engine.setMaxHp(engine.maxHp + 15 * (perks["hp"] ?: 0))
@@ -343,6 +346,9 @@ class DungeonGame {
         }
         engine.tick(dt)
         tickCamera(dt)
+        // 血条白色残影：hpGhost 慢速跟随真实 hp（掉血时白色部分延迟消失）
+        hpGhost += (engine.hp - hpGhost) * (dt * 4f).coerceIn(0f, 1f)
+        if (kotlin.math.abs(engine.hp - hpGhost) < 0.5f) hpGhost = engine.hp.toFloat()
         // 看门狗（自动驾驶）：锁门房里敌人已清光却没触发清房 → 强制开门，防任何边角状态卡死
         if (autopilot && phase == Phase.EXPLORING) {
             val roomNow = currentRoom

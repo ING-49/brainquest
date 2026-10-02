@@ -55,6 +55,8 @@ import com.brainquest.game.AppViewModel
 import com.brainquest.game.game.dungeon.model.ClassDef
 import com.brainquest.game.game.dungeon.Equipment
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import com.brainquest.game.game.dungeon.model.Dir
 import com.brainquest.game.game.dungeon.model.RoomType
 import com.brainquest.game.game.dungeon.render.EntityRenderer
@@ -139,6 +141,16 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     // 暗角渐变（只在画布尺寸变化时重建，避免每帧分配）
     val vignetteHolder = remember { arrayOfNulls<androidx.compose.ui.graphics.Brush>(1) }
     val vignetteSize = remember { floatArrayOf(0f, 0f) }
+    // 升级反馈：全屏白光 + 面板弹性放大
+    val lvlScale = remember { androidx.compose.animation.core.Animatable(1f) }
+    val lvlFlash = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(hud.phase) {
+        if (hud.phase == DungeonGame.Phase.LEVELUP || hud.phase == DungeonGame.Phase.SKILL_SELECT) {
+            lvlFlash.floatValue = 0.22f
+            lvlScale.snapTo(0.85f)
+            lvlScale.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.35f, stiffness = 380f))
+        }
+    }
 
     // 游戏循环
     LaunchedEffect(Unit) {
@@ -151,6 +163,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
             frame.intValue++
             animT.floatValue += dt
+            if (lvlFlash.floatValue > 0f) lvlFlash.floatValue = (lvlFlash.floatValue - dt).coerceAtLeast(0f)
             val dtFx = dt.coerceAtLeast(1f / 120f)
             // 消费引擎帧事件
             fun obtainFloat(): FloatFx = floatPool.removeFirstOrNull() ?: FloatFx(0f, 0f, "", Color.White, false)
@@ -222,6 +235,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             if (h != hud) hud = h
         }
     }
+
+    // 按钮按压反馈
+    val skillInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val skillPressed by skillInteraction.collectIsPressedAsState()
+    val bagInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val bagPressed by bagInteraction.collectIsPressedAsState()
 
     var rewarded by remember { mutableStateOf(false) }
     LaunchedEffect(hud.phase) {
@@ -375,6 +394,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }   // withTransform（震屏+缩放）——数值条/暗角在屏幕层
             vignetteHolder[0]?.let { drawRect(it) }
             if (game.engine.timeScale < 1f) drawRect(Color(0x14264CCF))   // 缓时滤镜
+            if (lvlFlash.floatValue > 0f) drawRect(Color.White.copy(alpha = lvlFlash.floatValue.coerceAtMost(0.5f)))   // 升级白光
             // 虚拟摇杆
             if (joyOn) {
                 drawCircle(JOY_C, 56f, joyBase, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
@@ -445,7 +465,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 OutlinedButton(
                     onClick = { engineRef.useSkill() },
                     enabled = engineRef.skillId != null && engineRef.skillCd <= 0f,
-                    modifier = Modifier.height(44.dp),
+                    interactionSource = skillInteraction,
+                    modifier = Modifier.height(44.dp).graphicsLayer {
+                        val k = if (skillPressed) 0.95f else 1f; scaleX = k; scaleY = k
+                    },
                 ) {
                     Text(
                         when (engineRef.skillId) {
@@ -463,7 +486,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 }
                 OutlinedButton(
                     onClick = { showBag = !showBag },
-                    modifier = Modifier.height(44.dp),
+                    interactionSource = bagInteraction,
+                    modifier = Modifier.height(44.dp).graphicsLayer {
+                        val k = if (bagPressed) 0.95f else 1f; scaleX = k; scaleY = k
+                    },
                 ) { Text("🎒") }
             }
         }
@@ -612,7 +638,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         // ---------- LevelUp 三选一（读引擎候选） ----------
         if (hud.phase == DungeonGame.Phase.LEVELUP) {
             Column(
-                Modifier.fillMaxSize().background(Color(0x99000000)),
+                Modifier.fillMaxSize().background(Color(0x99000000))
+                    .graphicsLayer { scaleX = lvlScale.value; scaleY = lvlScale.value; alpha = 0.4f + 0.6f * lvlScale.value },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -635,7 +662,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         // ---------- 技能三选一（每层结束） ----------
         if (hud.phase == DungeonGame.Phase.SKILL_SELECT) {
             Column(
-                Modifier.fillMaxSize().background(Color(0x99000000)),
+                Modifier.fillMaxSize().background(Color(0x99000000))
+                    .graphicsLayer { scaleX = lvlScale.value; scaleY = lvlScale.value; alpha = 0.4f + 0.6f * lvlScale.value },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {

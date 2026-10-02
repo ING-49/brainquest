@@ -146,8 +146,10 @@ object EntityRenderer {
             scope.drawLine(pal.line, Offset(l + 12f, gy), Offset(l + w - 12f, gy), 2f)
             gy += step
         }
-        // 墙（描边）
+        // 墙（描边）+ 墙顶亮边 + 墙体投影暗带（立体感）
         scope.drawRoundRect(pal.wall, Offset(l, t), Size(w, h), CornerRadius(18f), style = Stroke(DungeonGame.WALL))
+        scope.drawRect(GamePalette.BG_WALL_TOP, Offset(l + DungeonGame.WALL, t + DungeonGame.WALL), Size(w - DungeonGame.WALL * 2, 6f))
+        scope.drawRect(Color(0x30000000), Offset(l + DungeonGame.WALL, t + DungeonGame.WALL + 6f), Size(w - DungeonGame.WALL * 2, 24f))
         // 清怪后的房间中心标记（房型）
         val cx = l + w / 2
         val cy = t + h / 2
@@ -518,9 +520,12 @@ object EntityRenderer {
         val hpH = with(scope) { 10.dp.toPx() }
         val xpY = with(scope) { 58.dp.toPx() }
         val xpH = with(scope) { 5.dp.toPx() }
-        // 血条（权威数据在 engine）
+        // 血条（权威数据在 engine）：白色残影显示刚掉的血，红色为当前
         scope.drawRoundRect(BAR_BG, Offset(x, hpY), Size(barW, hpH), CornerRadius(hpH / 2))
-        scope.drawRoundRect(HP_C, Offset(x, hpY), Size(barW * (game.engine.hp.toFloat() / game.engine.maxHp).coerceIn(0f, 1f), hpH), CornerRadius(hpH / 2))
+        val ghostW = barW * (game.hpGhost / game.engine.maxHp).coerceIn(0f, 1f)
+        val hpW = barW * (game.engine.hp.toFloat() / game.engine.maxHp).coerceIn(0f, 1f)
+        if (ghostW > hpW) scope.drawRoundRect(Color(0xAAFFFFFF), Offset(x, hpY), Size(ghostW, hpH), CornerRadius(hpH / 2))
+        scope.drawRoundRect(HP_C, Offset(x, hpY), Size(hpW, hpH), CornerRadius(hpH / 2))
         // 经验条（真实数据）
         scope.drawRoundRect(BAR_BG, Offset(x, xpY), Size(barW, xpH), CornerRadius(xpH / 2))
         scope.drawRoundRect(
