@@ -75,6 +75,7 @@ class CombatEngine {
     class Orb(var x: Float, var y: Float, val value: Int) {
         var alive = true
         var magnet = false
+        var vx = 0f; var vy = 0f   // 掉落弹出初速（阻尼衰减）
     }
 
     /** 帧事件（伤害飘字/粒子/闪电，渲染层消费后转成持续特效） */
@@ -118,6 +119,9 @@ class CombatEngine {
     var hitStop = 0f; private set
     var playerFlash = 0f; private set
     private var velX = 0f; private var velY = 0f
+    // 连杀：3 秒内连续击杀；受伤断连
+    var killStreak = 0; private set
+    var killStreakTimer = 0f; private set
     /** 进行中的近战挥砍（前摇→判定→后摇），渲染层读来画轨迹 */
     var activeSlash: Slash? = null; private set
 
@@ -224,6 +228,7 @@ class CombatEngine {
         skillCd = 0f; shieldTime = 0f; shieldLeft = 0f
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         hitStop = 0f; playerFlash = 0f; velX = 0f; velY = 0f; activeSlash = null
+        killStreak = 0; killStreakTimer = 0f
         phase = Phase.IDLE
     }
 
@@ -233,6 +238,8 @@ class CombatEngine {
         if (phase != Phase.PLAYING) return
         val dt0 = dtRaw.coerceIn(0f, 0.05f)
         if (hitStop > 0f) hitStop -= dt0
+        // 连杀窗口
+        if (killStreakTimer > 0f) { killStreakTimer -= dt0; if (killStreakTimer <= 0f) killStreak = 0 }
         // 命中停顿：世界以 5% 速度推进（打击感核心）
         val dt = dt0 * if (hitStop > 0f) 0.05f else 1f
         elapsed += dt
@@ -438,6 +445,17 @@ class CombatEngine {
         for (oi in orbs.indices) {
             val o = orbs[oi]
             if (!o.alive) continue
+            // 掉落弹出初速（阻尼衰减），并夹在场内防止卡进墙缝
+            if (o.vx != 0f || o.vy != 0f) {
+                o.x += o.vx * dt; o.y += o.vy * dt
+                val k = kotlin.math.exp(-6f * dt)
+                o.vx *= k; o.vy *= k
+                if (o.vx * o.vx + o.vy * o.vy < 100f) { o.vx = 0f; o.vy = 0f }
+            }
+            if (arenaRight > arenaLeft) {
+                o.x = o.x.coerceIn(arenaLeft + 8f, arenaRight - 8f)
+                o.y = o.y.coerceIn(arenaTop + 8f, arenaBottom - 8f)
+            }
             val dx = px - o.x; val dy = py - o.y
             val d2 = dx * dx + dy * dy
             val rr = playerR + 6f
@@ -496,7 +514,14 @@ class CombatEngine {
             else -> if (e.bossFloor > 0) 0xFFFFD54F else 0xFFB0885A
         }.toInt()
         events.add(FxEvent(e.x, e.y, "", false, null, 1, tint = tint))
-        if (orbs.size < MAX_ORBS) orbs.add(Orb(e.x, e.y, e.xpValue))
+        killStreak++; killStreakTimer = 3f
+        if (orbs.size < MAX_ORBS) {
+            val a = Random.nextFloat() * 6.283f
+            val sp = 100f + Random.nextFloat() * 160f
+            val o = Orb(e.x, e.y, e.xpValue)
+            o.vx = cos(a) * sp; o.vy = sin(a) * sp
+            orbs.add(o)
+        }
         // 精英「分裂」词缀：死亡分裂成两只小怪
         if (e.affix == Affix.SPLIT && e.r > 12f && enemies.size + spawnNow.size < MAX_ENEMIES) {
             repeat(2) { idx ->
@@ -527,6 +552,7 @@ class CombatEngine {
         hp -= dmg.toInt()
         invincible = invincibleSec
         playerFlash = 0.15f
+        killStreak = 0   // 受伤断连击
         events.add(FxEvent(px, py - 30f, "-${dmg.toInt()}", false, null, 0))
         if (hp <= 0) { hp = 0; phase = Phase.GAMEOVER }
     }
