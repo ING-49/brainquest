@@ -128,6 +128,9 @@ class CombatEngine {
     // ---------- 输入 ----------
     var joyActive = false
     var joyX = 0f; var joyY = 0f
+    var attackHeld = false        // 攻击键按住（手动操作）
+    var autoAttack = false        // 自动驾驶/回归测试用：不按键也持续攻击
+    var aimTarget: Enemy? = null; private set   // 锁定目标（可视范围内最近敌人）
 
     // ---------- 容器 ----------
     val enemies = ArrayList<Enemy>(64)
@@ -228,6 +231,7 @@ class CombatEngine {
         level = 1; xp = 0; xpNext = 6
         invincible = 0f; attackTimer = 0f; timeAcc = 0f; elapsed = 0f
         joyActive = false; joyX = 0f; joyY = 0f
+        attackHeld = false; aimTarget = null
         skillCd = 0f; shieldTime = 0f; shieldLeft = 0f
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         hitStop = 0f; playerFlash = 0f; velX = 0f; velY = 0f; activeSlash = null
@@ -245,6 +249,8 @@ class CombatEngine {
         if (killStreakTimer > 0f) { killStreakTimer -= dt0; if (killStreakTimer <= 0f) killStreak = 0 }
         // 命中停顿：世界以 5% 速度推进（打击感核心）
         val dt = dt0 * if (hitStop > 0f) 0.05f else 1f
+        // 锁定：可视范围内且存活（同房间无遮挡物，按同房间处理）的最近敌人
+        aimTarget = nearestEnemy(460f)
         elapsed += dt
         if (invincible > 0f) invincible -= dt
         if (playerFlash > 0f) playerFlash -= dt
@@ -271,6 +277,8 @@ class CombatEngine {
         val vx = hypot(velX, velY)
         moving = vx > 20f
         if (inLen > 0.01f) facing = atan2(velY, velX)   // facing 只跟随真实输入；惯性滑行不抢朝向（faceTo 锁敌不被覆盖）
+        // 锁定目标存在 → 面向敌人（未锁定保持移动方向，可空A）
+        aimTarget?.let { at -> facing = atan2(at.y - py, at.x - px) }
         if (moving) {
             walkPhase += dt * 10f
             val wall = canPass
@@ -283,10 +291,12 @@ class CombatEngine {
             }
         }
 
-        // 自动攻击（武器产生弹道/近战判定）
-        attackTimer -= dt
-        if (attackTimer <= 0f) {
-            if (weapon.attack(this)) attackTimer = attackInterval
+        // 攻击：按住攻击键出招（自动驾驶 autoAttack 常开）
+        if (attackHeld || autoAttack) {
+            attackTimer -= dt
+            if (attackTimer <= 0f) {
+                if (weapon.attack(this)) attackTimer = attackInterval
+            }
         }
         // 近战挥砍推进：前摇结束瞬间判定，播完后摇收刀
         activeSlash?.let { s ->
@@ -774,7 +784,9 @@ interface Weapon {
     /** 近战挥砍：前摇后对朝向扇形判定（剑士） */
     class MeleeSlash(val range: Float = 95f, val arcDeg: Float = 100f, val windup: Float = 0.1f) : Weapon {
         override fun attack(engine: CombatEngine): Boolean {
-            val t = engine.nearestEnemy(range + 30f) ?: return false
+            val t = if (engine.autoAttack) engine.nearestEnemy(range + 30f)
+                    else engine.aimTarget?.takeIf { hypot(it.x - engine.px, it.y - engine.py) <= range + it.r }
+                ?: return false
             // 有目标才出刀：前摇 0.1s → 判定 → 后摇收刀（期间移速减半，tick 推进 activeSlash）
             if (engine.activeSlash != null) return false   // 上一刀没收完不连挥
             engine.beginSlash(CombatEngine.Slash(0f, windup, range, arcDeg, engine.attack.toFloat()))
@@ -782,23 +794,29 @@ interface Weapon {
         }
     }
 
-    /** 火球：单发火元素弹（法师） */
+    /** 火球：单发火元素弹（法师）；手动模式朝 facing（空A） */
     class Fireball : Weapon {
         override fun attack(engine: CombatEngine): Boolean {
-            val t = engine.nearestEnemy() ?: return false
-            val dx = t.x - engine.px; val dy = t.y - engine.py
+            val dx: Float; val dy: Float
+            val t = engine.nearestEnemy()
+            if (engine.autoAttack && t != null) { dx = t.x - engine.px; dy = t.y - engine.py }
+            else { dx = cos(engine.facing); dy = sin(engine.facing) }
             val d = hypot(dx, dy)
+            if (d < 1f) return false
             engine.fire(engine.px, engine.py, dx / d, dy / d, 380f, 7f, engine.attack.toFloat(), Element.FIRE)
             return true
         }
     }
 
-    /** 连射：无元素快速直线弹（游侠） */
+    /** 连射：无元素快速直线弹（游侠）；手动模式朝 facing（空A） */
     class RapidShot : Weapon {
         override fun attack(engine: CombatEngine): Boolean {
-            val t = engine.nearestEnemy() ?: return false
-            val dx = t.x - engine.px; val dy = t.y - engine.py
+            val dx: Float; val dy: Float
+            val t = engine.nearestEnemy()
+            if (engine.autoAttack && t != null) { dx = t.x - engine.px; dy = t.y - engine.py }
+            else { dx = cos(engine.facing); dy = sin(engine.facing) }
             val d = hypot(dx, dy)
+            if (d < 1f) return false
             engine.fire(engine.px, engine.py, dx / d, dy / d, 460f, 5f, engine.attack.toFloat(), Element.PHYSICAL)
             return true
         }

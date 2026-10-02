@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -100,6 +101,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     // DEBUG：自动化验收的自动驾驶（intent extra 打开）
     LaunchedEffect(Unit) {
         game.autopilot = com.brainquest.game.util.DebugFlags.autopilot
+        game.engine.autoAttack = game.autopilot   // 手动模式走攻击键；自动驾驶保持持续攻击
     }
     var hud by remember {
         mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0f, 0, true, 0, 0, "knight"))
@@ -294,9 +296,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = { off ->
-                            if (off.x <= size.width / 2f) {
+                            if (off.x <= size.width * 0.45f && off.y >= size.height * 0.45f) {
                                 joyOn = true
-                                joyBase = off
+                                joyBase = Offset(96.dp.toPx(), size.height - 96.dp.toPx())   // 固定底座位置
                                 game.engine.joyActive = true
                                 game.engine.joyX = 0f
                                 game.engine.joyY = 0f
@@ -342,6 +344,15 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             EntityRenderer.drawDrops(this, game, t)
             for (e in game.engine.enemies) EntityRenderer.drawEnemy(this, game, e, t)
             EntityRenderer.drawPlayer(this, game, t)
+            // 锁定目标金色标记（头顶）
+            game.engine.aimTarget?.let { at ->
+                if (at.alive) {
+                    val mx = at.x - game.camX
+                    val my = at.y - game.camY - at.r - 22f
+                    drawCircle(GamePalette.UI_GOLD.copy(alpha = 0.35f), 10f, Offset(mx, my), style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
+                    drawCircle(GamePalette.UI_GOLD, 3.5f, Offset(mx, my))
+                }
+            }
             // 特效：闪电 → 粒子 → 伤害飘字
             for (b in bolts) {
                 val a = (1f - b.t / 0.15f).coerceIn(0f, 1f)
@@ -421,14 +432,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             vignetteHolder[0]?.let { drawRect(it) }
             if (game.engine.timeScale < 1f) drawRect(Color(0x14264CCF))   // 缓时滤镜
             if (lvlFlash.floatValue > 0f) drawRect(Color.White.copy(alpha = lvlFlash.floatValue.coerceAtMost(0.5f)))   // 升级白光
-            // 虚拟摇杆
-            if (joyOn) {
-                drawCircle(JOY_C, 56f, joyBase, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
-                drawCircle(
-                    JOY_C, 26f,
-                    Offset(joyBase.x + game.engine.joyX * joyMaxPx, joyBase.y + game.engine.joyY * joyMaxPx),
-                )
-            }
+            // 虚拟摇杆：固定左下底座常显
+            val jb = Offset(96.dp.toPx(), size.height - 96.dp.toPx())
+            drawCircle(JOY_C, 56f, jb, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
+            drawCircle(
+                JOY_C, 26f,
+                if (joyOn) Offset(jb.x + game.engine.joyX * joyMaxPx, jb.y + game.engine.joyY * joyMaxPx) else jb,
+            )
         }
 
         // ---------- HUD（横屏布局：顶行文字 / 左上数值条+装备 / 右上小地图 / 左下摇杆 / 右下技能） ----------
@@ -481,10 +491,14 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
         }
-        // 背包按钮 + 主动技能按钮
+        // 攻击按钮（右下大圆，按住出招）+ 技能/背包
         if (hud.phase == DungeonGame.Phase.EXPLORING) {
-            Row(
+            Column(
                 Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+            Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -517,6 +531,25 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         val k = if (bagPressed) 0.95f else 1f; scaleX = k; scaleY = k
                     },
                 ) { Text("🎒") }
+            }
+            // 攻击按钮：按住出招（批次 C 里靠近传送门时变「进入」交互键）
+            Box(
+                Modifier
+                    .size(76.dp)
+                    .background(GamePalette.UI_PANEL, androidx.compose.foundation.shape.CircleShape)
+                    .border(2.dp, Color(0x88FFFFFF), androidx.compose.foundation.shape.CircleShape)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = {
+                                engineRef.attackHeld = true
+                                try { awaitRelease() } finally { engineRef.attackHeld = false }
+                            },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("🗡", style = MaterialTheme.typography.headlineMedium)
+            }
             }
         }
         if (showBag) {
