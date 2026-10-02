@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
+import com.brainquest.game.R
 import com.brainquest.game.game.dungeon.model.ClassDef
 import com.brainquest.game.game.dungeon.Equipment
 import androidx.compose.foundation.border
@@ -88,6 +89,8 @@ private data class Hud(
 @Composable
 fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var lastPlayerFlash = 0f
 
     // 游戏实例全局唯一：重开走 reset()，防止摇杆 pointerInput(Unit) 闭包绑旧实例
     val game = remember { DungeonGame() }
@@ -164,6 +167,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             frame.intValue++
             animT.floatValue += dt
             if (lvlFlash.floatValue > 0f) lvlFlash.floatValue = (lvlFlash.floatValue - dt).coerceAtLeast(0f)
+            if (game.engine.playerFlash > 0.13f && lastPlayerFlash <= 0.13f) {
+                DungeonSfx.play(context, player.soundOn, R.raw.dg_hurt, 0.7f, 250)
+            }
+            lastPlayerFlash = game.engine.playerFlash
             val dtFx = dt.coerceAtLeast(1f / 120f)
             // 消费引擎帧事件
             fun obtainFloat(): FloatFx = floatPool.removeFirstOrNull() ?: FloatFx(0f, 0f, "", Color.White, false)
@@ -190,6 +197,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                                 })
                             }
                         }
+                        if (ev.crit) DungeonSfx.play(context, player.soundOn, R.raw.dg_crit, 0.65f, 140)
+                        else DungeonSfx.play(context, player.soundOn, R.raw.dg_hit, 0.55f, 90)
                     }
                     1 -> {   // 死亡爆裂粒子（按敌人主色）
                         val pc = if (ev.tint != 0) Color(ev.tint) else GamePalette.UI_HP
@@ -203,9 +212,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                             }
                         }
                     }
-                    2 -> if (floats.size < 100) floats.add(obtainFloat().also { it.set(ev.x, ev.y, ev.text, GamePalette.UI_ORB, false) })
+                    2 -> { if (floats.size < 100) floats.add(obtainFloat().also { it.set(ev.x, ev.y, ev.text, GamePalette.UI_ORB, false) }); DungeonSfx.play(context, player.soundOn, R.raw.dg_pickup, 0.4f, 120) }
                     3 -> bolts.add(BoltFx(ev.x, ev.y, ev.x2, ev.y2, 0.15f))
-                    4 -> rings.add(RingFx(ev.x, ev.y, GamePalette.BOSS_GLOW, 220f, 0.6f))
+                    4 -> { rings.add(RingFx(ev.x, ev.y, GamePalette.BOSS_GLOW, 220f, 0.6f)); DungeonSfx.play(context, player.soundOn, R.raw.dg_boss, 0.8f, 1500) }
                     5 -> if (trails.size < 12) trails.add(TrailFx(ev.x, ev.y))
                     6 -> rings.add(RingFx(ev.x, ev.y, GamePalette.UI_EXP, 90f, 0.5f))
                 }
@@ -244,6 +253,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
 
     var rewarded by remember { mutableStateOf(false) }
     LaunchedEffect(hud.phase) {
+        when (hud.phase) {
+            DungeonGame.Phase.LEVELUP -> DungeonSfx.play(context, player.soundOn, R.raw.dg_levelup, 0.7f, 0)
+            DungeonGame.Phase.SKILL_SELECT -> DungeonSfx.play(context, player.soundOn, R.raw.dg_skill, 0.7f, 0)
+            DungeonGame.Phase.VICTORY -> DungeonSfx.play(context, player.soundOn, R.raw.dg_victory, 0.85f, 0)
+            DungeonGame.Phase.GAMEOVER -> DungeonSfx.play(context, player.soundOn, R.raw.dg_lose, 0.8f, 0)
+            else -> {}
+        }
         if ((hud.phase == DungeonGame.Phase.GAMEOVER || hud.phase == DungeonGame.Phase.VICTORY) && !rewarded) {
             rewarded = true
             vm.addDungeonResult(hud.floor, hud.kills, hud.timeSec, game.coins)
@@ -463,7 +479,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedButton(
-                    onClick = { engineRef.useSkill() },
+                    onClick = { DungeonSfx.play(context, player.soundOn, R.raw.dg_skill, 0.6f, 300); engineRef.useSkill() },
                     enabled = engineRef.skillId != null && engineRef.skillCd <= 0f,
                     interactionSource = skillInteraction,
                     modifier = Modifier.height(44.dp).graphicsLayer {
