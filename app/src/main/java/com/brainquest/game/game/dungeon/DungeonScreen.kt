@@ -131,10 +131,14 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val parts = remember { ArrayList<ParticleFx>(64) }
     val bolts = remember { ArrayList<BoltFx>(8) }
     val rings = remember { ArrayList<RingFx>(4) }
+    val trails = remember { ArrayList<TrailFx>(8) }
     val floatPool = remember { ArrayDeque<FloatFx>() }
     val partPool = remember { ArrayDeque<ParticleFx>() }
     val textCache = remember { HashMap<String, androidx.compose.ui.text.TextLayoutResult>() }
     val rngFx = remember { kotlin.random.Random(7) }
+    // 暗角渐变（只在画布尺寸变化时重建，避免每帧分配）
+    val vignetteHolder = remember { arrayOfNulls<androidx.compose.ui.graphics.Brush>(1) }
+    val vignetteSize = remember { floatArrayOf(0f, 0f) }
 
     // 游戏循环
     LaunchedEffect(Unit) {
@@ -188,7 +192,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     2 -> if (floats.size < 100) floats.add(obtainFloat().also { it.set(ev.x, ev.y, ev.text, GamePalette.UI_ORB, false) })
                     3 -> bolts.add(BoltFx(ev.x, ev.y, ev.x2, ev.y2, 0.15f))
-                    4 -> rings.add(RingFx(ev.x, ev.y))
+                    4 -> rings.add(RingFx(ev.x, ev.y, GamePalette.BOSS_GLOW, 220f, 0.6f))
+                    5 -> if (trails.size < 12) trails.add(TrailFx(ev.x, ev.y))
+                    6 -> rings.add(RingFx(ev.x, ev.y, GamePalette.UI_EXP, 90f, 0.5f))
                 }
             }
             game.engine.events.clear()
@@ -200,7 +206,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             bolts.forEach { it.t += dtFx }
             bolts.removeAll { it.t > 0.15f }
             rings.forEach { it.t += dtFx }
-            rings.removeAll { it.t > 0.6f }
+            rings.removeAll { it.t > it.life }
+            trails.forEach { it.t += dtFx }
+            trails.removeAll { it.t > 0.3f }
             val e = game.engine
             val boss = game.engine.enemies.firstOrNull { it.bossFloor > 0 && it.alive }
             val h = Hud(
@@ -267,11 +275,23 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         ) {
             frame.intValue   // 订阅：每帧重绘
             val t = animT.floatValue
-            // 震屏：引擎 shake 衰减期间相机随机抖动
+            // 暗角（画布尺寸变化才重建 Brush）
+            if (vignetteSize[0] != size.width || vignetteSize[1] != size.height) {
+                vignetteSize[0] = size.width; vignetteSize[1] = size.height
+                vignetteHolder[0] = androidx.compose.ui.graphics.Brush.radialGradient(
+                    listOf(Color.Transparent, Color(0x1A000000), Color(0x42000000)),
+                    center = Offset(size.width / 2f, size.height / 2f),
+                    radius = hypot(size.width, size.height) / 2f,
+                )
+            }
+            // 震屏 + 相机缩放（Boss 战拉远）：世界层统一变换
             val shk = game.engine.shake
             val shx = if (shk > 0f) (kotlin.random.Random.nextFloat() - 0.5f) * shk * 2f else 0f
             val shy = if (shk > 0f) (kotlin.random.Random.nextFloat() - 0.5f) * shk * 2f else 0f
-            withTransform({ translate(shx, shy) }) {
+            withTransform({
+                translate(shx, shy)
+                scale(game.camZoom, game.camZoom, pivot = Offset(size.width / 2f, size.height / 2f))
+            }) {
             EntityRenderer.drawWorld(this, game, t)
             EntityRenderer.drawProjectiles(this, game)
             EntityRenderer.drawDrops(this, game, t)
@@ -290,14 +310,19 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 val a = (1f - pt.t / 0.4f).coerceIn(0f, 1f)
                 drawCircle(pt.color.copy(alpha = a), 3.5f, Offset(pt.x - game.camX, pt.y - game.camY))
             }
-            for (rg in rings) {   // Boss 出场冲击环
-                val k = rg.t / 0.6f
+            for (rg in rings) {   // Boss 出场/治疗 冲击环
+                val k = (rg.t / rg.life).coerceIn(0f, 1f)
                 drawCircle(
-                    GamePalette.BOSS_GLOW.copy(alpha = (0.6f * (1f - k)).coerceIn(0f, 1f)),
-                    20f + k * 220f,
+                    rg.color.copy(alpha = (0.6f * (1f - k)).coerceIn(0f, 1f)),
+                    20f + k * rg.maxR,
                     Offset(rg.x - game.camX, rg.y - game.camY),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(6f * (1f - k) + 1f),
                 )
+            }
+            for (tr in trails) {   // 冲刺残影
+                val a = (1f - tr.t / 0.3f).coerceIn(0f, 1f)
+                val bodyC = game.cls?.bodyColor?.let { Color(it) } ?: Color.White
+                drawCircle(bodyC.copy(alpha = 0.35f * a), 14f, Offset(tr.x - game.camX, tr.y - game.camY))
             }
             for (ft in floats) {
                 val a = (1f - ft.t / 0.7f).coerceIn(0f, 1f)
@@ -347,7 +372,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
                 EntityRenderer.drawBars(this, game)
             }
-            }   // withTransform 震屏
+            }   // withTransform（震屏+缩放）——数值条/暗角在屏幕层
+            vignetteHolder[0]?.let { drawRect(it) }
+            if (game.engine.timeScale < 1f) drawRect(Color(0x14264CCF))   // 缓时滤镜
             // 虚拟摇杆
             if (joyOn) {
                 drawCircle(JOY_C, 56f, joyBase, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
@@ -781,7 +808,12 @@ private class ParticleFx() {
 /** 闪电链段 */
 private class BoltFx(val x1: Float, val y1: Float, val x2: Float, val y2: Float, var t: Float)
 
-/** Boss 出场冲击环 */
-private class RingFx(val x: Float, val y: Float) {
+/** Boss 出场/治疗冲击环 */
+private class RingFx(val x: Float, val y: Float, val color: Color, val maxR: Float, var life: Float = 0.6f) {
+    var t = 0f
+}
+
+/** 冲刺残影 */
+private class TrailFx(val x: Float, val y: Float) {
     var t = 0f
 }

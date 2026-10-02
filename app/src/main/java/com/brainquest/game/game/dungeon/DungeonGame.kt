@@ -82,10 +82,36 @@ class DungeonGame {
     /** DEBUG/局外成长：永久升级（选职业前由 Screen 注入，startRun 应用） */
     var pendingPerks: Map<String, Int> = emptyMap()
 
-    // ---------- 视口 ----------
+    // ---------- 视口（平滑相机：前瞻偏移 + Boss 拉远 + 房间边界） ----------
     var viewW = 2000f; var viewH = 1080f   // 横屏视口（onSizeChanged 会覆盖）
-    val camX: Float get() = engine.px - viewW / 2
-    val camY: Float get() = engine.py - viewH / 2
+    var camX = 0f; private set
+    var camY = 0f; private set
+    var camZoom = 1f; private set          // >1 = 拉远（Boss 战看更多）
+    private var camInit = false
+
+    private fun tickCamera(dt: Float) {
+        val bossHere = engine.enemies.any { it.bossFloor > 0 && it.alive }
+        val targetZoom = if (bossHere) 1.15f else 1f
+        camZoom += (targetZoom - camZoom) * (dt * 4f).coerceIn(0f, 1f)
+        val lookX = if (engine.joyActive) engine.joyX * 90f / camZoom else 0f
+        val lookY = if (engine.joyActive) engine.joyY * 90f / camZoom else 0f
+        val tx = engine.px + lookX - viewW / 2f / camZoom
+        val ty = engine.py + lookY - viewH / 2f / camZoom
+        if (!camInit) { camX = tx; camY = ty; camInit = true }
+        else {
+            val k = (dt * 6f).coerceIn(0f, 1f)
+            camX += (tx - camX) * k; camY += (ty - camY) * k
+        }
+        // 相机不越出当前房间（视口比房大则居中）
+        currentRoom?.let { r ->
+            val l = roomLeft(r); val t = roomTop(r)
+            val vw = viewW / camZoom; val vh = viewH / camZoom
+            camX = if (vw >= ROOM_W + 60f) l + ROOM_W / 2 - vw / 2
+                   else camX.coerceIn(l - 30f, l + ROOM_W + 30f - vw)
+            camY = if (vh >= ROOM_H + 60f) t + ROOM_H / 2 - vh / 2
+                   else camY.coerceIn(t - 30f, t + ROOM_H + 30f - vh)
+        }
+    }
 
     // ---------- 流程 ----------
     fun toClassSelect() { if (phase == Phase.READY) phase = Phase.CLASS_SELECT }
@@ -316,6 +342,7 @@ class DungeonGame {
             }
         }
         engine.tick(dt)
+        tickCamera(dt)
         // 看门狗（自动驾驶）：锁门房里敌人已清光却没触发清房 → 强制开门，防任何边角状态卡死
         if (autopilot && phase == Phase.EXPLORING) {
             val roomNow = currentRoom

@@ -166,13 +166,16 @@ class CombatEngine {
         if (phase != Phase.PLAYING || skillCd > 0f) return false
         skillCd = skillCdMax
         when (id) {
-            "dash" -> {   // 冲刺：朝面向位移 240px + 短无敌
+            "dash" -> {   // 冲刺：朝面向位移 240px + 短无敌 + 残影
+                repeat(4) { i ->
+                    events.add(FxEvent(px - cos(facing) * 60f * (i + 1), py - sin(facing) * 60f * (i + 1), "", false, null, 5))
+                }
                 px += cos(facing) * 240f; py += sin(facing) * 240f
                 invincible = invincibleSec
                 shake = 6f
             }
             "shield" -> { shieldTime = 8f; shieldLeft = 50f }
-            "heal" -> heal((maxHp * 0.4f).toInt())
+            "heal" -> { heal((maxHp * 0.4f).toInt()); events.add(FxEvent(px, py, "", false, null, 6)) }
             "slowtime" -> { timeScaleTimer = 5f; timeScale = 0.3f }
             "freeze" -> enemies.forEach { it.frozen = maxOf(it.frozen, 2.5f) }
             "meteor" -> nearestEnemy(700f)?.let { t ->

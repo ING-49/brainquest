@@ -422,6 +422,9 @@ object EntityRenderer {
         val facingRight = fx >= 0f
         val facingUp = fy < -0.5f
 
+        // 0 角色微光（同心圆代替渐变笔刷，零分配）
+        scope.drawCircle(Color(0x06FFFFFF), 95f, Offset(sx, sy))
+        scope.drawCircle(Color(0x0AFFFFFF), 60f, Offset(sx, sy))
         // 1 阴影
         scope.drawOval(SHADOW, Offset(sx - 18f, sy + 14f), Size(36f, 10f))
 
@@ -470,9 +473,13 @@ object EntityRenderer {
             scope.drawCircle(OUTLINE, 1.8f, Offset(sx + 4f + ex, headY - 1f))
         }
 
-        // 7.5 受击红闪
+        // 7.5 受击红闪 + 护盾光环
         if (game.engine.playerFlash > 0f) {
             scope.drawCircle(Color(0x66FF5252), 24f, Offset(sx, sy - 6f))
+        }
+        if (game.engine.shieldTime > 0f) {
+            val pulse = 0.5f + 0.5f * sin(time * 5f)
+            scope.drawCircle(GamePalette.ELEM_ICE.copy(alpha = 0.2f + 0.15f * pulse), 34f, Offset(sx, sy - 4f), style = Stroke(3f))
         }
 
         // 7 武器：跟手、随职业（右臂端点为支点，指向 facing）
