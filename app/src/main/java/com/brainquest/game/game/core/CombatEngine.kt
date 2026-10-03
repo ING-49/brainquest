@@ -273,7 +273,7 @@ class CombatEngine {
         val slowK = if (activeSlash != null) 0.5f else 1f
         val tx = jx * speed * slowK
         val ty = jy * speed * slowK
-        val accel = if (inLen > 0.01f) 1200f else 1500f
+        val accel = if (inLen > 0.01f) 1600f else 1900f   // 起步更快、松手急停更跟手
         val dvx = tx - velX; val dvy = ty - velY
         val dl = hypot(dvx, dvy)
         if (dl > 0.01f) {
@@ -297,12 +297,11 @@ class CombatEngine {
             }
         }
 
-        // 攻击：按住攻击键出招（自动驾驶 autoAttack 常开）
-        if (attackHeld || autoAttack) {
-            attackTimer -= dt
-            if (attackTimer <= 0f) {
-                if (weapon.attack(this)) attackTimer = attackInterval
-            }
+        // 攻击 CD 恒走表（武器内置 CD）：点按=CD 好了立即出手；长按=每完成 CD 自动下一发
+        attackTimer -= dt
+        if (attackTimer < -attackInterval) attackTimer = -attackInterval   // 防久置漂移，点按永远即时
+        if ((attackHeld || autoAttack) && attackTimer <= 0f) {
+            if (weapon.attack(this)) attackTimer = attackInterval
         }
         // 近战挥砍推进：前摇结束瞬间判定，播完后摇收刀
         activeSlash?.let { s ->

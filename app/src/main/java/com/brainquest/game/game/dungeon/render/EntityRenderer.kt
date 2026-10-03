@@ -134,8 +134,8 @@ object EntityRenderer {
 
         // 地板
         scope.drawRoundRect(pal.floor, Offset(l, t), Size(w, h), CornerRadius(18f))
-        // 地板拼格线
-        val step = 80f
+        // 地板拼格线（细分 40px：画面更显大，后续地形/陷阱可直接挂格）
+        val step = 40f
         var gx = l + step
         while (gx < l + w - 4f) {
             scope.drawLine(pal.line, Offset(gx, t + 12f), Offset(gx, t + h - 12f), 2f)
@@ -549,15 +549,15 @@ object EntityRenderer {
 
     // ---------- HUD 数值条（供 Screen 的 Canvas 调用；dp 定位适配横竖屏） ----------
     fun drawBars(scope: DrawScope, game: DungeonGame) {
-        val barW = with(scope) { (scope.size.width * 0.26f).coerceAtMost(300.dp.toPx()) }
+        val barW = with(scope) { (scope.size.width * 0.20f).coerceAtMost(220.dp.toPx()) }
         val x = with(scope) { 12.dp.toPx() }
-        val hpY = with(scope) { 44.dp.toPx() }
-        val hpH = with(scope) { 10.dp.toPx() }
-        val xpY = with(scope) { 58.dp.toPx() }
-        val xpH = with(scope) { 5.dp.toPx() }
+        val hpY = with(scope) { 42.dp.toPx() }
+        val hpH = with(scope) { 8.dp.toPx() }
+        val xpY = with(scope) { 54.dp.toPx() }
+        val xpH = with(scope) { 4.dp.toPx() }
         // 面板底框（半透明圆角 + 亮边，游戏 HUD 风）+ 职业头像圆
-        val panelH = with(scope) { 46.dp.toPx() }
-        val avatarR = with(scope) { 16.dp.toPx() }
+        val panelH = with(scope) { 38.dp.toPx() }
+        val avatarR = with(scope) { 13.dp.toPx() }
         scope.drawRoundRect(GamePalette.UI_PANEL, Offset(x - 8f, hpY - 14f), Size(barW + avatarR * 2 + 16f, panelH), CornerRadius(12f))
         scope.drawRoundRect(GamePalette.UI_PANEL_EDGE, Offset(x - 8f, hpY - 14f), Size(barW + avatarR * 2 + 16f, panelH), CornerRadius(12f), style = Stroke(1.5f))
         val bodyC = game.cls?.let { Color(it.bodyColor) } ?: GamePalette.UI_TEXT

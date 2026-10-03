@@ -136,6 +136,12 @@ class DungeonGame {
 
     fun toClassSelect() { if (phase == Phase.READY) phase = Phase.CLASS_SELECT }
 
+    /** 退出本局回到游戏大厅（不清 App 返回栈） */
+    fun exitToLobby() {
+        reset()
+        phase = Phase.READY
+    }
+
     fun selectClass(id: String) {
         if (phase != Phase.CLASS_SELECT) return
         cls = ClassDef.byId(id)
@@ -257,11 +263,11 @@ class DungeonGame {
                 else -> 68f
             }) + floor * 4f
             val r = when {
-                big -> 42f
-                elite -> 24f
-                kind == EnemyKind.SLIME -> 15f
-                else -> 16f
-            }
+                big -> 48f
+                elite -> 27f
+                kind == EnemyKind.SLIME -> 17f
+                else -> 18f
+            }   // 整体加大 ~15%：更有怪物体积感
             val e = CombatEngine.Enemy(
                 x, y, r, baseHp, baseHp, speed,
                 (if (big) 12f else 6f) * scaleDmg * (if (elite) 1.4f else 1f),
@@ -302,7 +308,7 @@ class DungeonGame {
                 // 每层 Boss：大体型 + 多阶段（<30% 狂暴）+ 每层不同机制（见 engine.bossAI）
                 val boss = CombatEngine.Enemy(
                     roomLeft(room) + ROOM_W / 2, roomTop(room) + ROOM_H / 2 - 40f,
-                    42f, 400f * scaleHp, 400f * scaleHp, 62f + floor * 3f,
+                    46f, 400f * scaleHp, 400f * scaleHp, 62f + floor * 3f,
                     11f * scaleDmg, EnemyKind.DUMMY, elite = false, xpValue = 8,
                 )
                 boss.bossFloor = floor
