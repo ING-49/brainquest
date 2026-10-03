@@ -445,10 +445,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     )
                 }
             }
+            }   // withTransform（震屏+缩放）——数值条/暗角在屏幕层
             if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
                 EntityRenderer.drawBars(this, game)
             }
-            }   // withTransform（震屏+缩放）——数值条/暗角在屏幕层
             vignetteHolder[0]?.let { drawRect(it) }
             if (game.engine.timeScale < 1f) drawRect(Color(0x14264CCF))   // 缓时滤镜
             if (lvlFlash.floatValue > 0f) drawRect(Color.White.copy(alpha = lvlFlash.floatValue.coerceAtMost(0.5f)))   // 升级白光
@@ -493,7 +493,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         // 六槽装备芯片（品质色）：横屏下移到左上数值条下方，给摇杆留出整个左下区域
         if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
             Row(
-                Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 74.dp),
+                Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 104.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Equipment.Slot.entries.forEach { slot ->
@@ -995,7 +995,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
 /** 小地图：房间缩略矩形，已探索亮起、当前高亮、连线表门 */
 @Composable
 private fun Minimap(game: DungeonGame, modifier: Modifier) {
-    Canvas(modifier.width(120.dp).height(84.dp).background(Color(0x66000000), RoundedCornerShape(8.dp))) {
+    Canvas(modifier.width(124.dp).height(86.dp).background(Color(0x881A1F2E), RoundedCornerShape(10.dp)).border(1.5.dp, Color(0x33FFFFFF), RoundedCornerShape(10.dp))) {
         val rooms = game.rooms
         if (rooms.isEmpty()) return@Canvas
         val minX = rooms.minOf { it.gx }

@@ -539,21 +539,28 @@ object EntityRenderer {
         val hpH = with(scope) { 10.dp.toPx() }
         val xpY = with(scope) { 58.dp.toPx() }
         val xpH = with(scope) { 5.dp.toPx() }
-        // 面板底框（半透明圆角 + 亮边，游戏 HUD 风）
-        val panelH = with(scope) { 38.dp.toPx() }
-        scope.drawRoundRect(GamePalette.UI_PANEL, Offset(x - 8f, hpY - 14f), Size(barW + 16f, panelH), CornerRadius(10f))
-        scope.drawRoundRect(GamePalette.UI_PANEL_EDGE, Offset(x - 8f, hpY - 14f), Size(barW + 16f, panelH), CornerRadius(10f), style = Stroke(1.5f))
+        // 面板底框（半透明圆角 + 亮边，游戏 HUD 风）+ 职业头像圆
+        val panelH = with(scope) { 46.dp.toPx() }
+        val avatarR = with(scope) { 16.dp.toPx() }
+        scope.drawRoundRect(GamePalette.UI_PANEL, Offset(x - 8f, hpY - 14f), Size(barW + avatarR * 2 + 16f, panelH), CornerRadius(12f))
+        scope.drawRoundRect(GamePalette.UI_PANEL_EDGE, Offset(x - 8f, hpY - 14f), Size(barW + avatarR * 2 + 16f, panelH), CornerRadius(12f), style = Stroke(1.5f))
+        val bodyC = game.cls?.let { Color(it.bodyColor) } ?: GamePalette.UI_TEXT
+        val acC = game.cls?.let { Color(it.accentColor) } ?: GamePalette.UI_GOLD
+        scope.drawCircle(bodyC, avatarR, Offset(x + avatarR, hpY + panelH / 2f - 6f))
+        scope.drawCircle(acC, avatarR * 0.55f, Offset(x + avatarR, hpY + panelH / 2f - 6f - avatarR * 0.45f))
+        scope.drawCircle(OUTLINE, avatarR, Offset(x + avatarR, hpY + panelH / 2f - 6f), style = Stroke(2f))
+        val bx = x + avatarR * 2 + 8f
         // 血条（权威数据在 engine）：白色残影显示刚掉的血，红色为当前
-        scope.drawRoundRect(BAR_BG, Offset(x, hpY), Size(barW, hpH), CornerRadius(hpH / 2))
+        scope.drawRoundRect(BAR_BG, Offset(bx, hpY), Size(barW, hpH), CornerRadius(hpH / 2))
         val ghostW = barW * (game.hpGhost / game.engine.maxHp).coerceIn(0f, 1f)
         val hpW = barW * (game.engine.hp.toFloat() / game.engine.maxHp).coerceIn(0f, 1f)
-        if (ghostW > hpW) scope.drawRoundRect(Color(0xAAFFFFFF), Offset(x, hpY), Size(ghostW, hpH), CornerRadius(hpH / 2))
-        scope.drawRoundRect(HP_C, Offset(x, hpY), Size(hpW, hpH), CornerRadius(hpH / 2))
+        if (ghostW > hpW) scope.drawRoundRect(Color(0xAAFFFFFF), Offset(bx, hpY), Size(ghostW, hpH), CornerRadius(hpH / 2))
+        scope.drawRoundRect(HP_C, Offset(bx, hpY), Size(hpW, hpH), CornerRadius(hpH / 2))
         // 经验条（真实数据）
-        scope.drawRoundRect(BAR_BG, Offset(x, xpY), Size(barW, xpH), CornerRadius(xpH / 2))
+        scope.drawRoundRect(BAR_BG, Offset(bx, xpY), Size(barW, xpH), CornerRadius(xpH / 2))
         scope.drawRoundRect(
             GamePalette.UI_EXP,
-            Offset(x, xpY),
+            Offset(bx, xpY),
             Size(barW * (game.engine.xp.toFloat() / game.engine.xpNext).coerceIn(0f, 1f), xpH),
             CornerRadius(xpH / 2),
         )
