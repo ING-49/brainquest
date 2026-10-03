@@ -217,9 +217,17 @@ object EntityRenderer {
                         Offset(sx + kotlin.math.cos(a) * (e.r + 14f), sy + kotlin.math.sin(a) * (e.r + 14f)))
                 }
             }
+            // 攻击前摇预警：黄色脉冲环（可预判可躲避）
+            if (e.atkState == 1 && !e.dying) {
+                val pulse = sin(time * 22f) * 3f
+                drawCircle(Color(0x88FFEB3B), e.r + 6f + pulse, Offset(sx, sy), style = Stroke(3f))
+            }
             when (e.kind) {
                 com.brainquest.game.game.dungeon.model.EnemyKind.SLIME -> {
-                    val squash = 1f + sin(time * 8f + e.wobbleSeed) * 0.08f
+                    // 突进时拉长，蓄力时压扁
+                    val squash = if (e.atkState == 1) 0.72f
+                        else if (e.atkState == 2) 1.15f
+                        else 1f + sin(time * 8f + e.wobbleSeed) * 0.08f
                     drawOval(SLIME_C, Offset(sx - e.r, sy - e.r * squash - hop), Size(e.r * 2, e.r * 2 * squash))
                     drawOval(SLIME_DARK, Offset(sx - e.r, sy - e.r * squash - hop), Size(e.r * 2, e.r * 2 * squash), style = Stroke(2f))
                     drawCircle(Color(0x40FFFFFF), e.r * 0.28f, Offset(sx - e.r * 0.4f, sy - e.r * 1.1f - hop))   // 顶部高光
@@ -228,13 +236,15 @@ object EntityRenderer {
                 }
                 com.brainquest.game.game.dungeon.model.EnemyKind.SKELETON -> drawSkeletonBody(sx, sy, e.r, time, e.wobbleSeed)
                 com.brainquest.game.game.dungeon.model.EnemyKind.BAT -> {
+                    val hover = if (e.atkState == 1) -10f else 0f   // 蓄力拉高
                     val wy = wing * 6f
-                    drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx - e.r * 1.5f, sy - 10f + wy), 5f)
-                    drawLine(BAT_C, Offset(sx, sy - 4f), Offset(sx + e.r * 1.5f, sy - 10f + wy), 5f)
-                    drawCircle(BAT_C, e.r * 0.7f, Offset(sx, sy))
-                    drawCircle(GamePalette.PLAYER_OUTLINE, e.r * 0.7f, Offset(sx, sy), style = Stroke(2f))
-                    drawCircle(GamePalette.ENEMY_BAT_EYE, 2f, Offset(sx - 3f, sy - 2f))
-                    drawCircle(GamePalette.ENEMY_BAT_EYE, 2f, Offset(sx + 3f, sy - 2f))
+                    val by = sy + hover
+                    drawLine(BAT_C, Offset(sx, by - 4f), Offset(sx - e.r * 1.5f, by - 10f + wy), 5f)
+                    drawLine(BAT_C, Offset(sx, by - 4f), Offset(sx + e.r * 1.5f, by - 10f + wy), 5f)
+                    drawCircle(BAT_C, e.r * 0.7f, Offset(sx, by))
+                    drawCircle(GamePalette.PLAYER_OUTLINE, e.r * 0.7f, Offset(sx, by), style = Stroke(2f))
+                    drawCircle(GamePalette.ENEMY_BAT_EYE, 2f, Offset(sx - 3f, by - 2f))
+                    drawCircle(GamePalette.ENEMY_BAT_EYE, 2f, Offset(sx + 3f, by - 2f))
                 }
                 com.brainquest.game.game.dungeon.model.EnemyKind.CASTER -> {
                     val c = CASTER_C
@@ -243,8 +253,8 @@ object EntityRenderer {
                     drawLine(c, Offset(sx - e.r, sy + e.r * 0.8f), Offset(sx + e.r, sy + e.r * 0.8f), 10f)
                     drawCircle(SLIME_DARK, e.r * 0.45f, Offset(sx, sy - e.r * 0.9f))
                     drawLine(DUMMY_WOOD, Offset(sx + e.r * 0.9f, sy + e.r * 0.6f), Offset(sx + e.r * 1.1f, sy - e.r * 1.1f), 3f)
-                    // 蓄力发光：放弹幕前 0.5s 杖顶宝珠变大发光
-                    val charging = e.aiTimer < 0.5f
+                    // 蓄力发光：前摇期杖顶宝珠变大发光
+                    val charging = e.atkState == 1
                     if (charging) drawCircle(THUNDER_C.copy(alpha = 0.35f), 9f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
                     drawCircle(THUNDER_C, if (charging) 5f else 3.5f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
                 }
@@ -506,7 +516,13 @@ object EntityRenderer {
         // 7 武器：跟手、随职业（右臂端点为支点，指向 facing）
         val handX = sx + 15f + swing * 0.6f
         val handY = bodyTop + 12f + swing * 0.6f
-        val deg = Math.toDegrees((game.engine.facing + sin(game.engine.walkPhase * 0.5f) * 0.2f).toDouble()).toFloat()
+        // 挥砍时武器从 -60° 甩到 +60°（随 activeSlash 进度）
+        val swingOff = game.engine.activeSlash?.let { sl ->
+            if (sl.timer >= sl.windup && sl.timer <= sl.windup + 0.15f)
+                Math.toDegrees((-60.0 + 120.0 * ((sl.timer - sl.windup) / 0.15f))).toFloat()
+            else 0f
+        } ?: 0f
+        val deg = Math.toDegrees((game.engine.facing + sin(game.engine.walkPhase * 0.5f) * 0.2f).toDouble()).toFloat() + swingOff
         scope.rotate(deg, pivot = Offset(handX, handY)) {
             when (cls.id) {
                 "knight" -> {

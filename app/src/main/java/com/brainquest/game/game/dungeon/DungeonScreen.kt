@@ -230,6 +230,19 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     2 -> { if (floats.size < 100) floats.add(obtainFloat().also { it.set(ev.x, ev.y, ev.text, GamePalette.UI_ORB, false) }); DungeonSfx.play(context, player.soundOn, R.raw.dg_pickup, 0.4f, 120) }
                     3 -> bolts.add(BoltFx(ev.x, ev.y, ev.x2, ev.y2, 0.15f))
                     4 -> { rings.add(RingFx(ev.x, ev.y, GamePalette.BOSS_GLOW, 220f, 0.6f)); DungeonSfx.play(context, player.soundOn, R.raw.dg_boss, 0.8f, 1500) }
+                    8 -> rings.add(RingFx(ev.x, ev.y, Color(0xB0ECEFF1), 70f, 0.22f))
+                    9 -> if (parts.size < 300) {
+                        val mc = when (ev.element) {
+                            com.brainquest.game.game.core.Element.FIRE -> GamePalette.ELEM_FIRE
+                            com.brainquest.game.game.core.Element.ICE -> GamePalette.ELEM_ICE
+                            else -> GamePalette.UI_TEXT
+                        }
+                        repeat(3) {
+                            val ang = rngFx.nextFloat() * 6.283f
+                            val sp = 40f + rngFx.nextFloat() * 80f
+                            parts.add(obtainPart().also { it.set(ev.x, ev.y, kotlin.math.cos(ang) * sp, kotlin.math.sin(ang) * sp, 0.18f, mc) })
+                        }
+                    }
                     5 -> if (trails.size < 12) trails.add(TrailFx(ev.x, ev.y))
                     6 -> rings.add(RingFx(ev.x, ev.y, GamePalette.UI_EXP, 90f, 0.5f))
                 }
@@ -434,6 +447,15 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 val sweep = if (inSwing) 100f * ((s.timer - s.windup) / 0.15f).coerceIn(0f, 1f)
                             else if (after || s.fired) 100f else 0f
                 if (alpha > 0.02f && sweep > 1f) {
+                    // 攻击范围指示：扇形微光填充 + 亮弧边
+                    drawArc(
+                        Color(0x33FFFFFF).copy(alpha = alpha),
+                        startAngle = Math.toDegrees(en.facing.toDouble()).toFloat() - 50f,
+                        sweepAngle = sweep,
+                        useCenter = true,
+                        topLeft = Offset(psx - 95f, psy - 95f),
+                        size = Size(190f, 190f),
+                    )
                     drawArc(
                         Color(0x88FFFFFF).copy(alpha = alpha),
                         startAngle = Math.toDegrees(en.facing.toDouble()).toFloat() - 50f,
@@ -441,7 +463,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         useCenter = false,
                         topLeft = Offset(psx - 95f, psy - 95f),
                         size = Size(190f, 190f),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(8f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(12f),
                     )
                 }
             }
@@ -452,11 +474,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             vignetteHolder[0]?.let { drawRect(it) }
             if (game.engine.timeScale < 1f) drawRect(Color(0x14264CCF))   // 缓时滤镜
             if (lvlFlash.floatValue > 0f) drawRect(Color.White.copy(alpha = lvlFlash.floatValue.coerceAtMost(0.5f)))   // 升级白光
-            // 虚拟摇杆：固定左下底座常显
-            val jb = Offset(96.dp.toPx(), size.height - 96.dp.toPx())
-            drawCircle(JOY_C, 56f, jb, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
+            // 虚拟摇杆：固定左下底座常显（加大更醒目）
+            val jb = Offset(110.dp.toPx(), size.height - 100.dp.toPx())
+            drawCircle(Color(0x33FFFFFF), 78f, jb)
+            drawCircle(JOY_C, 72f, jb, style = androidx.compose.ui.graphics.drawscope.Stroke(4f))
             drawCircle(
-                JOY_C, 26f,
+                JOY_C, 32f,
                 if (joyOn) Offset(jb.x + game.engine.joyX * joyMaxPx, jb.y + game.engine.joyY * joyMaxPx) else jb,
             )
         }
@@ -514,9 +537,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         // 攻击按钮（右下大圆，按住出招）+ 技能/背包
         if (hud.phase == DungeonGame.Phase.EXPLORING) {
             Column(
-                Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 18.dp),
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -718,7 +741,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Text("🏰 地牢幸存者", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD)
+                    Text(
+                        "🏰 地牢幸存者",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = GamePalette.UI_GOLD,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedButton(
                             onClick = { game.cycleClass(-1) },
@@ -743,31 +772,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         color = Color(0xFFB0BEC5),
                     )
                 }
-                // 右：纪录 / 永久升级 / 模式 / 开始
+                // 右：模式 / 开始（纪录在底部小字）
                 Column(
                     Modifier.weight(1.1f).fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Text(
-                        "🏆 最高纪录：${player.bestScores["dungeon_floor"] ?: 0} 层 · 最高击杀 ${player.bestScores["dungeon_kills"] ?: 0}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = GamePalette.UI_GOLD,
-                    )
-                    // 永久升级（局外成长）
-                    val perks = player.dungeonPerks
-                    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(Triple("hp", "❤️", 8), Triple("atk", "⚔️", 1), Triple("spd", "👟", 4)).forEach { (id, icon, gain) ->
-                            val n = perks[id] ?: 0
-                            val cost = vm.dungeonPerkCost(id)
-                            OutlinedButton(onClick = { vm.buyDungeonPerk(id) }, modifier = Modifier.height(52.dp)) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("$icon+$gain Lv.$n", style = MaterialTheme.typography.labelSmall, color = Color.White)
-                                    Text("$cost🪙", style = MaterialTheme.typography.labelSmall, color = GamePalette.UI_GOLD)
-                                }
-                            }
-                        }
-                    }
                     // 模式卡
                     Card(
                         Modifier.fillMaxWidth(0.9f).padding(top = 12.dp),
@@ -800,10 +810,15 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         modifier = Modifier.fillMaxWidth(0.9f).padding(top = 14.dp).height(52.dp),
                     ) { Text("▶ 开始冒险", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                     OutlinedButton(onClick = { nav.popBackStack() }, modifier = Modifier.fillMaxWidth(0.9f).padding(top = 6.dp).height(40.dp)) { Text("返回") }
+                    Text(
+                        "🏆 最高纪录 ${player.bestScores["dungeon_floor"] ?: 0} 层 · 最高击杀 ${player.bestScores["dungeon_kills"] ?: 0}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF78909C),
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
             }
         }
-
         // ---------- 职业选择 ----------
         if (hud.phase == DungeonGame.Phase.CLASS_SELECT) {
             Column(
@@ -820,20 +835,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     color = Color(0xFFFFD54F),
                     modifier = Modifier.padding(top = 2.dp),
                 )
-                // 🧬 永久升级（局外成长，花费大厅同款金币）
-                val perks = player.dungeonPerks
-                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(Triple("hp", "❤️", 8), Triple("atk", "⚔️", 1), Triple("spd", "👟", 4)).forEach { (id, icon, gain) ->
-                        val n = perks[id] ?: 0
-                        val cost = vm.dungeonPerkCost(id)
-                        OutlinedButton(onClick = { vm.buyDungeonPerk(id) }, modifier = Modifier.height(56.dp)) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("$icon+$gain Lv.$n", style = MaterialTheme.typography.labelSmall, color = Color.White)
-                                Text("$cost🪙", style = MaterialTheme.typography.labelSmall, color = Color(0xFFFFD54F))
-                            }
-                        }
-                    }
-                }
+                // 🧬 局外加成已并入职业基础数值（真天赋系统规划于二期）
                 Row(Modifier.fillMaxWidth(0.94f).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ClassDef.ALL.forEach { c ->
                         Card(

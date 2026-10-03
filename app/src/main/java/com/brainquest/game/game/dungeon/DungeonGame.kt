@@ -100,15 +100,16 @@ class DungeonGame {
         val targetZoom = if (bossHere) 1.15f else 1f
         camZoom += (targetZoom - camZoom) * (dt * 4f).coerceIn(0f, 1f)
         val eff = camZoom * BASE_ZOOM
-        // 人物保持在屏幕中央（平滑跟随；房间大于视口时钳制不出房）
-        val tx = engine.px - viewW / 2f / eff
-        val ty = engine.py - viewH / 2f / eff
+        // 虚拟画布中心对准人物（渲染层再围绕屏幕中心做 eff 倍缩放——人物必然落在屏幕正中，
+        // 不可再除以 eff，否则两种缩放叠加会把画面推向左上）
+        val tx = engine.px - viewW / 2f
+        val ty = engine.py - viewH / 2f
         if (!camInit) { camX = tx; camY = ty; camInit = true }
         else {
             val k = (dt * 8f).coerceIn(0f, 1f)
             camX += (tx - camX) * k; camY += (ty - camY) * k
         }
-        // 房间比视口小才把相机固定在房间中心；否则人物始终在屏幕正中（主流动作游戏行为）
+        // 房间比视口小才把相机固定在房间中心（此时画面看全房）；否则人物恒居中
         currentRoom?.let { r ->
             val l = roomLeft(r); val t = roomTop(r)
             val vw = viewW / eff; val vh = viewH / eff

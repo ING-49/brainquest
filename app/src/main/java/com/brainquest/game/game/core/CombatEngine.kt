@@ -54,6 +54,11 @@ class CombatEngine {
         var kbVX = 0f; var kbVY = 0f; var kbT = 0f
         var stun = 0f
         var dormant = false   // 待机（预刷新可见但未激活：不动/不伤人/不可被击）
+        // 攻击状态机：0=普通 1=前摇（可预判） 2=出手/恢复
+        var atkState = 0
+        var atkTimer = 0f
+        var atkDirX = 0f; var atkDirY = 0f
+        var atkCd = 0f
     }
 
     class Bullet(
@@ -362,35 +367,91 @@ class CombatEngine {
 
             if (e.stun > 0f) { e.stun -= dt } else when (e.kind) {
                 EnemyKind.SLIME -> {
-                    // 弹跳：跳-停节奏
-                    e.aiTimer -= dt
-                    val hopping = (e.aiTimer % 1.1f) < 0.55f
-                    if (hopping && sp > 0f) {
-                        e.x += dx / d * sp * 1.6f * dt
-                        e.y += dy / d * sp * 1.6f * dt
+                    // 弹跳接近 + 蓄力压扁→短距突进（前摇 0.4s 可预判）
+                    if (e.atkState == 0) {
+                        e.aiTimer -= dt
+                        val hopping = (e.aiTimer % 1.1f) < 0.55f
+                        if (hopping && sp > 0f) {
+                            e.x += dx / d * sp * 1.6f * dt
+                            e.y += dy / d * sp * 1.6f * dt
+                        }
+                        e.atkCd -= dt
+                        if (e.atkCd <= 0f && d < 260f && d > 46f) { e.atkState = 1; e.atkTimer = 0.4f; e.atkCd = 3f }
+                    } else if (e.atkState == 1) {
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) { e.atkState = 2; e.atkTimer = 0.28f; e.atkDirX = dx / d; e.atkDirY = dy / d }
+                    } else {
+                        e.x += e.atkDirX * sp * 3.4f * dt
+                        e.y += e.atkDirY * sp * 3.4f * dt
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) e.atkState = 0
                     }
                 }
                 EnemyKind.BAT -> {
-                    // 高速乱飞：朝向玩家 + 正弦横向摆动
-                    e.aiTimer += dt
-                    val wobble = sin(e.aiTimer * 6f + e.wobbleSeed) * 0.7f
-                    val mx = dx / d + (-dy / d) * wobble
-                    val my = dy / d + (dx / d) * wobble
-                    val ml = hypot(mx, my)
-                    e.x += mx / ml * sp * 1.5f * dt
-                    e.y += my / ml * sp * 1.5f * dt
-                }
-                EnemyKind.CASTER -> {
-                    // 远程：保持 260~420 距离，超时放弹幕
-                    e.aiTimer -= dt
-                    if (d > 420f) { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt }
-                    else if (d < 260f) { e.x -= dx / d * sp * 0.8f * dt; e.y -= dy / d * sp * 0.8f * dt }
-                    if (e.aiTimer <= 0f && e.frozen <= 0f) {
-                        e.aiTimer = 2.4f
-                        bullets.add(Bullet(e.x, e.y, dx / d * 230f, dy / d * 230f, 6f, e.dmg, null, fromEnemy = true, life = 3f))
+                    // 绕飞接近 → 悬停拉高 → 俯冲穿过玩家位置
+                    if (e.atkState == 0) {
+                        e.aiTimer += dt
+                        val wobble = sin(e.aiTimer * 6f + e.wobbleSeed) * 0.7f
+                        val mx = dx / d + (-dy / d) * wobble
+                        val my = dy / d + (dx / d) * wobble
+                        val ml = hypot(mx, my)
+                        e.x += mx / ml * sp * 1.5f * dt
+                        e.y += my / ml * sp * 1.5f * dt
+                        e.atkCd -= dt
+                        if (e.atkCd <= 0f && d > 120f && d < 420f) { e.atkState = 1; e.atkTimer = 0.35f; e.atkCd = 2.8f }
+                    } else if (e.atkState == 1) {
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) { e.atkState = 2; e.atkTimer = 0.45f; e.atkDirX = dx / d; e.atkDirY = dy / d }
+                    } else {
+                        e.x += e.atkDirX * sp * 4f * dt
+                        e.y += e.atkDirY * sp * 4f * dt
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) e.atkState = 0
                     }
                 }
-                else -> {   // SKELETON / DUMMY：直追（Boss 走专属 AI）
+                EnemyKind.CASTER -> {
+                    // 远程：保持 260~420 距离；蓄力 0.5s → 三连扇形弹幕
+                    if (e.atkState == 0) {
+                        e.aiTimer -= dt
+                        if (d > 420f) { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt }
+                        else if (d < 260f) { e.x -= dx / d * sp * 0.8f * dt; e.y -= dy / d * sp * 0.8f * dt }
+                        if (e.aiTimer <= 0f && e.frozen <= 0f && d < 520f) { e.atkState = 1; e.atkTimer = 0.5f }
+                    } else if (e.atkState == 1) {
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) {
+                            if (bullets.size < MAX_BULLETS - 4) {
+                                val base = atan2(dy, dx)
+                                for (i in -1..1) {
+                                    val a = base + i * 0.21f
+                                    bullets.add(Bullet(e.x, e.y, cos(a) * 230f, sin(a) * 230f, 6f, e.dmg, null, fromEnemy = true, life = 3f))
+                                }
+                            }
+                            e.aiTimer = 2.4f
+                            e.atkState = 0
+                        }
+                    }
+                }
+                EnemyKind.SKELETON -> {
+                    // 接近 → 近身抬臂 0.3s → 横扫（范围 95 内判定）
+                    if (e.atkState == 0) {
+                        if (d > 70f) { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt }
+                        else {
+                            e.atkCd -= dt
+                            if (e.atkCd <= 0f) { e.atkState = 1; e.atkTimer = 0.3f }
+                        }
+                    } else if (e.atkState == 1) {
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) {
+                            if (d < 95f) hurtPlayer(e.dmg * 1.2f)
+                            events.add(FxEvent(e.x, e.y, "", false, null, 8))   // 挥砍白弧
+                            e.atkState = 2; e.atkTimer = 0.5f; e.atkCd = 1.6f
+                        }
+                    } else {
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) e.atkState = 0
+                    }
+                }
+                else -> {   // DUMMY：直追（Boss 走专属 AI）
                     if (e.bossFloor > 0) bossAI(e, dx, dy, d, sp, dt)
                     else { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt }
                 }
@@ -400,8 +461,8 @@ class CombatEngine {
                 e.x += e.kbVX * dt; e.y += e.kbVY * dt
                 e.kbT -= dt
             } else { e.kbVX = 0f; e.kbVY = 0f }
-            // 不沉入玩家圆心：贴到接触环即止（多怪堆进圆心会让近战扇形永远背对目标打空）
-            val minD = e.r + playerR + 2f
+            // 不沉入玩家圆心：贴到接触环即止（环径收在接触判定内 2px，贴脸必掉血）
+            val minD = e.r + playerR - 2f
             if (d < minD) {
                 e.x = px - dx / d * minD
                 e.y = py - dy / d * minD
@@ -636,6 +697,7 @@ class CombatEngine {
     fun fire(x: Float, y: Float, dirX: Float, dirY: Float, speed: Float, r: Float, dmg: Float, element: Element?, pierce: Int = 0) {
         if (bullets.size < MAX_BULLETS) {
             bullets.add(Bullet(x, y, dirX * speed, dirY * speed, r, dmg, element, fromEnemy = false, pierce = pierce))
+            events.add(FxEvent(x, y, "", false, element, 9))   // 枪口火光
         }
     }
 
