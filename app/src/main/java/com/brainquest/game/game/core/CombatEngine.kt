@@ -219,7 +219,7 @@ class CombatEngine {
 
     // ---------- 常量 ----------
     val playerR = 17f
-    private val invincibleSec = 0.8f
+    private val invincibleSec = 0.9f
 
     fun setStats(maxHp: Int, attack: Int, attackInterval: Float, speed: Float) {
         this.maxHp = maxHp; this.hp = maxHp
@@ -376,10 +376,13 @@ class CombatEngine {
                             e.y += dy / d * sp * 1.6f * dt
                         }
                         e.atkCd -= dt
-                        if (e.atkCd <= 0f && d < 260f && d > 46f) { e.atkState = 1; e.atkTimer = 0.4f; e.atkCd = 3f }
+                        if (e.atkCd <= 0f && d < 260f && d > 46f) {
+                            e.atkState = 1; e.atkTimer = 0.4f; e.atkCd = 3f
+                            e.atkDirX = dx / d; e.atkDirY = dy / d   // 前摇开始锁定方向：侧移即可躲
+                        }
                     } else if (e.atkState == 1) {
                         e.atkTimer -= dt
-                        if (e.atkTimer <= 0f) { e.atkState = 2; e.atkTimer = 0.28f; e.atkDirX = dx / d; e.atkDirY = dy / d }
+                        if (e.atkTimer <= 0f) { e.atkState = 2; e.atkTimer = 0.28f }
                     } else {
                         e.x += e.atkDirX * sp * 3.4f * dt
                         e.y += e.atkDirY * sp * 3.4f * dt
@@ -398,10 +401,13 @@ class CombatEngine {
                         e.x += mx / ml * sp * 1.5f * dt
                         e.y += my / ml * sp * 1.5f * dt
                         e.atkCd -= dt
-                        if (e.atkCd <= 0f && d > 120f && d < 420f) { e.atkState = 1; e.atkTimer = 0.35f; e.atkCd = 2.8f }
+                        if (e.atkCd <= 0f && d > 120f && d < 420f) {
+                            e.atkState = 1; e.atkTimer = 0.35f; e.atkCd = 2.8f
+                            e.atkDirX = dx / d; e.atkDirY = dy / d   // 前摇开始锁定俯冲方向
+                        }
                     } else if (e.atkState == 1) {
                         e.atkTimer -= dt
-                        if (e.atkTimer <= 0f) { e.atkState = 2; e.atkTimer = 0.45f; e.atkDirX = dx / d; e.atkDirY = dy / d }
+                        if (e.atkTimer <= 0f) { e.atkState = 2; e.atkTimer = 0.45f }
                     } else {
                         e.x += e.atkDirX * sp * 4f * dt
                         e.y += e.atkDirY * sp * 4f * dt
@@ -442,7 +448,7 @@ class CombatEngine {
                     } else if (e.atkState == 1) {
                         e.atkTimer -= dt
                         if (e.atkTimer <= 0f) {
-                            if (d < 95f) hurtPlayer(e.dmg * 1.2f)
+                            if (d < 95f) hurtPlayer(e.dmg)
                             events.add(FxEvent(e.x, e.y, "", false, null, 8))   // 挥砍白弧
                             e.atkState = 2; e.atkTimer = 0.5f; e.atkCd = 1.6f
                         }
