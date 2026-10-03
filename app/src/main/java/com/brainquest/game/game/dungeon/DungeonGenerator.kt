@@ -45,7 +45,7 @@ object DungeonGenerator {
         val start = place(0, 0, RoomType.START)
         var cur = start
         var dir = Dir.entries.random(rng)
-        val mainLen = 5 + rng.nextInt(4)   // 5..8 个主线战斗房
+        val mainLen = 4 + rng.nextInt(2)   // 4..5 个主线战斗房（大房间战斗更久，控制单局 8-15 分钟）
 
         repeat(mainLen) {
             // 优先延续当前方向，撞占格则换向（不回头）
@@ -75,7 +75,7 @@ object DungeonGenerator {
         val anchors = rooms.filter { it !== start && it !== boss }.shuffled(rng)
         var branches = 0
         for (base in anchors) {
-            if (branches >= 2 + rng.nextInt(3)) break
+            if (branches >= 2 + rng.nextInt(2)) break
             for (d in Dir.entries.shuffled(rng)) {
                 val nx = base.gx + d.dx
                 val ny = base.gy + d.dy
