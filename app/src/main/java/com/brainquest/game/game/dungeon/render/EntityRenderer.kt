@@ -539,6 +539,10 @@ object EntityRenderer {
         val hpH = with(scope) { 10.dp.toPx() }
         val xpY = with(scope) { 58.dp.toPx() }
         val xpH = with(scope) { 5.dp.toPx() }
+        // 面板底框（半透明圆角 + 亮边，游戏 HUD 风）
+        val panelH = with(scope) { 38.dp.toPx() }
+        scope.drawRoundRect(GamePalette.UI_PANEL, Offset(x - 8f, hpY - 14f), Size(barW + 16f, panelH), CornerRadius(10f))
+        scope.drawRoundRect(GamePalette.UI_PANEL_EDGE, Offset(x - 8f, hpY - 14f), Size(barW + 16f, panelH), CornerRadius(10f), style = Stroke(1.5f))
         // 血条（权威数据在 engine）：白色残影显示刚掉的血，红色为当前
         scope.drawRoundRect(BAR_BG, Offset(x, hpY), Size(barW, hpH), CornerRadius(hpH / 2))
         val ghostW = barW * (game.hpGhost / game.engine.maxHp).coerceIn(0f, 1f)

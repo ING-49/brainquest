@@ -110,10 +110,12 @@ fun AppRoot(vm: AppViewModel) {
             }
         },
     ) { inner ->
+        // 游戏类路由全出血：自己处理沉浸与挖孔（Scaffold 的安全区 padding 会在隐藏系统栏后留下四边空白）
+        val fullBleed = currentRoute == Routes.DUNGEON || currentRoute == Routes.SURVIVOR
         NavHost(
             navController = nav,
             startDestination = Routes.HOME,
-            modifier = Modifier.padding(inner),
+            modifier = if (fullBleed) Modifier else Modifier.padding(inner),
         ) {
             composable(Routes.HOME) { HomeScreen(vm, nav) }
             composable(Routes.SUBJECTS) { SubjectsScreen(vm, nav) }

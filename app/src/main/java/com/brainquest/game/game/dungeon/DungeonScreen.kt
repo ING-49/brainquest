@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -263,11 +264,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         }
     }
 
-    // 按钮按压反馈
-    val skillInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    val skillPressed by skillInteraction.collectIsPressedAsState()
-    val bagInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    val bagPressed by bagInteraction.collectIsPressedAsState()
+    // 攻击键按压反馈
+    var attackPressed by remember { mutableStateOf(false) }
 
     var rewarded by remember { mutableStateOf(false) }
     LaunchedEffect(hud.phase) {
@@ -521,44 +519,64 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedButton(
-                    onClick = { DungeonSfx.play(context, player.soundOn, R.raw.dg_skill, 0.6f, 300); engineRef.useSkill() },
-                    enabled = engineRef.skillId != null && engineRef.skillCd <= 0f,
-                    interactionSource = skillInteraction,
-                    modifier = Modifier.height(44.dp).graphicsLayer {
-                        val k = if (skillPressed) 0.95f else 1f; scaleX = k; scaleY = k
-                    },
+                // 技能键：圆形 + 冷却环（就绪时绿环）
+                Box(
+                    Modifier
+                        .size(64.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                if (engineRef.skillId != null && engineRef.skillCd <= 0f) {
+                                    DungeonSfx.play(context, player.soundOn, R.raw.dg_skill, 0.6f, 300)
+                                    engineRef.useSkill()
+                                }
+                            })
+                        },
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        when (engineRef.skillId) {
-                            "dash" -> "💨 冲刺"
-                            "shield" -> "🛡 护盾"
-                            "heal" -> "💚 治疗"
-                            "slowtime" -> "⏳ 缓时"
-                            "freeze" -> "❄️ 冰冻"
-                            "meteor" -> "☄️ 陨石"
-                            "chain" -> "⚡ 闪电"
-                            else -> "技能"
-                        } + if (engineRef.skillCd > 0f) " " + engineRef.skillCd.toInt() + "s" else "",
-                        color = if (engineRef.skillCd <= 0f) Color(0xFF7EE38A) else Color(0xFF78909C),
-                    )
+                    Canvas(Modifier.fillMaxSize()) {
+                        frame.intValue   // 每帧重绘订阅
+                        drawCircle(Color(0xCC1A1F2E), size.minDimension / 2f - 1f)
+                        drawCircle(GamePalette.UI_PANEL_EDGE, size.minDimension / 2f - 1f, style = Stroke(1.5f))
+                        val cdMax = engineRef.skillCdMax
+                        val cdFrac = if (cdMax > 0f) (engineRef.skillCd / cdMax).coerceIn(0f, 1f) else 0f
+                        if (cdFrac > 0f) {
+                            drawArc(Color(0xFF78909C).copy(alpha = 0.6f), -90f, 360f * (1f - cdFrac), useCenter = false,
+                                style = Stroke(3f))
+                        } else if (engineRef.skillId != null) {
+                            drawArc(GamePalette.UI_EXP, -90f, 360f, useCenter = false, style = Stroke(2.5f))
+                        }
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            when (engineRef.skillId) {
+                                "dash" -> "💨"; "shield" -> "🛡"; "heal" -> "💚"; "slowtime" -> "⏳"
+                                "freeze" -> "❄️"; "meteor" -> "☄️"; "chain" -> "⚡"; else -> "✨"
+                            },
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        if (engineRef.skillCd > 0f) {
+                            Text("${engineRef.skillCd.toInt()}s", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB0BEC5))
+                        }
+                    }
                 }
-                OutlinedButton(
-                    onClick = { showBag = !showBag },
-                    interactionSource = bagInteraction,
-                    modifier = Modifier.height(44.dp).graphicsLayer {
-                        val k = if (bagPressed) 0.95f else 1f; scaleX = k; scaleY = k
-                    },
-                ) { Text("🎒") }
+                // 背包键：小圆
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .background(GamePalette.UI_PANEL, androidx.compose.foundation.shape.CircleShape)
+                        .border(1.5.dp, GamePalette.UI_PANEL_EDGE, androidx.compose.foundation.shape.CircleShape)
+                        .pointerInput(Unit) { detectTapGestures(onTap = { showBag = !showBag }) },
+                    contentAlignment = Alignment.Center,
+                ) { Text("🎒", style = MaterialTheme.typography.titleMedium) }
             }
-            // 攻击按钮：按住出招；靠近传送门时变「进入」交互键
+            // 攻击键：大圆，按住出招；带挥砍就绪环；靠近传送门变「进入」交互键
             if (hud.hasPortal && hud.portalNear) {
                 Box(
                     Modifier
-                        .size(76.dp)
+                        .size(84.dp)
                         .background(Color(0x66BA68C8), androidx.compose.foundation.shape.CircleShape)
                         .border(2.dp, GamePalette.UI_COIN, androidx.compose.foundation.shape.CircleShape)
                         .pointerInput(Unit) { detectTapGestures(onTap = { game.enterPortal() }) },
@@ -572,20 +590,37 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             } else {
             Box(
                 Modifier
-                    .size(76.dp)
-                    .background(GamePalette.UI_PANEL, androidx.compose.foundation.shape.CircleShape)
-                    .border(2.dp, Color(0x88FFFFFF), androidx.compose.foundation.shape.CircleShape)
+                    .size(84.dp)
+                    .graphicsLayer {
+                        val k = if (attackPressed) 0.93f else 1f; scaleX = k; scaleY = k
+                    }
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onPress = {
+                                attackPressed = true
                                 engineRef.attackHeld = true
-                                try { awaitRelease() } finally { engineRef.attackHeld = false }
+                                try { awaitRelease() } finally {
+                                    attackPressed = false
+                                    engineRef.attackHeld = false
+                                }
                             },
                         )
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("🗡", style = MaterialTheme.typography.headlineMedium)
+                Canvas(Modifier.fillMaxSize()) {
+                    frame.intValue
+                    drawCircle(Color(0xCC1A1F2E), size.minDimension / 2f - 1f)
+                    drawCircle(Color(0x88FFFFFF), size.minDimension / 2f - 1f, style = Stroke(2f))
+                    // 挥砍就绪环：出手间隔走完亮一圈
+                    val at = engineRef.attackTimer
+                    val ai = engineRef.attackInterval
+                    if (at > 0f && ai > 0f) {
+                        drawArc(GamePalette.UI_GOLD.copy(alpha = 0.7f), -90f, 360f * (1f - (at / ai).coerceIn(0f, 1f)),
+                            useCenter = false, style = Stroke(3f))
+                    }
+                }
+                Text("🗡", style = MaterialTheme.typography.headlineLarge)
             }
             }
             }
@@ -722,7 +757,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     // 永久升级（局外成长）
                     val perks = player.dungeonPerks
                     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(Triple("hp", "❤️", 15), Triple("atk", "⚔️", 2), Triple("spd", "👟", 8)).forEach { (id, icon, gain) ->
+                        listOf(Triple("hp", "❤️", 8), Triple("atk", "⚔️", 1), Triple("spd", "👟", 4)).forEach { (id, icon, gain) ->
                             val n = perks[id] ?: 0
                             val cost = vm.dungeonPerkCost(id)
                             OutlinedButton(onClick = { vm.buyDungeonPerk(id) }, modifier = Modifier.height(52.dp)) {
@@ -788,7 +823,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 // 🧬 永久升级（局外成长，花费大厅同款金币）
                 val perks = player.dungeonPerks
                 Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(Triple("hp", "❤️", 15), Triple("atk", "⚔️", 2), Triple("spd", "👟", 8)).forEach { (id, icon, gain) ->
+                    listOf(Triple("hp", "❤️", 8), Triple("atk", "⚔️", 1), Triple("spd", "👟", 4)).forEach { (id, icon, gain) ->
                         val n = perks[id] ?: 0
                         val cost = vm.dungeonPerkCost(id)
                         OutlinedButton(onClick = { vm.buyDungeonPerk(id) }, modifier = Modifier.height(56.dp)) {
