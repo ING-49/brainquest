@@ -258,6 +258,40 @@ object EntityRenderer {
                     if (charging) drawCircle(THUNDER_C.copy(alpha = 0.35f), 9f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
                     drawCircle(THUNDER_C, if (charging) 5f else 3.5f, Offset(sx + e.r * 1.1f, sy - e.r * 1.15f))
                 }
+                com.brainquest.game.game.dungeon.model.EnemyKind.BONE_ARCHER -> {
+                    drawSkeletonBody(sx, sy, e.r * 0.95f, time, e.wobbleSeed)
+                    // 弓：朝向玩家的弓环；拉弓前摇画引满的弦
+                    val ang = kotlin.math.atan2(game.engine.py - e.y, game.engine.px - e.x)
+                    val bx = sx + kotlin.math.cos(ang) * e.r * 1.2f
+                    val by = sy + kotlin.math.sin(ang) * e.r * 1.2f
+                    drawCircle(BONE_DARK, 7f, Offset(bx, by), style = Stroke(3f))
+                    if (e.atkState == 1) drawLine(Color(0xFFFFEB3B), Offset(bx, by), Offset(sx, sy), 2.5f)
+                }
+                com.brainquest.game.game.dungeon.model.EnemyKind.SHIELD_GUARD -> {
+                    val sway = sin(time * 2f + e.wobbleSeed) * 2f
+                    // 灰甲身躯
+                    drawRoundRect(Color(0xFF546E7A), Offset(sx - e.r * 0.8f + sway, sy - e.r * 0.9f), Size(e.r * 1.6f, e.r * 1.7f), CornerRadius(8f))
+                    drawRoundRect(GamePalette.PLAYER_OUTLINE, Offset(sx - e.r * 0.8f + sway, sy - e.r * 0.9f), Size(e.r * 1.6f, e.r * 1.7f), CornerRadius(8f), style = Stroke(2.5f))
+                    drawCircle(Color(0xFF37474F), e.r * 0.4f, Offset(sx + sway, sy - e.r * 1.15f))
+                    drawLine(GamePalette.PLAYER_OUTLINE, Offset(sx - e.r * 0.3f + sway, sy - e.r * 1.15f), Offset(sx + e.r * 0.3f + sway, sy - e.r * 1.15f), 2f)
+                    // 大盾：面向玩家一侧的木盾（金边）
+                    val ang = kotlin.math.atan2(game.engine.py - e.y, game.engine.px - e.x)
+                    val gx2 = sx + kotlin.math.cos(ang) * e.r * 1.15f
+                    val gy2 = sy + kotlin.math.sin(ang) * e.r * 1.15f
+                    drawRoundRect(Color(0xFF8D6E63), Offset(gx2 - e.r * 0.38f, gy2 - e.r * 0.85f), Size(e.r * 0.76f, e.r * 1.7f), CornerRadius(6f))
+                    drawRoundRect(GamePalette.UI_GOLD, Offset(gx2 - e.r * 0.38f, gy2 - e.r * 0.85f), Size(e.r * 0.76f, e.r * 1.7f), CornerRadius(6f), style = Stroke(2f))
+                }
+                com.brainquest.game.game.dungeon.model.EnemyKind.BOOM_SLIME -> {
+                    val fuse = e.atkState == 1
+                    // 引爆预警：红色脉冲晕 + 快闪身体
+                    if (fuse) drawCircle(Color(0x55FF1744), e.r * 2.3f, Offset(sx, sy))
+                    val flash = if (fuse && (time * 14f).toInt() % 2 == 0) Color(0xFFFFAB91) else SLIME_C
+                    drawOval(flash, Offset(sx - e.r, sy - e.r), Size(e.r * 2, e.r * 2))
+                    drawOval(Color(0xFFBF360C), Offset(sx - e.r, sy - e.r), Size(e.r * 2, e.r * 2), style = Stroke(2f))
+                    drawCircle(Color(0x40FFFFFF), e.r * 0.28f, Offset(sx - e.r * 0.4f, sy - e.r * 1.05f))
+                    drawCircle(Color(0xFFBF360C), 2.5f, Offset(sx - 5f, sy - e.r * 0.55f))
+                    drawCircle(Color(0xFFBF360C), 2.5f, Offset(sx + 5f, sy - e.r * 0.55f))
+                }
                 else -> if (e.bossFloor > 0) drawBossBody(this, sx, sy, e, time) else drawDummyBody(sx, sy, e.r, time, e.wobbleSeed, boss = false)
             }
             if (e.dying) return@withTransform
@@ -283,11 +317,14 @@ object EntityRenderer {
                 drawRect(BAR_BG, Offset(sx - e.r, sy - e.r - 10f), Size(w, 4f))
                 drawRect(HP_C, Offset(sx - e.r, sy - e.r - 10f), Size(w * (e.hp / e.maxHp).coerceIn(0f, 1f), 4f))
             }
-            // 精英词缀标识（头顶小菱形）：狂暴=红 / 护盾=冰蓝 / 分裂=绿
+            // 精英词缀标识（头顶小菱形）：狂暴=红 / 护盾=冰蓝 / 分裂=绿 / 吸血=深红 / 再生=亮绿 / 霜环=青
             if (e.affix != null && !e.dying) {
                 val c = when (e.affix) {
                     com.brainquest.game.game.core.CombatEngine.Affix.RAGE -> GamePalette.BOSS_GLOW
                     com.brainquest.game.game.core.CombatEngine.Affix.SHIELD -> GamePalette.ELEM_ICE
+                    com.brainquest.game.game.core.CombatEngine.Affix.VAMPIRE -> Color(0xFFC2185B)
+                    com.brainquest.game.game.core.CombatEngine.Affix.REGEN -> Color(0xFF9CCC65)
+                    com.brainquest.game.game.core.CombatEngine.Affix.FROST -> Color(0xFF26C6DA)
                     else -> GamePalette.ENEMY_SLIME
                 }
                 val iy = sy - e.r - 20f

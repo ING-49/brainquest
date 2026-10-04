@@ -83,8 +83,8 @@ data class ClassDef(
     }
 }
 
-/** 敌人种类（阶段 1 只用木桩占位，阶段 2 起实装） */
-enum class EnemyKind { DUMMY, SLIME, SKELETON, BAT, CASTER }
+/** 敌人种类（DUMMY=木桩/Boss 底座） */
+enum class EnemyKind { DUMMY, SLIME, SKELETON, BAT, CASTER, BONE_ARCHER, SHIELD_GUARD, BOOM_SLIME }
 
 /** 精英词缀（阶段 5 实装） */
 enum class EliteAffix { RAGE, SHIELD, SPLIT }

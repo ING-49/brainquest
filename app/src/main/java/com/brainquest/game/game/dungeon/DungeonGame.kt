@@ -295,32 +295,51 @@ class DungeonGame {
         val scaleDmg = (1f + 0.2f * (floor - 1)) * endlessK
 
         fun spawn(kind: EnemyKind, elite: Boolean, x: Float, y: Float, big: Boolean = false) {
-            val baseHp = (if (big) 260f else 30f) * scaleHp * (if (elite) 2.2f else 1f)
+            // 新怪特化：盾卫高血高伤慢速；自爆史莱姆脆但痛；弓手略脆
+            val kindHp = when (kind) {
+                EnemyKind.SHIELD_GUARD -> 1.9f
+                EnemyKind.BOOM_SLIME -> 0.8f
+                else -> 1f
+            }
+            val kindDmg = when (kind) {
+                EnemyKind.SHIELD_GUARD -> 1.35f
+                EnemyKind.BOOM_SLIME -> 1.5f
+                EnemyKind.BONE_ARCHER -> 0.9f
+                else -> 1f
+            }
+            val baseHp = (if (big) 260f else 30f) * scaleHp * (if (elite) 2.2f else 1f) * kindHp
             val speed = (when (kind) {
                 EnemyKind.BAT -> 95f
+                EnemyKind.BONE_ARCHER -> 78f
+                EnemyKind.BOOM_SLIME -> 85f
                 EnemyKind.SLIME -> 55f
                 EnemyKind.CASTER -> 60f
+                EnemyKind.SHIELD_GUARD -> 45f
                 else -> 68f
             }) + floor * 4f
             val r = when {
                 big -> 48f
                 elite -> 27f
+                kind == EnemyKind.SHIELD_GUARD -> 24f
+                kind == EnemyKind.BONE_ARCHER -> 16f
+                kind == EnemyKind.BOOM_SLIME -> 15f
                 kind == EnemyKind.SLIME -> 17f
                 else -> 18f
             }   // 整体加大 ~15%：更有怪物体积感
             val e = CombatEngine.Enemy(
                 x, y, r, baseHp, baseHp, speed,
-                (if (big) 12f else 6f) * scaleDmg * (if (elite) 1.4f else 1f),
+                (if (big) 12f else 6f) * scaleDmg * (if (elite) 1.4f else 1f) * kindDmg,
                 kind, elite, xpValue = if (elite) 3 else 1,
             )
             if (elite) {
-                // 精英词缀：狂暴（加速）/ 护盾（额外盾条）/ 分裂（死亡分小怪）
+                // 精英词缀：狂暴/护盾/分裂/吸血/再生/霜环
                 val affix = CombatEngine.Affix.entries.random(rng)
                 e.affix = affix
                 when (affix) {
                     CombatEngine.Affix.RAGE -> e.speed *= 1.35f
                     CombatEngine.Affix.SHIELD -> e.shieldHp = baseHp * 0.4f
                     CombatEngine.Affix.SPLIT -> {}
+                    else -> {}
                 }
             }
             e.dormant = true   // 预刷新待机：进房激活
@@ -340,7 +359,7 @@ class DungeonGame {
             RoomType.ELITE -> {
                 repeat(2) { val (x, y) = spot(220f); spawn(EnemyKind.SKELETON, elite = true, x, y) }
                 repeat(3) {
-                    val kind = if (rng.nextBoolean()) EnemyKind.SLIME else EnemyKind.BAT
+                    val kind = listOf(EnemyKind.SKELETON, EnemyKind.BAT, EnemyKind.BONE_ARCHER, EnemyKind.BOOM_SLIME).random(rng)
                     val (x, y) = spot(220f); spawn(kind, elite = false, x, y)
                 }
             }
@@ -375,6 +394,9 @@ class DungeonGame {
                 val n = 5 + rng.nextInt(2) + (floor - 1)   // 大房间：首层 5-6 只，逐层+1
                 repeat(n) {
                     val kind = when {
+                        floor >= 3 && rng.nextInt(7) == 0 -> EnemyKind.SHIELD_GUARD   // 盾卫第 3 层起
+                        floor >= 2 && rng.nextInt(6) == 0 -> EnemyKind.BONE_ARCHER    // 弓手第 2 层起
+                        floor >= 2 && rng.nextInt(6) == 0 -> EnemyKind.BOOM_SLIME     // 自爆第 2 层起
                         floor >= 2 && rng.nextInt(5) == 0 -> EnemyKind.CASTER
                         rng.nextInt(3) == 0 -> EnemyKind.SKELETON
                         rng.nextInt(3) == 0 -> EnemyKind.BAT

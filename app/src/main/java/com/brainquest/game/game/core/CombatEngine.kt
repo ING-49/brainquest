@@ -93,7 +93,7 @@ class CombatEngine {
     )
 
     /** 精英词缀 */
-    enum class Affix { RAGE, SHIELD, SPLIT }
+    enum class Affix { RAGE, SHIELD, SPLIT, VAMPIRE, REGEN, FROST }
 
     /** 强化选项 */
     data class Upgrade(val id: String, val name: String, val desc: String)
@@ -118,6 +118,8 @@ class CombatEngine {
     var xp = 0; private set
     var xpNext = 6; private set
     var invincible = 0f; private set
+    /** 霜环减速剩余时间（精英「霜环」词缀靠近时刷新） */
+    var chill = 0f; private set
     var attackTimer = 0f; private set
     private var timeAcc = 0f
     var elapsed = 0f; private set
@@ -257,6 +259,7 @@ class CombatEngine {
         joyActive = false; joyX = 0f; joyY = 0f
         attackHeld = false; aimTarget = null
         skillCd = 0f; shieldTime = 0f; shieldLeft = 0f
+        chill = 0f
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         hitStop = 0f; playerFlash = 0f; velX = 0f; velY = 0f; activeSlash = null
         killStreak = 0; killStreakTimer = 0f
@@ -278,6 +281,7 @@ class CombatEngine {
         elapsed += dt
         if (invincible > 0f) invincible -= dt
         if (playerFlash > 0f) playerFlash -= dt
+        if (chill > 0f) chill -= dt
         if (skillCd > 0f) skillCd -= dt
         if (shieldTime > 0f) shieldTime -= dt
         if (timeScaleTimer > 0f) { timeScaleTimer -= dt; if (timeScaleTimer <= 0f) timeScale = 1f }
@@ -289,8 +293,9 @@ class CombatEngine {
         val inLen = hypot(jx, jy)
         if (inLen > 1f) { jx /= inLen; jy /= inLen }
         val slowK = if (activeSlash != null) 0.5f else 1f
-        val tx = jx * speed * slowK
-        val ty = jy * speed * slowK
+        val chillK = if (chill > 0f) 0.72f else 1f   // 精英「霜环」：靠近被冻慢
+        val tx = jx * speed * slowK * chillK
+        val ty = jy * speed * slowK * chillK
         val accel = if (inLen > 0.01f) 1600f else 1900f   // 起步更快、松手急停更跟手
         val dvx = tx - velX; val dvy = ty - velY
         val dl = hypot(dvx, dvy)
@@ -373,9 +378,13 @@ class CombatEngine {
             if (e.hitFlash > 0f) e.hitFlash -= dt
             // 元素状态
             ElementSystem.tickStatus(e, dt, this)
+            // 精英「再生」：每秒回 3% 最大生命（鼓励集火）
+            if (e.affix == Affix.REGEN && e.hp < e.maxHp) e.hp = minOf(e.hp + e.maxHp * 0.03f * dt, e.maxHp)
 
             val dx = px - e.x; val dy = py - e.y
             val d = hypot(dx, dy)
+            // 精英「霜环」：靠近时刷新玩家的冻慢时间
+            if (e.affix == Affix.FROST && d < 230f) chill = maxOf(chill, 0.2f)
             if (d < 1f) continue
             var sp = e.speed * timeScale
             // 冰减速 / 冻结
@@ -472,6 +481,63 @@ class CombatEngine {
                     } else {
                         e.atkTimer -= dt
                         if (e.atkTimer <= 0f) e.atkState = 0
+                    }
+                }
+                EnemyKind.BONE_ARCHER -> {
+                    // 远程单发：保持 380~560 距离；前摇 0.45s 锁定方向（侧移可躲）→ 快箭
+                    if (e.atkState == 0) {
+                        e.aiTimer -= dt
+                        if (d > 560f) { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt }
+                        else if (d < 380f) { e.x -= dx / d * sp * 0.9f * dt; e.y -= dy / d * sp * 0.9f * dt }
+                        e.atkCd -= dt
+                        if (e.atkCd <= 0f && e.frozen <= 0f && d < 640f) {
+                            e.atkState = 1; e.atkTimer = 0.45f; e.atkCd = 2.6f
+                            e.atkDirX = dx / d; e.atkDirY = dy / d   // 前摇开始锁定方向
+                        }
+                    } else if (e.atkState == 1) {
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) {
+                            if (bullets.size < MAX_BULLETS - 2) {
+                                bullets.add(Bullet(e.x, e.y, e.atkDirX * 430f, e.atkDirY * 430f, 5f, e.dmg, null, fromEnemy = true, life = 2.4f))
+                            }
+                            e.atkState = 0
+                        }
+                    }
+                }
+                EnemyKind.SHIELD_GUARD -> {
+                    // 重装盾卫：慢速逼近 → 近身蓄力 0.5s → 盾击（120 内判定，正面伤害被格挡见 hitEnemy）
+                    if (e.atkState == 0) {
+                        if (d > 75f) { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt }
+                        else {
+                            e.atkCd -= dt
+                            if (e.atkCd <= 0f) { e.atkState = 1; e.atkTimer = 0.5f }
+                        }
+                    } else if (e.atkState == 1) {
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) {
+                            if (d < 120f) hurtPlayer(e.dmg)
+                            events.add(FxEvent(e.x, e.y, "", false, null, 8))
+                            e.atkState = 2; e.atkTimer = 0.6f; e.atkCd = 2.4f
+                        }
+                    } else {
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) e.atkState = 0
+                    }
+                }
+                EnemyKind.BOOM_SLIME -> {
+                    // 自爆史莱姆：高速贴近 → 130 内起爆倒计时 0.6s（闪红预警）→ 爆炸 AoE 后消失
+                    if (e.atkState == 0) {
+                        e.x += dx / d * sp * 1.35f * dt
+                        e.y += dy / d * sp * 1.35f * dt
+                        if (d < 130f) { e.atkState = 1; e.atkTimer = 0.6f }
+                    } else {
+                        e.atkTimer -= dt
+                        if (e.atkTimer <= 0f) {
+                            if (d < 170f) hurtPlayer(e.dmg * 1.6f)
+                            events.add(FxEvent(e.x, e.y, "", false, Element.FIRE, 1, tint = 0xFFFF7043.toInt()))
+                            shake = maxOf(shake, 5f)
+                            killEnemy(e)
+                        }
                     }
                 }
                 else -> {   // DUMMY：直追（Boss 走专属 AI）
@@ -579,12 +645,24 @@ class CombatEngine {
         val crit = Random.nextFloat() < critChance
         if (crit) dmg *= 2f
         if (element != null) dmg *= elemPower
+        // 盾卫正面格挡：攻击来向与「盾卫→玩家」相反（即从玩家侧打来）→ 伤害 ×0.25，绕后全额
+        if (e.kind == EnemyKind.SHIELD_GUARD && e.bossFloor == 0 && e.alive) {
+            val fx = px - e.x; val fy = py - e.y
+            val fl = hypot(fx, fy).coerceAtLeast(1f)
+            val dot = if (kx == 0f && ky == 0f) -1f else (kx * fx + ky * fy) / fl
+            if (dot < -0.45f) {
+                dmg *= 0.25f
+                events.add(FxEvent(e.x, e.y - e.r - 6f, "格挡", false, null, 0))
+            }
+        }
         if (e.shieldHp > 0f) {
             val absorbed = minOf(e.shieldHp, dmg)
             e.shieldHp -= absorbed
             dmg -= absorbed
         }
         e.hp -= dmg
+        // 精英「吸血」：命中回血
+        if (e.affix == Affix.VAMPIRE && dmg > 0f) e.hp = minOf(e.hp + dmg * 0.2f, e.maxHp)
         if (e.reflect && e.bossFloor == 0 && dmg > 0f) hurtPlayer(dmg * 0.15f)
         e.hitFlash = 0.12f
         // 打击感：击退（Boss/精英减半）+ 硬直 + 命中停顿（暴击更长）
@@ -611,6 +689,9 @@ class CombatEngine {
             EnemyKind.SKELETON -> 0xFFECEFF1
             EnemyKind.BAT -> 0xFF7E57C2
             EnemyKind.CASTER -> 0xFFEF5350
+            EnemyKind.BONE_ARCHER -> 0xFFECEFF1
+            EnemyKind.SHIELD_GUARD -> 0xFF78909C
+            EnemyKind.BOOM_SLIME -> 0xFFFF7043
             else -> if (e.bossFloor > 0) 0xFFFFD54F else 0xFFB0885A
         }.toInt()
         events.add(FxEvent(e.x, e.y, "", false, null, 1, tint = tint))
@@ -633,7 +714,7 @@ class CombatEngine {
     }
 
     fun hurtPlayer(raw: Float) {
-        if (com.brainquest.game.util.DebugFlags.god) return   // 自动化上帝模式：不掉血
+        if (com.brainquest.game.util.DebugFlags.god) { hp = maxHp; return }   // 上帝模式：不掉血且回满（防 bot 低血撤退模式卡死）
         var dmg = raw
         when (passiveId) {
             "knight" -> dmg *= 0.85f                          // 格挡
