@@ -90,23 +90,38 @@ object Equipment {
             }
         }
         val slot = Slot.entries.random(rng)
-        val count = 1 + rarity.ordinal                                  // 白1 词条 … 橙4 词条
+        return Item(slot, rarity, rollAffixes(1 + rarity.ordinal, floor, rarity.mult, rng), floor)
+    }
+
+    /** 词条重铸：保留槽位/品质/层数，仅重随词条种类与数值（词条数不变） */
+    fun reroll(item: Item, rng: Random): Item =
+        item.copy(affixes = rollAffixes(item.affixes.size.coerceAtLeast(1), item.floor, item.rarity.mult, rng))
+
+    private fun rollAffixes(count: Int, floor: Int, mult: Float, rng: Random): Map<Affix, Int> {
         val pool = Affix.entries.shuffled(rng).take(count)
         val affixes = HashMap<Affix, Int>(count)
         for (a in pool) {
             affixes[a] = when (a) {
-                Affix.ATK -> (2 + floor) * rarity.mult.roundToInt().coerceAtLeast(1)
-                Affix.HP -> ((6 + 3 * floor) * rarity.mult).roundToInt()
-                Affix.SPD -> ((8 + 2 * floor) * rarity.mult).roundToInt()
-                Affix.CRIT -> (2 * rarity.mult).roundToInt().coerceAtLeast(1)
-                Affix.PICKUP -> (6 * rarity.mult).roundToInt()
-                Affix.ELEM -> (4 * rarity.mult).roundToInt()
+                Affix.ATK -> (2 + floor) * mult.roundToInt().coerceAtLeast(1)
+                Affix.HP -> ((6 + 3 * floor) * mult).roundToInt()
+                Affix.SPD -> ((8 + 2 * floor) * mult).roundToInt()
+                Affix.CRIT -> (2 * mult).roundToInt().coerceAtLeast(1)
+                Affix.PICKUP -> (6 * mult).roundToInt()
+                Affix.ELEM -> (4 * mult).roundToInt()
             }
         }
-        return Item(slot, rarity, affixes, floor)
+        return affixes
     }
 
     /** Boss/精英的保底品质 */
     fun generateElite(floor: Int, rng: Random): Item = generate(floor, rng, Rarity.EPIC)
     fun generateBoss(floor: Int, rng: Random): Item = generate(floor, rng, Rarity.LEGENDARY)
+
+    /** 分解回收价（拾取替换时发一半） */
+    fun salvageValue(item: Item): Int = when (item.rarity) {
+        Rarity.COMMON -> 2
+        Rarity.RARE -> 5
+        Rarity.EPIC -> 10
+        Rarity.LEGENDARY -> 20
+    }
 }

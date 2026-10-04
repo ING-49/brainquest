@@ -53,24 +53,25 @@ data class ClassDef(
     val attackInterval: Float,
     val weaponName: String,
     val passiveName: String,
-    val skillName: String,    // 主动技能（阶段 5 实装）
+    val skillName: String,    // 主动技能名（engine 用 skillId 实装）
+    val skillId: String,      // 职业专属主动技能 id（开局自带，见 CombatEngine.useSkill）
 ) {
     companion object {
         val ALL = listOf(
             ClassDef(
                 "knight", "⚔️ 剑士", "高血近战，稳扎稳打",
                 0xFFFF8A50, 0xFFB45309, 130, 200f, 10, 0.85f,
-                weaponName = "挥砍", passiveName = "格挡：受击伤害 −15%", skillName = "旋风斩",
+                weaponName = "挥砍", passiveName = "格挡：受击伤害 −15%", skillName = "旋风斩", skillId = "whirlwind",
             ),
             ClassDef(
                 "mage", "🔥 法师", "低血高伤，火球远轰",
                 0xFFB388FF, 0xFF6A1B9A, 85, 210f, 13, 1.0f,
-                weaponName = "火球", passiveName = "法力回复：击杀回 1 血", skillName = "暴风雪",
+                weaponName = "火球", passiveName = "法力回复：击杀回 1 血", skillName = "暴风雪", skillId = "blizzard",
             ),
             ClassDef(
                 "ranger", "🏹 游侠", "高移速高攻速，风筝流",
                 0xFF7EE38A, 0xFF1B5E20, 95, 245f, 7, 0.55f,
-                weaponName = "连射", passiveName = "闪避：20% 概率免伤", skillName = "箭雨",
+                weaponName = "连射", passiveName = "闪避：20% 概率免伤", skillName = "箭雨", skillId = "arrowrain",
             ),
         )
 

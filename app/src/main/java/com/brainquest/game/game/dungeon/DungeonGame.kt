@@ -8,6 +8,7 @@ import com.brainquest.game.game.dungeon.model.Dir
 import com.brainquest.game.game.dungeon.model.EnemyKind
 import com.brainquest.game.game.dungeon.model.Room
 import com.brainquest.game.game.dungeon.model.RoomType
+import kotlin.math.pow
 import kotlin.random.Random
 
 /**
@@ -46,6 +47,12 @@ class DungeonGame {
         var t = 0f
     }
 
+    /** 商店货架上的一件商品（gear 预生成货件在 item） */
+    class ShopGood(val id: String, val name: String, val desc: String, val cost: Int) {
+        var sold = false
+        var item: Equipment.Item? = null
+    }
+
     // ---------- 对局状态 ----------
     var phase = Phase.READY; private set
     var floor = 1; private set
@@ -56,6 +63,7 @@ class DungeonGame {
     var floorCleared = 0; private set   // 本层已清房数（HUD 显示用）
     var totalKills = 0; private set
     var coins = 0; private set
+    var shopGoods: List<ShopGood> = emptyList(); private set
     var runTimeSec = 0; private set
     private var timeAcc = 0f
     private var rng = Random(0)
@@ -94,6 +102,17 @@ class DungeonGame {
     var portal: Pair<Float, Float>? = null; private set
     var portalNear = false; private set    // 靠近可交互（攻击键变「进入」）
     var transition = 0f; private set       // >0 = 过场进行中（秒）
+    // 宝箱房 / 商店房实体（进房绑定当前房的房心实体，离房置空）
+    var chest: Pair<Float, Float>? = null; private set
+    var chestNear = false; private set
+    var shop: Pair<Float, Float>? = null; private set
+    var shopNear = false; private set
+    private val chestSpots = HashMap<Room, Pair<Float, Float>>()
+    private val openedChests = HashSet<Room>()
+    private val shopSpots = HashMap<Room, Pair<Float, Float>>()
+    private val apShopDone = HashSet<Room>()   // autopilot 已开过店的房（防开→关→开死循环）
+    // 模式：无尽（Boss 后不结算，传送门一直往下走，难度指数上升）；大厅层选择，跨局保留
+    var endless = false
 
     private fun tickCamera(dt: Float) {
         val bossHere = engine.enemies.any { it.bossFloor > 0 && it.alive }
@@ -169,10 +188,24 @@ class DungeonGame {
             "mage" -> Weapon.Fireball()
             else -> Weapon.RapidShot()
         }
+        // 职业专属主动技能：开局自带，冷却各不相同（三选一里重复选中=强化减 CD）
+        engine.classSkillId = c.skillId
+        engine.setSkill(c.skillId)
+        engine.skillCdMax = when (c.skillId) {
+            "whirlwind" -> 10f
+            "blizzard" -> 13f
+            else -> 9f
+        }
         engine.canPass = canPass
         engine.onEnemyKilled = { e ->
             totalKills++
             if (c.id == "mage") engine.heal(1)   // 法师被动：击杀回 1 血
+            // 金币掉落：精英 +8 / Boss +25（商店与重铸的收入来源）
+            val coinDrop = if (e.bossFloor > 0) 25 else if (e.elite) 8 else 0
+            if (coinDrop > 0) {
+                coins += coinDrop
+                engine.events.add(CombatEngine.FxEvent(e.x, e.y - e.r - 14f, "金币 +$coinDrop", false, null, 2))
+            }
             // 掉落：普通 10%、精英必掉史诗、Boss 必掉传说
             val item = when {
                 e.r > 30f -> Equipment.generateBoss(floor, rng)
@@ -192,6 +225,9 @@ class DungeonGame {
         apNext = null; apPhase = 0   // 换层：上一层楼的导航承诺全部作废
         apSkipped.clear(); navStuckT = 0f; navStuckN = 0; navStuckRoom = null
         portal = null; portalNear = false; transition = 0f
+        chest = null; chestNear = false
+        shop = null; shopNear = false; shopGoods = emptyList()
+        chestSpots.clear(); openedChests.clear(); shopSpots.clear(); apShopDone.clear()
         engine.enemies.clear(); engine.bullets.clear()
         val result = DungeonGenerator.generate(floor, rng)
         rooms = result.rooms
@@ -204,11 +240,9 @@ class DungeonGame {
 
     private fun enterRoom(room: Room) {
         currentRoom = room
-        if (!room.cleared && (room.type == RoomType.CHEST || room.type == RoomType.SHOP)) {
-            // 非战斗房无怪可清：进门即视为可通行（宝箱/商店内容阶段 4/7 实装）
+        if (!room.cleared && room.type == RoomType.SHOP) {
+            // 商店免战：进门即可通行（清房计数统一走下方 visited 首入块，避免双计）
             room.cleared = true
-            clearedRooms++
-            floorCleared++
         }
         locked = !room.cleared
         if (locked) {
@@ -227,6 +261,11 @@ class DungeonGame {
         engine.arenaRight = roomLeft(room) + ROOM_W - 30f
         engine.arenaBottom = roomTop(room) + ROOM_H - 30f
         if (!room.cleared && !room.populated) populateRoom(room)
+        // 绑定本房交互实体（宝箱开过不再出现；宝箱房 populate 在上一步完成）
+        chest = chestSpots[room]?.takeIf { room !in openedChests }
+        chestNear = false
+        shop = shopSpots[room]
+        shopNear = false
         // 激活本房待机敌人（进房即战）
         for (e in engine.enemies) {
             if (e.dormant && roomContains(room, e.x, e.y)) e.dormant = false
@@ -251,8 +290,10 @@ class DungeonGame {
     private fun populateRoom(room: Room) {
         if (room.populated) return
         room.populated = true
-        val scaleHp = 1f + 0.40f * (floor - 1)
-        val scaleDmg = 1f + 0.2f * (floor - 1)
+        android.util.Log.d("DGROOM", "populate floor=$floor ${room.type} at ${room.gx},${room.gy}")
+        val endlessK = if (floor > MAX_FLOOR) 1.15f.pow(floor - MAX_FLOOR) else 1f   // 无尽第 5 层后指数加难
+        val scaleHp = (1f + 0.40f * (floor - 1)) * endlessK
+        val scaleDmg = (1f + 0.2f * (floor - 1)) * endlessK
 
         fun spawn(kind: EnemyKind, elite: Boolean, x: Float, y: Float, big: Boolean = false) {
             val baseHp = (if (big) 260f else 30f) * scaleHp * (if (elite) 2.2f else 1f)
@@ -312,9 +353,24 @@ class DungeonGame {
                     11f * scaleDmg, EnemyKind.DUMMY, elite = false, xpValue = 8,
                 )
                 boss.bossFloor = floor
+                boss.dormant = true   // 预刷新待机：玩家进房才激活（否则落地即追击，隔房参战/被隔房斩杀）
                 engine.spawnLater(0.4f, boss)
                 engine.addShake(10f)   // Boss 出场震屏
                 engine.events.add(CombatEngine.FxEvent(boss.x, boss.y, "", false, null, 4))   // 出场冲击环
+            }
+            RoomType.CHEST -> {
+                // 房心放宝箱：开启前锁门，开启掉装备+金币（见 openChest）
+                chestSpots[room] = roomLeft(room) + ROOM_W / 2 to roomTop(room) + ROOM_H / 2
+            }
+            RoomType.SHOP -> {
+                // 房心放货摊：免战可穿过，走近交互购物
+                shopSpots[room] = roomLeft(room) + ROOM_W / 2 to roomTop(room) + ROOM_H / 2
+                val gear = Equipment.generate(floor, rng)
+                shopGoods = listOf(
+                    ShopGood("gear", gear.name, gear.describe(), 30 + 10 * floor).also { it.item = gear },
+                    ShopGood("heal", "行囊干粮", "立即回复 50% 生命", 20 + 5 * floor),
+                    ShopGood("reroll", "词条重铸", "选一件已穿戴装备，重随其词条（保留品质）", 15 + 5 * floor),
+                )
             }
             RoomType.BATTLE -> {
                 val n = 5 + rng.nextInt(2) + (floor - 1)   // 大房间：首层 5-6 只，逐层+1
@@ -339,7 +395,11 @@ class DungeonGame {
 
     fun chooseSkill(id: String) {
         if (phase != Phase.SKILL_SELECT) return
-        engine.setSkill(id)
+        if (id == engine.classSkillId && engine.skillId == id) {
+            // 职业技强化：再选一次只减冷却（下限 8 秒），不换技能
+            engine.skillCdMax = (engine.skillCdMax - 2f).coerceAtLeast(8f)
+        }
+        engine.setSkill(id)   // setSkill 会清空当前冷却
         pendingSkills = emptyList()
         phase = Phase.EXPLORING
     }
@@ -352,12 +412,93 @@ class DungeonGame {
         engine.joyActive = false
     }
 
+    /** 宝箱交互：靠近 + 确认开箱（掉装备与金币，随即清房开门） */
+    fun openChest() {
+        if (phase != Phase.EXPLORING) return
+        val room = currentRoom ?: return
+        val c = chest ?: return
+        if (!chestNear) return
+        chest = null
+        chestNear = false
+        openedChests.add(room)
+        val gain = 12 + 6 * floor
+        coins += gain
+        engine.events.add(CombatEngine.FxEvent(c.first, c.second - 40f, "金币 +$gain", false, null, 2))
+        engine.events.add(CombatEngine.FxEvent(c.first, c.second, "", false, null, 10))   // 金色冲击环
+        val item = Equipment.generate(floor, rng,
+            if (rng.nextFloat() < 0.20f + 0.04f * floor) Equipment.Rarity.EPIC else Equipment.Rarity.RARE)
+        drops.add(Drop(c.first + 46f, c.second + 24f, item))
+        room.cleared = true
+        locked = false
+        clearedRooms++
+        floorCleared++
+    }
+
+    /** 商店交互：靠近打开货架（世界暂停） */
+    fun openShop() {
+        if (phase != Phase.EXPLORING || shop == null || !shopNear) return
+        phase = Phase.SHOP
+        engine.joyActive = false
+        engine.attackHeld = false
+    }
+
+    fun closeShop() { if (phase == Phase.SHOP) phase = Phase.EXPLORING }
+
+    /** 购买商品（reroll 走 rerollSlot 两步；金币不足或已售出为空操作） */
+    fun buyGood(index: Int) {
+        if (phase != Phase.SHOP) return
+        val g = shopGoods.getOrNull(index) ?: return
+        if (g.sold || coins < g.cost) return
+        when (g.id) {
+            "gear" -> {
+                val item = g.item ?: return
+                coins -= g.cost
+                g.sold = true
+                forceEquip(item)
+            }
+            "heal" -> {
+                coins -= g.cost
+                g.sold = true
+                engine.heal((engine.maxHp * 0.5f).toInt())
+                engine.events.add(CombatEngine.FxEvent(engine.px, engine.py, "", false, null, 6))
+            }
+        }
+    }
+
+    /** 词条重铸（商店第二步：UI 先让玩家选槽位）；空槽或金币不足为空操作 */
+    fun rerollSlot(slot: Equipment.Slot) {
+        if (phase != Phase.SHOP) return
+        val g = shopGoods.firstOrNull { it.id == "reroll" } ?: return
+        if (g.sold || coins < g.cost) return
+        val cur = slots[slot] ?: return
+        val fresh = Equipment.reroll(cur, rng)
+        coins -= g.cost
+        g.sold = true
+        slots[slot] = fresh
+        reapplyBonus(cur, fresh)
+        engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 50f, "${fresh.name} 重铸！", false, null, 2))
+    }
+
+    /** 强制换装（商店购买）：无条件替换该槽，旧件半价分解 */
+    private fun forceEquip(item: Equipment.Item) {
+        val old = slots[item.slot]
+        if (old != null) {
+            val gain = Equipment.salvageValue(old) / 2
+            coins += gain
+            engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 40f, "分解 +$gain 金", false, null, 2))
+        }
+        slots[item.slot] = item
+        reapplyBonus(old, item)
+        engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 60f, "${item.name}！", false, null, 2))
+    }
+
     fun tick(dtRaw: Float) {
         if (phase != Phase.EXPLORING && phase != Phase.LEVELUP && phase != Phase.SKILL_SELECT && phase != Phase.GAMEOVER && phase != Phase.TRANSITION) return
         val dt = dtRaw.coerceIn(0f, 0.05f)
         if ((runTimeSec * 2) != lastLogSec) {
             lastLogSec = runTimeSec * 2
-            android.util.Log.d("DGBG", "st phase=$phase locked=$locked room=${currentRoom?.gx},${currentRoom?.gy} en=${engine.enemies.size} pend=${engine.hasPendingSpawns()} lvl=${engine.level} hp=${engine.hp} dt=$dt dtRaw=$dtRaw apNext=${apNext?.gx},${apNext?.gy} apP=$apPhase enP=${engine.phase} pUp=${engine.pendingUpgrades.size}")
+            val boss = engine.enemies.firstOrNull { it.bossFloor > 0 }
+            android.util.Log.d("DGBG", "st phase=$phase locked=$locked room=${currentRoom?.gx},${currentRoom?.gy} en=${engine.enemies.size} pend=${engine.hasPendingSpawns()} lvl=${engine.level} hp=${engine.hp} dt=$dt dtRaw=$dtRaw apNext=${apNext?.gx},${apNext?.gy} apP=$apPhase enP=${engine.phase} pUp=${engine.pendingUpgrades.size} boss=${boss?.let { "a=${it.alive} d=${it.dormant} hp=%.0f@%.0f,%.0f".format(it.hp, it.x, it.y) } ?: "none"} portal=${portal != null} portalNear=$portalNear skip=${apSkipped.size}")
         }
         if (phase == Phase.EXPLORING) {
             timeAcc += dt
@@ -415,6 +556,9 @@ class DungeonGame {
         portal?.let { pt ->
             portalNear = kotlin.math.hypot(engine.px - pt.first, engine.py - pt.second) < 95f
         }
+        // 宝箱/货摊接近检测
+        chest?.let { c -> chestNear = kotlin.math.hypot(engine.px - c.first, engine.py - c.second) < 80f }
+        shop?.let { s -> shopNear = kotlin.math.hypot(engine.px - s.first, engine.py - s.second) < 95f }
         engine.tick(dt)
         tickCamera(dt)
         // 血条白色残影：hpGhost 慢速跟随真实 hp（掉血时白色部分延迟消失）
@@ -423,14 +567,16 @@ class DungeonGame {
         // 看门狗（自动驾驶）：锁门房里敌人已清光却没触发清房 → 强制开门，防任何边角状态卡死
         if (autopilot && phase == Phase.EXPLORING) {
             val roomNow = currentRoom
-            if (locked && roomNow != null && roomEnemiesLeft(roomNow) == 0 && !engine.hasPendingSpawns()) {
+            if (locked && roomNow != null && (roomNow.type != RoomType.CHEST || chest == null) &&
+                roomEnemiesLeft(roomNow) == 0 && !engine.hasPendingSpawns()) {
                 apStuck += dt
                 if (apStuck > 1.5f) {
                     roomNow.cleared = true
+                    android.util.Log.d("DGROOM", "WATCHDOG clears ${roomNow.type} ${roomNow.gx},${roomNow.gy}")
                     locked = false
                     clearedRooms++
                     floorCleared++
-                    if (roomNow.type == RoomType.BOSS && floor < MAX_FLOOR) {
+                    if (roomNow.type == RoomType.BOSS && (floor < MAX_FLOOR || endless)) {
                         portal = roomLeft(roomNow) + ROOM_W / 2 to roomTop(roomNow) + ROOM_H / 2
                     } else if (roomNow.type == RoomType.BOSS) {
                         phase = Phase.VICTORY
@@ -474,18 +620,20 @@ class DungeonGame {
                 engine.px >= l && engine.px <= l + ROOM_W && engine.py >= t && engine.py <= t + ROOM_H
             }
             if (here != null && here !== currentRoom) enterRoom(here)
-            // 清房判定（本房延迟刷怪全落地且清空才开门）
+            // 清房判定（本房延迟刷怪全落地且清空才开门；宝箱房必须开箱，chest 为空的异常房自动放行兜底）
             val room = currentRoom
-            if (room != null && locked && roomEnemiesLeft(room) == 0 && !engine.hasPendingSpawns()) {
+            if (room != null && locked && (room.type != RoomType.CHEST || chest == null) &&
+                roomEnemiesLeft(room) == 0 && !engine.hasPendingSpawns()) {
                 room.cleared = true
+                android.util.Log.d("DGROOM", "clear-check clears ${room.type} ${room.gx},${room.gy}")
                 locked = false
                 clearedRooms++
                 floorCleared++
                 if (room.type == RoomType.BOSS) {
-                    if (floor >= MAX_FLOOR) {
+                    if (floor >= MAX_FLOOR && !endless) {
                         phase = Phase.VICTORY
                     } else {
-                        // Boss 后生成传送门：走近按「进入」交互（不碰即传）
+                        // Boss 后生成传送门：走近按「进入」交互（不碰即传）；无尽模式一直往下走
                         portal = roomLeft(room) + ROOM_W / 2 to roomTop(room) + ROOM_H / 2
                     }
                 }
@@ -496,6 +644,27 @@ class DungeonGame {
     /** DEBUG：自动驾驶的摇杆决策——带承诺的导航状态机（阈值切换会自激振荡，必须记状态） */
     private fun autopilotSteer(dt: Float) {
         val room = currentRoom ?: return
+        // 宝箱房：走向宝箱开箱（锁门无怪，必须先于锁门战斗分支，否则 bot 会站住不动）
+        val chestNow = chest
+        if (chestNow != null) {
+            if (chestNear) {
+                engine.joyActive = false
+                openChest()
+            } else apSteerTo(chestNow.first, chestNow.second)
+            return
+        }
+        // 商店房：走到货摊开一次店（世界冻结供外部脚本截图/购物；autopilot 由 Screen 侧自动关店，
+        // 关后靠 apShopDone 不再重开，否则站在货摊边会陷入 开→关→开 死循环）
+        val shopNow = shop
+        val shopRoom = currentRoom
+        if (shopNow != null && shopRoom?.type == RoomType.SHOP && phase == Phase.EXPLORING && shopRoom !in apShopDone) {
+            if (shopNear) {
+                engine.joyActive = false
+                apShopDone.add(shopRoom)
+                openShop()
+            } else apSteerTo(shopNow.first, shopNow.second)
+            return
+        }
         if (locked) {
             // 战斗走位：近战贴脸保证命中与朝向；远程保持 200~420 距离风筝
             val enemy = engine.enemies.filter { it.alive && !it.dormant }.minByOrNull {
@@ -545,14 +714,10 @@ class DungeonGame {
             return
         }
 
-        // 传送门：直接走向传送门并触发交互
-        if (portal != null) {
-            val pt = portal!!
-            val d = kotlin.math.hypot(pt.first - engine.px, pt.second - engine.py)
-            if (portalNear) {
-                engine.joyActive = false
-                enterPortal()
-            } else apSteerTo(pt.first, pt.second)
+        // 传送门交互：靠近且本层没有未清房（宝箱/商店先扫完）才进下层；跨房移动交给 BFS 导航
+        if (portal != null && portalNear && !apRemainRooms()) {
+            engine.joyActive = false
+            enterPortal()
             return
         }
 
@@ -576,20 +741,36 @@ class DungeonGame {
             apPhase = 0; apOrbT = 0f   // 没球了，继续导航
         }
 
-        // 1) 无航程 → 选最近的未清房并规划首段
+        // 1) 无航程 → 选最近的未清房并规划首段；全清则把传送门所在房当作目标（先扫房后下层由此自然成立）
         if (apNext == null) {
-            val target = nearestUncleared(room) ?: run {
-                engine.joyActive = false
-                return
-            }
+            val target = nearestUncleared(room)
+                ?: portal?.let { pt -> rooms.firstOrNull { roomContains(it, pt.first, pt.second) } }
+                ?: run {
+                    android.util.Log.d("DGAIP", "no target: uncleared=${rooms.filter { !it.cleared && it.type != RoomType.START }.map { "${it.type}@${it.gx},${it.gy}" }} from=${room.gx},${room.gy}")
+                    engine.joyActive = false
+                    return
+                }
             val path = apBfsPath(room, target)
             apNext = if (path.isEmpty()) target else path.first()
             apPhase = 0
         }
         val next = apNext ?: return
 
-        // 2) 已进入 next 房：承诺完成，重规划
+        // 2) 已进入 next 房：承诺完成，重规划（传送门房：无未清房时径直走向传送门交互）
         if (room === next) {
+            val pt = portal
+            if (pt != null && rooms.firstOrNull { roomContains(it, pt.first, pt.second) } === room) {
+                if (!apRemainRooms()) {
+                    if (portalNear) {
+                        engine.joyActive = false
+                        enterPortal()
+                    } else apSteerTo(pt.first, pt.second)
+                    return
+                }
+                if (room.cleared) { apPhase = 2; apOrbT = 0f }   // 还有未清房：先拾球，继续导航
+                apNext = null
+                return
+            }
             if (room.cleared) { apPhase = 2; apOrbT = 0f }   // 清完：先拾球
             apNext = null
             return
@@ -615,6 +796,10 @@ class DungeonGame {
         }
     }
 
+
+    /** 本层还有没有值得跑的未清房（跳过房不算——决定 bot 是否进传送门） */
+    private fun apRemainRooms(): Boolean =
+        rooms.any { !it.cleared && it.type != RoomType.START && it !in apSkipped }
 
     private fun apSteerTo(x: Float, y: Float) {
         val dx = x - engine.px; val dy = y - engine.py
@@ -665,18 +850,14 @@ class DungeonGame {
     /** 拾取装备：空槽穿上；已有则评分比较，胜者穿戴、败者分解（金币 + 飘字） */
     private fun pickupEquip(item: Equipment.Item) {
         val cur = slots[item.slot]
-        val coinGain = when (item.rarity) {
-            Equipment.Rarity.COMMON -> 2
-            Equipment.Rarity.RARE -> 5
-            Equipment.Rarity.EPIC -> 10
-            Equipment.Rarity.LEGENDARY -> 20
-        }
+        val coinGain = Equipment.salvageValue(item)
         if (cur == null || item.score > cur.score) {
             slots[item.slot] = item
             if (cur != null) {
-                coins += coinGain / 2
+                val half = Equipment.salvageValue(cur) / 2
+                coins += half
                 engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 40f,
-                    "分解 +${coinGain / 2}🪙", false, null, 2))
+                    "分解 +$half 金", false, null, 2))
             }
             engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 60f,
                 "${item.name}！", false, null, 2))
@@ -684,7 +865,7 @@ class DungeonGame {
         } else {
             coins += coinGain
             engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 40f,
-                "${item.name} 分解 +${coinGain}🪙", false, null, 2))
+                "${item.name} 分解 +$coinGain 金", false, null, 2))
         }
     }
 
@@ -760,9 +941,13 @@ class DungeonGame {
         floorCleared = 0
         totalKills = 0
         coins = 0
+        shopGoods = emptyList()
         slots.clear()
         drops.clear()
         appliedBonus = Equipment.Bonus()
+        chest = null; chestNear = false
+        shop = null; shopNear = false
+        chestSpots.clear(); openedChests.clear(); shopSpots.clear(); apShopDone.clear()
         runTimeSec = 0
         timeAcc = 0f
         cls = null

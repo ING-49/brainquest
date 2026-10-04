@@ -21,6 +21,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         com.brainquest.game.util.DebugFlags.autopilot =
             intent.getBooleanExtra("debug_autopilot", false)
+        com.brainquest.game.util.DebugFlags.god =
+            intent.getBooleanExtra("debug_god", false)
         com.brainquest.game.util.ReminderWorker.schedule(this) // 每日提醒（未授权通知时静默跳过）
         setContent {
             BrainQuestTheme {

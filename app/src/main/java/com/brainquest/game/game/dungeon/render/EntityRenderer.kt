@@ -155,12 +155,12 @@ object EntityRenderer {
         val cy = t + h / 2
         if (room.cleared) {
             scope.drawCircle(LABEL_C, 34f, Offset(cx, cy), style = Stroke(3f))
-            // 房型用形状区分：战斗=三角、精英=菱形、宝箱=方、商店=圆、Boss=王冠
+            // 房型用形状区分：战斗=三角、精英=菱形、宝箱=方（开箱后的“已开启”标记）、Boss=王冠
+            // （商店=货摊实体替代标记；宝箱未开时有实体，也不画标记）
             when (room.type) {
                 RoomType.BATTLE -> scope.drawPolygon3(cx, cy, pal.door)
                 RoomType.ELITE -> scope.drawDiamond(cx, cy, pal.door)
                 RoomType.CHEST -> scope.drawRect(pal.door, Offset(cx - 16f, cy - 12f), Size(32f, 24f))
-                RoomType.SHOP -> scope.drawCircle(pal.door, 15f, Offset(cx, cy))
                 RoomType.BOSS -> scope.drawCrown(cx, cy)
                 else -> {}
             }
@@ -383,6 +383,47 @@ object EntityRenderer {
             scope.drawLine(c, Offset(sx, sy + r), Offset(sx - r, sy), 4f)
             scope.drawLine(c, Offset(sx - r, sy), Offset(sx, sy - r), 4f)
             scope.drawCircle(SHADOW, 8f, Offset(sx, sy + 12f))
+        }
+    }
+
+    // ---------- 宝箱与货摊（CHEST/SHOP 房心的交互实体） ----------
+    fun drawFixtures(scope: DrawScope, game: DungeonGame, time: Float) {
+        game.chest?.let { c ->
+            val sx = c.first - game.camX
+            val sy = c.second - game.camY
+            if (sx < -80f || sy < -80f || sx > scope.size.width + 80f || sy > scope.size.height + 80f) return
+            scope.run {
+                // 脉动金光 + 影子
+                drawCircle(Color(0x33FFD54F), 46f + sin(time * 4f) * 6f, Offset(sx, sy))
+                drawOval(SHADOW, Offset(sx - 24f, sy + 16f), Size(48f, 14f))
+                // 箱体 + 金边 + 锁扣
+                drawRoundRect(Color(0xFF795548), Offset(sx - 26f, sy - 14f), Size(52f, 34f), CornerRadius(6f))
+                drawRoundRect(Color(0xFF5D4037), Offset(sx - 26f, sy - 14f), Size(52f, 12f), CornerRadius(6f))
+                drawRect(GamePalette.UI_GOLD, Offset(sx - 26f, sy - 3f), Size(52f, 4f))
+                drawRect(GamePalette.UI_GOLD, Offset(sx - 4f, sy - 6f), Size(8f, 12f))
+                drawCircle(Color(0xFFFFF59D), 2.5f, Offset(sx, sy))
+            }
+        }
+        game.shop?.let { s ->
+            val sx = s.first - game.camX
+            val sy = s.second - game.camY
+            if (sx < -100f || sy < -100f || sx > scope.size.width + 100f || sy > scope.size.height + 100f) return
+            scope.run {
+                drawCircle(Color(0x337EE38A), 55f + sin(time * 3f) * 5f, Offset(sx, sy))
+                drawOval(SHADOW, Offset(sx - 40f, sy + 22f), Size(80f, 16f))
+                // 柜台
+                drawRoundRect(Color(0xFF6D4C41), Offset(sx - 40f, sy - 6f), Size(80f, 26f), CornerRadius(5f))
+                drawRect(Color(0xFF8D6E63), Offset(sx - 40f, sy - 6f), Size(80f, 7f))
+                // 遮阳棚：红白条纹
+                repeat(4) { i ->
+                    val c = if (i % 2 == 0) Color(0xFFE15A5A) else Color(0xFFF5F5F5)
+                    drawRect(c, Offset(sx - 40f + i * 20f, sy - 34f), Size(20f, 16f))
+                }
+                drawRect(Color(0xFF4E342E), Offset(sx - 40f, sy - 18f), Size(80f, 4f))
+                // 金币招牌
+                drawCircle(GamePalette.UI_GOLD, 9f, Offset(sx, sy - 48f))
+                drawCircle(Color(0xFFFFF59D), 4f, Offset(sx, sy - 48f), style = Stroke(2f))
+            }
         }
     }
 

@@ -157,16 +157,22 @@ class CombatEngine {
     var skillId: String? = null; private set
     var skillCd = 0f; private set
     var skillCdMax = 14f
+    /** 职业专属技能 id（开局注入）：未持有时必出现在三选一，持有后再选=强化（冷却 −2s，见 DungeonGame.chooseSkill） */
+    var classSkillId: String? = null
     var timeScale = 1f; private set      // 时间减速/冰冻全局倍率（只作用于敌人）
     private var timeScaleTimer = 0f
     var shake = 0f; private set          // 震屏强度（渲染层读，随 tick 衰减）
     var shieldTime = 0f; private set     // 护盾剩余时间
     private var shieldLeft = 0f          // 护盾剩余吸收量
 
-    /** 每层结束的三选一技能池 */
-    fun rollSkills(rng: Random): List<String> = listOf(
-        "dash", "shield", "heal", "slowtime", "freeze", "meteor", "chain"
-    ).shuffled(rng).take(3)
+    /** 每层结束的三选一：职业技必占一席（持有后再选=强化减 CD）；已持有的通用技不再出现 */
+    fun rollSkills(rng: Random): List<String> {
+        val pool = mutableListOf("dash", "shield", "heal", "slowtime", "freeze", "meteor", "chain")
+        pool.remove(skillId)
+        val picks = pool.shuffled(rng).take(2).toMutableList()
+        classSkillId?.let { picks.add(it) }
+        return picks.shuffled(rng)
+    }
 
     fun setSkill(id: String) { skillId = id; skillCd = 0f }
 
@@ -204,6 +210,29 @@ class CombatEngine {
                     src = nx2; dmg *= 0.75f
                 }
             }
+            "whirlwind" -> {   // 旋风斩（剑士）：以自身为圆心的环形斩 + 小段击退
+                aoe(px, py, 135f, attack * 2.2f, Element.PHYSICAL)
+                events.add(FxEvent(px, py, "", false, null, 11))
+                shake = 8f
+            }
+            "blizzard" -> {    // 暴风雪（法师）：视野内至多 5 敌落冰锥，附带减速
+                val targets = enemies.filter {
+                    it.alive && !it.dormant && hypot(it.x - px, it.y - py) < 520f
+                }.shuffled(Random).take(5)
+                for (t in targets) {
+                    hitEnemy(t, attack * 1.6f, Element.ICE)
+                    t.slowStacks = maxOf(t.slowStacks, 2)
+                    t.slowTimer = maxOf(t.slowTimer, 3f)
+                }
+                events.add(FxEvent(px, py, "", false, null, 11))
+                shake = 6f
+            }
+            "arrowrain" -> {   // 箭雨（游侠）：朝面向 ±28° 扇形齐射 8 箭
+                repeat(8) { i ->
+                    val a = facing + (i - 3.5f) * 0.14f
+                    fire(px + cos(a) * 20f, py + sin(a) * 20f, cos(a), sin(a), 460f, 5f, attack * 1.4f, Element.PHYSICAL)
+                }
+            }
         }
         return true
     }
@@ -239,6 +268,7 @@ class CombatEngine {
         joyActive = false; joyX = 0f; joyY = 0f
         attackHeld = false; aimTarget = null
         skillCd = 0f; shieldTime = 0f; shieldLeft = 0f
+        classSkillId = null
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         hitStop = 0f; playerFlash = 0f; velX = 0f; velY = 0f; activeSlash = null
         killStreak = 0; killStreakTimer = 0f
@@ -584,6 +614,7 @@ class CombatEngine {
 
     /** 击杀：逻辑立即结算（掉落/计数/回调），尸体进入 0.3s 死亡动画由渲染淡出 */
     fun killEnemy(e: Enemy) {
+        if (e.bossFloor > 0) android.util.Log.d("DGROOM", "BOSS KILLED at %.0f,%.0f hp=%.0f".format(e.x, e.y, e.hp))
         e.alive = false
         e.dying = true
         e.deathTimer = 0.3f
@@ -614,6 +645,7 @@ class CombatEngine {
     }
 
     fun hurtPlayer(raw: Float) {
+        if (com.brainquest.game.util.DebugFlags.god) return   // 自动化上帝模式：不掉血
         var dmg = raw
         when (passiveId) {
             "knight" -> dmg *= 0.85f                          // 格挡

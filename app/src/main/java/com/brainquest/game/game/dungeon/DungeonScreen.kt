@@ -82,14 +82,20 @@ private data class Hud(
     val level: Int,
     val timeSec: Int,
     val kills: Int,
+    val coins: Int,
     val bossHp: Float,      // 0..1，<=0 = 无 Boss
     val bossPhase: Int,
     val skillReady: Boolean,
     val skillCd: Int,
     val streak: Int,
     val lobbyCls: String,
+    val endless: Boolean,
     val portalNear: Boolean,
     val hasPortal: Boolean,
+    val chestNear: Boolean,
+    val hasChest: Boolean,
+    val shopNear: Boolean,
+    val hasShop: Boolean,
     val transition: Float,
 )
 
@@ -109,10 +115,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         game.engine.autoAttack = game.autopilot   // 手动模式走攻击键；自动驾驶保持持续攻击
     }
     var hud by remember {
-        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0f, 0, true, 0, 0, "knight", false, false, 0f))
+        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0, 0f, 0, true, 0, 0, "knight", false, false, false, false, false, false, false, 0f))
     }
+    var apShopOpenT by remember { mutableFloatStateOf(0f) }   // 自动驾驶开店兜底计时
     var confirmExit by remember { mutableStateOf(false) }
     var showBag by remember { mutableStateOf(false) }
+    var rerollPick by remember { mutableStateOf(false) }   // 商店重铸第二步（选槽位）；无条件 hoist（坑 21）
     var joyBase by remember { mutableStateOf(Offset.Zero) }
     var joyOn by remember { mutableStateOf(false) }
     val frame = remember { mutableIntStateOf(0) }
@@ -182,6 +190,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
             frame.intValue++
             animT.floatValue += dt
+            // 自动驾驶开店 3 秒自动关（防无人值守挂死；真人操作不受影响）
+            if (game.autopilot && hud.phase == DungeonGame.Phase.SHOP) {
+                apShopOpenT += dt
+                if (apShopOpenT > 3f) { game.closeShop(); apShopOpenT = 0f }
+            } else apShopOpenT = 0f
             if (lvlFlash.floatValue > 0f) lvlFlash.floatValue = (lvlFlash.floatValue - dt).coerceAtLeast(0f)
             if (game.engine.playerFlash > 0.13f && lastPlayerFlash <= 0.13f) {
                 DungeonSfx.play(context, player.soundOn, R.raw.dg_hurt, 0.7f, 250)
@@ -246,6 +259,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     5 -> if (trails.size < 12) trails.add(TrailFx(ev.x, ev.y))
                     6 -> rings.add(RingFx(ev.x, ev.y, GamePalette.UI_EXP, 90f, 0.5f))
+                    10 -> {   // 宝箱开启：金色冲击环 + 开箱音
+                        rings.add(RingFx(ev.x, ev.y, GamePalette.UI_GOLD, 130f, 0.5f))
+                        DungeonSfx.play(context, player.soundOn, R.raw.dg_levelup, 0.55f, 400)
+                    }
+                    11 -> rings.add(RingFx(ev.x, ev.y, Color(0xB0FFFFFF), 150f, 0.35f))   // 技能施放白环
                 }
             }
             game.engine.events.clear()
@@ -265,13 +283,19 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             val h = Hud(
                 game.phase, game.floor, game.floorCleared, game.rooms.size,
                 e.hp, e.maxHp, e.level, game.runTimeSec, game.totalKills,
+                game.coins,
                 if (boss != null) boss.hp / boss.maxHp else 0f,
                 boss?.phase ?: 0,
                 e.skillCd <= 0f, e.skillCd.toInt(),
                 e.killStreak,
                 game.lobbyClassId,
+                game.endless,
                 game.portalNear,
                 game.portal != null,
+                game.chestNear,
+                game.chest != null,
+                game.shopNear,
+                game.shop != null,
                 game.transition,
             )
             if (h != hud) hud = h
@@ -282,14 +306,15 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     var attackPressed by remember { mutableStateOf(false) }
 
     var rewarded by remember { mutableStateOf(false) }
-    LaunchedEffect(hud.phase) {
-        when (hud.phase) {
-            DungeonGame.Phase.LEVELUP -> DungeonSfx.play(context, player.soundOn, R.raw.dg_levelup, 0.7f, 0)
-            DungeonGame.Phase.SKILL_SELECT -> DungeonSfx.play(context, player.soundOn, R.raw.dg_skill, 0.7f, 0)
-            DungeonGame.Phase.VICTORY -> DungeonSfx.play(context, player.soundOn, R.raw.dg_victory, 0.85f, 0)
-            DungeonGame.Phase.GAMEOVER -> DungeonSfx.play(context, player.soundOn, R.raw.dg_lose, 0.8f, 0)
-            else -> {}
-        }
+        LaunchedEffect(hud.phase) {
+            when (hud.phase) {
+                DungeonGame.Phase.LEVELUP -> DungeonSfx.play(context, player.soundOn, R.raw.dg_levelup, 0.7f, 0)
+                DungeonGame.Phase.SKILL_SELECT -> DungeonSfx.play(context, player.soundOn, R.raw.dg_skill, 0.7f, 0)
+                DungeonGame.Phase.SHOP -> DungeonSfx.play(context, player.soundOn, R.raw.dg_pickup, 0.6f, 0)
+                DungeonGame.Phase.VICTORY -> DungeonSfx.play(context, player.soundOn, R.raw.dg_victory, 0.85f, 0)
+                DungeonGame.Phase.GAMEOVER -> DungeonSfx.play(context, player.soundOn, R.raw.dg_lose, 0.8f, 0)
+                else -> {}
+            }
         if ((hud.phase == DungeonGame.Phase.GAMEOVER || hud.phase == DungeonGame.Phase.VICTORY) && !rewarded) {
             rewarded = true
             vm.addDungeonResult(hud.floor, hud.kills, hud.timeSec, game.coins)
@@ -297,8 +322,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     }
 
     BackHandler(enabled = hud.phase != DungeonGame.Phase.READY) {
-        if (hud.phase == DungeonGame.Phase.EXPLORING) game.pause()
-        confirmExit = true
+        if (hud.phase == DungeonGame.Phase.SHOP) {
+            game.closeShop()   // 商店页返回=关商店，不弹退出确认
+        } else {
+            if (hud.phase == DungeonGame.Phase.EXPLORING) game.pause()
+            confirmExit = true
+        }
     }
 
     Box(
@@ -362,6 +391,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 scale(game.camZoom * DungeonGame.BASE_ZOOM, game.camZoom * DungeonGame.BASE_ZOOM, pivot = Offset(size.width / 2f, size.height / 2f))
             }) {
             EntityRenderer.drawWorld(this, game, t)
+            EntityRenderer.drawFixtures(this, game, t)
             EntityRenderer.drawPortal(this, game, t)
             // 靠近传送门：头顶「进入传送门」提示
             if (game.portal != null && hud.portalNear) {
@@ -506,11 +536,22 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "🏰 第${hud.floor}层 · 房间 ${hud.cleared}/${hud.roomsTotal} · ⏱ ${formatTime(hud.timeSec)}",
+                "🏰 第${hud.floor}层${if (hud.endless) "·无尽" else ""} · 房间 ${hud.cleared}/${hud.roomsTotal} · ⏱ ${formatTime(hud.timeSec)}",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
             )
+            Spacer(Modifier.width(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                com.brainquest.game.ui.CoinIcon(14.dp)
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "${hud.coins}",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = GamePalette.UI_GOLD,
+                )
+            }
             Spacer(Modifier.width(8.dp))
             OutlinedButton(
                 onClick = { game.pause() },
@@ -582,7 +623,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         Text(
                             when (engineRef.skillId) {
                                 "dash" -> "💨"; "shield" -> "🛡"; "heal" -> "💚"; "slowtime" -> "⏳"
-                                "freeze" -> "❄️"; "meteor" -> "☄️"; "chain" -> "⚡"; else -> "✨"
+                                "freeze" -> "❄️"; "meteor" -> "☄️"; "chain" -> "⚡"
+                                "whirlwind" -> "🌀"; "blizzard" -> "🌨"; "arrowrain" -> "🏹"
+                                else -> "✨"
                             },
                             style = MaterialTheme.typography.titleLarge,
                         )
@@ -601,8 +644,46 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     contentAlignment = Alignment.Center,
                 ) { Text("🎒", style = MaterialTheme.typography.titleMedium) }
             }
-            // 攻击键：大圆，按住出招；带挥砍就绪环；靠近传送门变「进入」交互键
-            if (hud.hasPortal && hud.portalNear) {
+            // 攻击键：大圆，按住出招；带挥砍就绪环；靠近交互点变形（宝箱 > 商店 > 传送门）
+            if (hud.hasChest && hud.chestNear) {
+                Box(
+                    Modifier
+                        .size(84.dp)
+                        .background(Color(0x665D4037), androidx.compose.foundation.shape.CircleShape)
+                        .border(2.dp, GamePalette.UI_GOLD, androidx.compose.foundation.shape.CircleShape)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                DungeonSfx.play(context, player.soundOn, R.raw.dg_pickup, 0.6f, 200)
+                                game.openChest()
+                            })
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("开启", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD)
+                        Text("宝箱", style = MaterialTheme.typography.labelSmall, color = GamePalette.UI_GOLD)
+                    }
+                }
+            } else if (hud.hasShop && hud.shopNear) {
+                Box(
+                    Modifier
+                        .size(84.dp)
+                        .background(Color(0x661B5E20), androidx.compose.foundation.shape.CircleShape)
+                        .border(2.dp, Color(0xFF7EE38A), androidx.compose.foundation.shape.CircleShape)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                DungeonSfx.play(context, player.soundOn, R.raw.dg_pickup, 0.6f, 200)
+                                game.openShop()
+                            })
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("浏览", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF7EE38A))
+                        Text("商店", style = MaterialTheme.typography.labelSmall, color = Color(0xFF7EE38A))
+                    }
+                }
+            } else if (hud.hasPortal && hud.portalNear) {
                 Box(
                     Modifier
                         .size(84.dp)
@@ -777,21 +858,38 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 }
                 Text(lobbyCls.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                 Text(
-                    "❤️${lobbyCls.maxHp} · ⚔️${lobbyCls.attack} · ${lobbyCls.weaponName} · ${lobbyCls.passiveName}",
+                    "❤️${lobbyCls.maxHp} · ⚔️${lobbyCls.attack} · ${lobbyCls.weaponName} · ${lobbyCls.passiveName} · 技能：${lobbyCls.skillName}",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFFB0BEC5),
                 )
-                // 底部行动区：模式选择 + 开始
+                // 底部行动区：模式选择（点选切换）+ 开始
                 Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(
-                        Modifier.background(GamePalette.UI_PANEL, RoundedCornerShape(10.dp))
-                            .border(1.5.dp, GamePalette.UI_EXP, RoundedCornerShape(10.dp))
+                        Modifier
+                            .background(if (hud.endless) Color(0x55263242) else GamePalette.UI_PANEL, RoundedCornerShape(10.dp))
+                            .border(1.5.dp, if (hud.endless) Color.Transparent else GamePalette.UI_EXP, RoundedCornerShape(10.dp))
+                            .clickable { game.endless = false }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) { Text("🗡️ 标准 · 5 层", style = MaterialTheme.typography.labelMedium, color = Color.White) }
+                    ) {
+                        Text(
+                            "🗡️ 标准 · 5 层",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (hud.endless) Color(0xFF78909C) else Color.White,
+                        )
+                    }
                     Box(
-                        Modifier.background(Color(0x55263242), RoundedCornerShape(10.dp))
+                        Modifier
+                            .background(if (hud.endless) GamePalette.UI_PANEL else Color(0x55263242), RoundedCornerShape(10.dp))
+                            .border(1.5.dp, if (hud.endless) GamePalette.UI_EXP else Color.Transparent, RoundedCornerShape(10.dp))
+                            .clickable { game.endless = true }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) { Text("♾️ 无尽 · 敬请期待", style = MaterialTheme.typography.labelMedium, color = Color(0xFF78909C)) }
+                    ) {
+                        Text(
+                            "♾️ 无尽 · 层数无限",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (hud.endless) Color.White else Color(0xFF78909C),
+                        )
+                    }
                 }
                 Button(
                     onClick = { game.pendingPerks = player.dungeonPerks; game.startFromLobby() },
@@ -883,6 +981,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 Text("✨ 选择一个主动技能", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
                 Row(Modifier.fillMaxWidth(0.94f).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     game.pendingSkills.forEach { id ->
+                        // 职业技已持有时再出现 = 强化（冷却 −2s）
+                        val upgrade = id == engineRef.classSkillId && engineRef.skillId == id
                         val pair = when (id) {
                             "dash" -> "💨 冲刺" to "朝面向瞬移 240px 并短暂无敌"
                             "shield" -> "🛡 护盾" to "8 秒内格挡 50 点伤害"
@@ -890,6 +990,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                             "slowtime" -> "⏳ 时间减速" to "5 秒内敌人减速 70%"
                             "freeze" -> "❄️ 全屏冰冻" to "冻结所有敌人 2.5 秒"
                             "meteor" -> "☄️ 陨石" to "最近敌人处大范围爆炸（4×攻击）"
+                            "whirlwind" -> (if (upgrade) "🌀 旋风斩·强化" else "🌀 旋风斩") to
+                                    (if (upgrade) "冷却 −2 秒（最低 8 秒）" else "以自身为中心环斩（2.2×攻击）")
+                            "blizzard" -> (if (upgrade) "🌨 暴风雪·强化" else "🌨 暴风雪") to
+                                    (if (upgrade) "冷却 −2 秒（最低 8 秒）" else "冰锥打击至多 5 敌（1.6×攻击）并减速")
+                            "arrowrain" -> (if (upgrade) "🏹 箭雨·强化" else "🏹 箭雨") to
+                                    (if (upgrade) "冷却 −2 秒（最低 8 秒）" else "朝面向扇形齐射 8 箭（1.4×攻击/支）")
                             else -> "⚡ 闪电链" to "从最近敌人连跳 4 次（2.5×攻击起）"
                         }
                         Card(
@@ -903,6 +1009,102 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // ---------- 商店（货摊交互打开；世界暂停） ----------
+        if (hud.phase == DungeonGame.Phase.SHOP) {
+            LaunchedEffect(hud.phase) { rerollPick = false }
+            Column(
+                Modifier.fillMaxSize().background(Color(0x99000000))
+                    .graphicsLayer { scaleX = lvlScale.value; scaleY = lvlScale.value; alpha = 0.4f + 0.6f * lvlScale.value },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🏪 地牢商店", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                    Spacer(Modifier.width(12.dp))
+                    com.brainquest.game.ui.CoinIcon(16.dp)
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "${hud.coins}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = GamePalette.UI_GOLD,
+                    )
+                }
+                if (rerollPick) {
+                    // 重铸第二步：六槽选一（空槽不可选）
+                    Text(
+                        "选择要重铸的装备（保留品质，重随词条）",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFB0BEC5),
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Equipment.Slot.entries.forEach { slot ->
+                            val cur = game.slots[slot]
+                            val has = cur != null
+                            Box(
+                                Modifier
+                                    .width(76.dp)
+                                    .background(if (has) MaterialTheme.colorScheme.surfaceContainerHigh else Color(0x33263242), RoundedCornerShape(8.dp))
+                                    .border(1.dp, if (has) GamePalette.UI_EXP else Color(0x33FFFFFF), RoundedCornerShape(8.dp))
+                                    .clickable(enabled = has) { game.rerollSlot(slot); rerollPick = false }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(slot.label, style = MaterialTheme.typography.labelSmall, color = if (has) Color.White else Color(0xFF78909C))
+                                    Text(
+                                        cur?.name?.take(4) ?: "空",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = cur?.let { Color(it.rarityColorLong) } ?: Color(0xFF78909C),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    OutlinedButton(onClick = { rerollPick = false }, modifier = Modifier.padding(top = 12.dp)) { Text("返回") }
+                } else {
+                    Row(Modifier.fillMaxWidth(0.94f).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        game.shopGoods.forEachIndexed { idx, g ->
+                            val afford = hud.coins >= g.cost
+                            Card(
+                                onClick = {
+                                    if (g.id == "reroll") {
+                                        if (!g.sold && hud.coins >= g.cost) rerollPick = true   // 重铸两步：先选槽位
+                                    } else game.buyGood(idx)
+                                },
+                                enabled = !g.sold && afford,
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                            ) {
+                                Column(Modifier.padding(14.dp)) {
+                                    Text(
+                                        if (g.sold) "已售出" else g.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (g.sold) Color(0xFF78909C) else Color.White,
+                                    )
+                                    Text(g.desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.height(6.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        com.brainquest.game.ui.CoinIcon(13.dp)
+                                        Spacer(Modifier.width(3.dp))
+                                        Text(
+                                            "${g.cost}",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (afford && !g.sold) GamePalette.UI_GOLD else Color(0xFF78909C),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    OutlinedButton(onClick = { game.closeShop() }, modifier = Modifier.padding(top = 14.dp).width(160.dp)) { Text("离开商店") }
                 }
             }
         }
@@ -929,7 +1131,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             ) {
                 Text("💀 你倒在了地牢里", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
                 Text(
-                    "第${hud.floor}层 · 存活 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills} · 🪙 ${game.coins}",
+                    "${if (hud.endless) "无尽" else ""}第${hud.floor}层 · 存活 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills} · 金币 ${hud.coins}",
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     modifier = Modifier.padding(top = 8.dp),
@@ -948,7 +1150,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             ) {
                 Text("🏆 地牢通关！", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F))
                 Text(
-                    "用时 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills} · 等级 ${hud.level}",
+                    "用时 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills} · 等级 ${hud.level} · 金币 ${hud.coins}",
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     modifier = Modifier.padding(top = 8.dp),
