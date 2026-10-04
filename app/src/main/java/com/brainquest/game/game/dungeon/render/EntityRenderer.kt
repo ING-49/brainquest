@@ -81,15 +81,15 @@ object EntityRenderer {
     private fun roomOffscreen(room: Room, game: DungeonGame, vl: Float, vt: Float, vr: Float, vb: Float, pad: Float): Boolean {
         val l = game.roomLeft(room) - pad
         val t = game.roomTop(room) - pad
-        val r = l + DungeonGame.ROOM_W + pad * 2
-        val b = t + DungeonGame.ROOM_H + pad * 2
+        val r = l + room.w + pad * 2
+        val b = t + room.h + pad * 2
         return r < vl || b < vt || l > vr || t > vb
     }
 
     private fun drawCorridor(scope: DrawScope, game: DungeonGame, a: Room, b: Room, pal: GamePalette.FloorTone) {
         val open = game.doorOpen(a, b)
         if (a.gy == b.gy) {
-            val l = minOf(game.roomLeft(a) + DungeonGame.ROOM_W, game.roomLeft(b) + DungeonGame.ROOM_W) - DungeonGame.DOOR_PROBE
+            val l = minOf(game.roomLeft(a) + a.w, game.roomLeft(b) + b.w) - DungeonGame.DOOR_PROBE
             val r = maxOf(game.roomLeft(a), game.roomLeft(b)) + DungeonGame.DOOR_PROBE
             val cy = a.gy * DungeonGame.GRID_Y
             val sx = l - game.camX
@@ -108,7 +108,7 @@ object EntityRenderer {
             }
         } else {
             // 纵向走廊：上房底边 → 下房顶边
-            val t = minOf(game.roomTop(a) + DungeonGame.ROOM_H, game.roomTop(b) + DungeonGame.ROOM_H) - DungeonGame.DOOR_PROBE
+            val t = minOf(game.roomTop(a) + a.h, game.roomTop(b) + b.h) - DungeonGame.DOOR_PROBE
             val bb = maxOf(game.roomTop(a), game.roomTop(b)) + DungeonGame.DOOR_PROBE
             val cx = a.gx * DungeonGame.GRID_X
             val sx = cx - DungeonGame.DOOR_H / 2 - game.camX
@@ -129,8 +129,8 @@ object EntityRenderer {
     private fun drawRoom(scope: DrawScope, game: DungeonGame, room: Room, pal: GamePalette.FloorTone, time: Float) {
         val l = game.roomLeft(room) - game.camX
         val t = game.roomTop(room) - game.camY
-        val w = DungeonGame.ROOM_W
-        val h = DungeonGame.ROOM_H
+        val w = room.w
+        val h = room.h
 
         // 地板
         scope.drawRoundRect(pal.floor, Offset(l, t), Size(w, h), CornerRadius(18f))

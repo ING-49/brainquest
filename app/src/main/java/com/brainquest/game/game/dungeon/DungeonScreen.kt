@@ -172,7 +172,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val lvlScale = remember { androidx.compose.animation.core.Animatable(1f) }
     val lvlFlash = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(hud.phase) {
-        if (hud.phase == DungeonGame.Phase.LEVELUP || hud.phase == DungeonGame.Phase.SKILL_SELECT) {
+        if (hud.phase == DungeonGame.Phase.LEVELUP) {
             lvlFlash.floatValue = 0.22f
             lvlScale.snapTo(0.85f)
             lvlScale.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.35f, stiffness = 380f))
@@ -309,7 +309,6 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         LaunchedEffect(hud.phase) {
             when (hud.phase) {
                 DungeonGame.Phase.LEVELUP -> DungeonSfx.play(context, player.soundOn, R.raw.dg_levelup, 0.7f, 0)
-                DungeonGame.Phase.SKILL_SELECT -> DungeonSfx.play(context, player.soundOn, R.raw.dg_skill, 0.7f, 0)
                 DungeonGame.Phase.SHOP -> DungeonSfx.play(context, player.soundOn, R.raw.dg_pickup, 0.6f, 0)
                 DungeonGame.Phase.VICTORY -> DungeonSfx.play(context, player.soundOn, R.raw.dg_victory, 0.85f, 0)
                 DungeonGame.Phase.GAMEOVER -> DungeonSfx.play(context, player.soundOn, R.raw.dg_lose, 0.8f, 0)
@@ -970,49 +969,6 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // ---------- 技能三选一（每层结束） ----------
-        if (hud.phase == DungeonGame.Phase.SKILL_SELECT) {
-            Column(
-                Modifier.fillMaxSize().background(Color(0x99000000))
-                    .graphicsLayer { scaleX = lvlScale.value; scaleY = lvlScale.value; alpha = 0.4f + 0.6f * lvlScale.value },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text("✨ 选择一个主动技能", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
-                Row(Modifier.fillMaxWidth(0.94f).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    game.pendingSkills.forEach { id ->
-                        // 职业技已持有时再出现 = 强化（冷却 −2s）
-                        val upgrade = id == engineRef.classSkillId && engineRef.skillId == id
-                        val pair = when (id) {
-                            "dash" -> "💨 冲刺" to "朝面向瞬移 240px 并短暂无敌"
-                            "shield" -> "🛡 护盾" to "8 秒内格挡 50 点伤害"
-                            "heal" -> "💚 治疗" to "立即回复 40% 生命"
-                            "slowtime" -> "⏳ 时间减速" to "5 秒内敌人减速 70%"
-                            "freeze" -> "❄️ 全屏冰冻" to "冻结所有敌人 2.5 秒"
-                            "meteor" -> "☄️ 陨石" to "最近敌人处大范围爆炸（4×攻击）"
-                            "whirlwind" -> (if (upgrade) "🌀 旋风斩·强化" else "🌀 旋风斩") to
-                                    (if (upgrade) "冷却 −2 秒（最低 8 秒）" else "以自身为中心环斩（2.2×攻击）")
-                            "blizzard" -> (if (upgrade) "🌨 暴风雪·强化" else "🌨 暴风雪") to
-                                    (if (upgrade) "冷却 −2 秒（最低 8 秒）" else "冰锥打击至多 5 敌（1.6×攻击）并减速")
-                            "arrowrain" -> (if (upgrade) "🏹 箭雨·强化" else "🏹 箭雨") to
-                                    (if (upgrade) "冷却 −2 秒（最低 8 秒）" else "朝面向扇形齐射 8 箭（1.4×攻击/支）")
-                            else -> "⚡ 闪电链" to "从最近敌人连跳 4 次（2.5×攻击起）"
-                        }
-                        Card(
-                            onClick = { game.chooseSkill(id) },
-                            modifier = Modifier.weight(1f),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                        ) {
-                            Column(Modifier.padding(14.dp)) {
-                                Text(pair.first, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text(pair.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         // ---------- 商店（货摊交互打开；世界暂停） ----------
         if (hud.phase == DungeonGame.Phase.SHOP) {
             LaunchedEffect(hud.phase) { rerollPick = false }
@@ -1216,16 +1172,38 @@ private fun Minimap(game: DungeonGame, modifier: Modifier) {
                 room.visited -> Color(0xFF5C6BC0)
                 else -> Color(0xFF37474F)
             }
+            // 房间矩形按实际尺寸比例画（Boss 房大块、宝箱/商店小块）
+            val rw = (cellW * 0.72f * (room.w / 2400f)).coerceAtLeast(cellW * 0.3f)
+            val rh = (cellH * 0.72f * (room.h / 1700f)).coerceAtLeast(cellH * 0.3f)
             drawRoundRect(fill, Offset(c.x - rw / 2, c.y - rh / 2), Size(rw, rh), CornerRadius(4f))
             if (current) drawRoundRect(Color.White, Offset(c.x - rw / 2, c.y - rh / 2), Size(rw, rh), CornerRadius(4f), style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
-            val dot = when (room.type) {
-                RoomType.BOSS -> Color(0xFFE15A5A)
-                RoomType.ELITE -> Color(0xFFB388FF)
-                RoomType.CHEST -> Color(0xFFFFD54F)
-                RoomType.SHOP -> Color(0xFF7EE38A)
-                else -> null
+            // 房型图标：宝箱=金箱 商店=感叹号 Boss=红王冠 精英=紫菱形；普通怪房无标记
+            val s = minOf(rw, rh) * 0.22f
+            when (room.type) {
+                RoomType.BOSS -> {
+                    val red = Color(0xFFFF6E6E)
+                    drawLine(red, Offset(c.x - s, c.y + s * 0.3f), Offset(c.x + s, c.y + s * 0.3f), 2.5f)
+                    drawLine(red, Offset(c.x - s, c.y + s * 0.3f), Offset(c.x - s, c.y - s * 0.5f), 2.5f)
+                    drawLine(red, Offset(c.x, c.y + s * 0.3f), Offset(c.x, c.y - s * 0.8f), 2.5f)
+                    drawLine(red, Offset(c.x + s, c.y + s * 0.3f), Offset(c.x + s, c.y - s * 0.5f), 2.5f)
+                }
+                RoomType.CHEST -> {
+                    drawRoundRect(Color(0xFFFFD54F), Offset(c.x - s, c.y - s * 0.7f), Size(s * 2, s * 1.4f), CornerRadius(2f))
+                    drawRect(Color(0xFF6D4C41), Offset(c.x - s, c.y - s * 0.15f), Size(s * 2, s * 0.25f))
+                }
+                RoomType.SHOP -> {
+                    drawRect(Color(0xFF7EE38A), Offset(c.x - s * 0.18f, c.y - s), Size(s * 0.36f, s * 1.15f))
+                    drawCircle(Color(0xFF7EE38A), s * 0.24f, Offset(c.x, c.y + s * 0.65f))
+                }
+                RoomType.ELITE -> {
+                    val p = Color(0xFFB388FF)
+                    drawLine(p, Offset(c.x, c.y - s), Offset(c.x + s, c.y), 2.5f)
+                    drawLine(p, Offset(c.x + s, c.y), Offset(c.x, c.y + s), 2.5f)
+                    drawLine(p, Offset(c.x, c.y + s), Offset(c.x - s, c.y), 2.5f)
+                    drawLine(p, Offset(c.x - s, c.y), Offset(c.x, c.y - s), 2.5f)
+                }
+                else -> {}
             }
-            if (dot != null) drawCircle(dot, 3.5f, Offset(c.x, c.y))
         }
     }
 }

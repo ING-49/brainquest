@@ -29,6 +29,10 @@ class Room(
     val gy: Int,
     var type: RoomType,   // 生成器先生成后定型（Boss 房取最远点），故 var
 ) {
+    /** 房间实际尺寸：生成器定型房型后按类型赋值（Boss 大 / 宝箱·商店紧凑），几何全走 per-room */
+    var w = 2000f
+    var h = 1300f
+
     var visited = false          // 玩家进过
     var populated = false        // 敌人已布置（预刷新幂等）
     var cleared = type == RoomType.START  // 清怪开门；起点房常开

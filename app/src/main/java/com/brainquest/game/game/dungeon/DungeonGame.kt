@@ -16,15 +16,15 @@ import kotlin.random.Random
  * 战斗（移动/武器/碰撞/元素/升级）托管给 [CombatEngine]；本类负责：
  * 层数/房间/门（清房锁门）/按房型布置敌人/进层推进/局内统计。
  *
- * 世界坐标系：房间内部 ROOM_W×ROOM_H 放在网格 (gx,gy) 上，相邻房间走廊（门）相连。
+ * 世界坐标系：房间放在网格 (gx,gy) 上，相邻房间走廊（门）相连；房型不同大小不同（Room.w/h，ROOM_W/H 为战斗房基准）。
  */
 class DungeonGame {
 
-    enum class Phase { READY, CLASS_SELECT, EXPLORING, LEVELUP, SKILL_SELECT, LOOT, SHOP, EVENT, PAUSED, GAMEOVER, VICTORY, TRANSITION }
+    enum class Phase { READY, CLASS_SELECT, EXPLORING, LEVELUP, LOOT, SHOP, EVENT, PAUSED, GAMEOVER, VICTORY, TRANSITION }
 
     companion object {
-        const val ROOM_W = 2000f
-        const val ROOM_H = 1300f
+        const val ROOM_W = 2000f   // 标准战斗房宽（基准值，实际用 Room.w）
+        const val ROOM_H = 1300f   // 标准战斗房高
         const val GRID_X = 2400f   // 房间横向间距（含走廊）
         const val GRID_Y = 1700f   // 纵向间距
         const val BASE_ZOOM = 1.3f // 世界基础缩放：屏幕只看世界的一部分（房间远大于视口，相机跟随人物居中）
@@ -132,8 +132,8 @@ class DungeonGame {
         currentRoom?.let { r ->
             val l = roomLeft(r); val t = roomTop(r)
             val vw = viewW / eff; val vh = viewH / eff
-            if (vw >= ROOM_W + 60f) camX = l + ROOM_W / 2 - vw / 2
-            if (vh >= ROOM_H + 60f) camY = t + ROOM_H / 2 - vh / 2
+            if (vw >= r.w + 60f) camX = l + r.w / 2 - vw / 2
+            if (vh >= r.h + 60f) camY = t + r.h / 2 - vh / 2
         }
     }
 
@@ -188,8 +188,7 @@ class DungeonGame {
             "mage" -> Weapon.Fireball()
             else -> Weapon.RapidShot()
         }
-        // 职业专属主动技能：开局自带，冷却各不相同（三选一里重复选中=强化减 CD）
-        engine.classSkillId = c.skillId
+        // 职业专属主动技能：开局自带、固定不变，冷却各职业不同
         engine.setSkill(c.skillId)
         engine.skillCdMax = when (c.skillId) {
             "whirlwind" -> 10f
@@ -233,8 +232,8 @@ class DungeonGame {
         rooms = result.rooms
         floorCleared = 0
         startRoom = result.start
-        engine.px = roomLeft(result.start) + ROOM_W / 2
-        engine.py = roomTop(result.start) + ROOM_H / 2
+        engine.px = roomLeft(result.start) + result.start.w / 2
+        engine.py = roomTop(result.start) + result.start.h / 2
         enterRoom(result.start)
     }
 
@@ -247,8 +246,8 @@ class DungeonGame {
         locked = !room.cleared
         if (locked) {
             // 玩家可能正跨在门槛上（房间判定矩形与收边区之间）：推入房内可站立区
-            engine.px = engine.px.coerceIn(roomLeft(room) + engine.playerR + 2f, roomLeft(room) + ROOM_W - engine.playerR - 2f)
-            engine.py = engine.py.coerceIn(roomTop(room) + engine.playerR + 2f, roomTop(room) + ROOM_H - engine.playerR - 2f)
+            engine.px = engine.px.coerceIn(roomLeft(room) + engine.playerR + 2f, roomLeft(room) + room.w - engine.playerR - 2f)
+            engine.py = engine.py.coerceIn(roomTop(room) + engine.playerR + 2f, roomTop(room) + room.h - engine.playerR - 2f)
         }
         if (!room.visited) {
             room.visited = true
@@ -258,8 +257,8 @@ class DungeonGame {
         engine.bullets.clear()
         engine.arenaLeft = roomLeft(room) + 30f
         engine.arenaTop = roomTop(room) + 30f
-        engine.arenaRight = roomLeft(room) + ROOM_W - 30f
-        engine.arenaBottom = roomTop(room) + ROOM_H - 30f
+        engine.arenaRight = roomLeft(room) + room.w - 30f
+        engine.arenaBottom = roomTop(room) + room.h - 30f
         if (!room.cleared && !room.populated) populateRoom(room)
         // 绑定本房交互实体（宝箱开过不再出现；宝箱房 populate 在上一步完成）
         chest = chestSpots[room]?.takeIf { room !in openedChests }
@@ -279,7 +278,7 @@ class DungeonGame {
     /** 敌人坐标是否在房间矩形内 */
     private fun roomContains(r: Room, x: Float, y: Float): Boolean {
         val l = roomLeft(r); val t = roomTop(r)
-        return x >= l && x <= l + ROOM_W && y >= t && y <= t + ROOM_H
+        return x >= l && x <= l + r.w && y >= t && y <= t + r.h
     }
 
     /** 当前房剩余活敌（预刷新的其他房敌人不计入清房判定） */
@@ -330,11 +329,11 @@ class DungeonGame {
 
         fun spot(minDist: Float): Pair<Float, Float> {
             for (t in 0 until 20) {
-                val x = roomLeft(room) + 120f + rng.nextFloat() * (ROOM_W - 240f)
-                val y = roomTop(room) + 100f + rng.nextFloat() * (ROOM_H - 200f)
+                val x = roomLeft(room) + 120f + rng.nextFloat() * (room.w - 240f)
+                val y = roomTop(room) + 100f + rng.nextFloat() * (room.h - 200f)
                 if (kotlin.math.abs(x - engine.px) + kotlin.math.abs(y - engine.py) > minDist) return x to y
             }
-            return roomLeft(room) + ROOM_W / 2 to roomTop(room) + 140f
+            return roomLeft(room) + room.w / 2 to roomTop(room) + 140f
         }
 
         when (room.type) {
@@ -348,7 +347,7 @@ class DungeonGame {
             RoomType.BOSS -> {
                 // 每层 Boss：大体型 + 多阶段（<30% 狂暴）+ 每层不同机制（见 engine.bossAI）
                 val boss = CombatEngine.Enemy(
-                    roomLeft(room) + ROOM_W / 2, roomTop(room) + ROOM_H / 2 - 40f,
+                    roomLeft(room) + room.w / 2, roomTop(room) + room.h / 2 - 40f,
                     46f, 400f * scaleHp, 400f * scaleHp, 62f + floor * 3f,
                     11f * scaleDmg, EnemyKind.DUMMY, elite = false, xpValue = 8,
                 )
@@ -360,11 +359,11 @@ class DungeonGame {
             }
             RoomType.CHEST -> {
                 // 房心放宝箱：开启前锁门，开启掉装备+金币（见 openChest）
-                chestSpots[room] = roomLeft(room) + ROOM_W / 2 to roomTop(room) + ROOM_H / 2
+                chestSpots[room] = roomLeft(room) + room.w / 2 to roomTop(room) + room.h / 2
             }
             RoomType.SHOP -> {
                 // 房心放货摊：免战可穿过，走近交互购物
-                shopSpots[room] = roomLeft(room) + ROOM_W / 2 to roomTop(room) + ROOM_H / 2
+                shopSpots[room] = roomLeft(room) + room.w / 2 to roomTop(room) + room.h / 2
                 val gear = Equipment.generate(floor, rng)
                 shopGoods = listOf(
                     ShopGood("gear", gear.name, gear.describe(), 30 + 10 * floor).also { it.item = gear },
@@ -390,23 +389,14 @@ class DungeonGame {
     }
 
     // ---------- 主循环 ----------
-    /** 本层的技能三选一候选（空 = 无待选） */
-    var pendingSkills: List<String> = emptyList(); private set
 
-    fun chooseSkill(id: String) {
-        if (phase != Phase.SKILL_SELECT) return
-        if (id == engine.classSkillId && engine.skillId == id) {
-            // 职业技强化：再选一次只减冷却（下限 8 秒），不换技能
-            engine.skillCdMax = (engine.skillCdMax - 2f).coerceAtLeast(8f)
-        }
-        engine.setSkill(id)   // setSkill 会清空当前冷却
-        pendingSkills = emptyList()
-        phase = Phase.EXPLORING
-    }
-
-    /** 传送门交互：靠近 + 确认才进下层 */
+    /** 传送门交互：靠近 + 确认。标准模式最终层=进入即结算；其余进下层（无尽一直往下） */
     fun enterPortal() {
         if (phase != Phase.EXPLORING || portal == null || !portalNear) return
+        if (floor >= MAX_FLOOR && !endless) {
+            phase = Phase.VICTORY   // 结算发生在走进传送门之后（而非 Boss 倒下瞬间）
+            return
+        }
         transition = 1.2f
         phase = Phase.TRANSITION
         engine.joyActive = false
@@ -493,7 +483,7 @@ class DungeonGame {
     }
 
     fun tick(dtRaw: Float) {
-        if (phase != Phase.EXPLORING && phase != Phase.LEVELUP && phase != Phase.SKILL_SELECT && phase != Phase.GAMEOVER && phase != Phase.TRANSITION) return
+        if (phase != Phase.EXPLORING && phase != Phase.LEVELUP && phase != Phase.GAMEOVER && phase != Phase.TRANSITION) return
         val dt = dtRaw.coerceIn(0f, 0.05f)
         if ((runTimeSec * 2) != lastLogSec) {
             lastLogSec = runTimeSec * 2
@@ -516,9 +506,6 @@ class DungeonGame {
                     } else chooseUpgrade(first.id)
                     apWait = 0f
                 }
-            } else if (phase == Phase.SKILL_SELECT) {
-                apWait += dt
-                if (apWait > 0.6f) { pendingSkills.firstOrNull()?.let { chooseSkill(it) }; apWait = 0f }
             } else {
                 apWait = 0f
                 // 导航停滞看门狗：未锁门时位置 3 秒几乎不动 → 重规划；同一目标 3 次停滞 → 本层跳过
@@ -540,15 +527,13 @@ class DungeonGame {
                 if (locked && engine.enemies.isNotEmpty() && engine.skillCd <= 0f) engine.useSkill()
             }
         }
-        // 过场：黑幕期间冻结世界，倒计时结束进下层
+        // 过场：黑幕期间冻结世界，倒计时结束进下层（技能=职业专属，无需过层选取）
         if (phase == Phase.TRANSITION) {
             transition -= dt
             if (transition <= 0f) {
-                phase = Phase.EXPLORING
                 floor++
                 buildFloor()
-                pendingSkills = engine.rollSkills(rng)
-                phase = Phase.SKILL_SELECT
+                phase = Phase.EXPLORING
             }
             return
         }
@@ -576,10 +561,8 @@ class DungeonGame {
                     locked = false
                     clearedRooms++
                     floorCleared++
-                    if (roomNow.type == RoomType.BOSS && (floor < MAX_FLOOR || endless)) {
-                        portal = roomLeft(roomNow) + ROOM_W / 2 to roomTop(roomNow) + ROOM_H / 2
-                    } else if (roomNow.type == RoomType.BOSS) {
-                        phase = Phase.VICTORY
+                    if (roomNow.type == RoomType.BOSS) {
+                        portal = roomLeft(roomNow) + roomNow.w / 2 to roomTop(roomNow) + roomNow.h / 2
                     }
                     apNext = null; apPhase = 0; apStuck = 0f
                 }
@@ -617,7 +600,7 @@ class DungeonGame {
         if (phase == Phase.EXPLORING) {
             val here = rooms.firstOrNull { r ->
                 val l = roomLeft(r); val t = roomTop(r)
-                engine.px >= l && engine.px <= l + ROOM_W && engine.py >= t && engine.py <= t + ROOM_H
+                engine.px >= l && engine.px <= l + r.w && engine.py >= t && engine.py <= t + r.h
             }
             if (here != null && here !== currentRoom) enterRoom(here)
             // 清房判定（本房延迟刷怪全落地且清空才开门；宝箱房必须开箱，chest 为空的异常房自动放行兜底）
@@ -630,12 +613,8 @@ class DungeonGame {
                 clearedRooms++
                 floorCleared++
                 if (room.type == RoomType.BOSS) {
-                    if (floor >= MAX_FLOOR && !endless) {
-                        phase = Phase.VICTORY
-                    } else {
-                        // Boss 后生成传送门：走近按「进入」交互（不碰即传）；无尽模式一直往下走
-                        portal = roomLeft(room) + ROOM_W / 2 to roomTop(room) + ROOM_H / 2
-                    }
+                    // Boss 后一律生成传送门：走进传送门才结算（最终层）/进下层（无尽）
+                    portal = roomLeft(room) + room.w / 2 to roomTop(room) + room.h / 2
                 }
             }
         }
@@ -889,8 +868,8 @@ class DungeonGame {
     }
 
     // ---------- 世界几何 ----------
-    fun roomLeft(r: Room) = r.gx * GRID_X - ROOM_W / 2
-    fun roomTop(r: Room) = r.gy * GRID_Y - ROOM_H / 2
+    fun roomLeft(r: Room) = r.gx * GRID_X - r.w / 2
+    fun roomTop(r: Room) = r.gy * GRID_Y - r.h / 2
 
     /** 门是否通行：清房锁门机制（在未清房间战斗时全部封闭） */
     fun doorOpen(a: Room, b: Room) = !locked
@@ -900,7 +879,7 @@ class DungeonGame {
         val r = engine.playerR
         for (room in rooms) {
             val l = roomLeft(room); val t = roomTop(room)
-            if (x >= l + r && x <= l + ROOM_W - r && y >= t + r && y <= t + ROOM_H - r) return@handler true
+            if (x >= l + r && x <= l + room.w - r && y >= t + r && y <= t + room.h - r) return@handler true
         }
         for (room in rooms) {
             for ((d, n) in room.neighbors) {
@@ -914,13 +893,13 @@ class DungeonGame {
 
     private fun corridorContains(a: Room, b: Room, x: Float, y: Float, r: Float): Boolean {
         return if (a.gy == b.gy) {
-            val l = minOf(roomLeft(a) + ROOM_W, roomLeft(b) + ROOM_W) - DOOR_PROBE
+            val l = minOf(roomLeft(a) + a.w, roomLeft(b) + b.w) - DOOR_PROBE
             val rr = maxOf(roomLeft(a), roomLeft(b)) + DOOR_PROBE
             val cy = a.gy * GRID_Y
             x >= l + r && x <= rr - r && y >= cy - DOOR_H / 2 + r && y <= cy + DOOR_H / 2 - r
         } else {
             // 纵向走廊：上房的底边 → 下房的顶边（端头各内伸 PROBE 与房间收边区重叠）
-            val t = minOf(roomTop(a) + ROOM_H, roomTop(b) + ROOM_H) - DOOR_PROBE
+            val t = minOf(roomTop(a) + a.h, roomTop(b) + b.h) - DOOR_PROBE
             val bb = maxOf(roomTop(a), roomTop(b)) + DOOR_PROBE
             val cx = a.gx * GRID_X
             y >= t + r && y <= bb - r && x >= cx - DOOR_H / 2 + r && x <= cx + DOOR_H / 2 - r

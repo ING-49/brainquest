@@ -87,6 +87,17 @@ object DungeonGenerator {
             }
         }
 
+        // 房型定尺寸：Boss 最大 / 战斗标准 / 精英略小 / 宝箱·商店·起点紧凑（少空旷感）
+        for (r in rooms) {
+            when (r.type) {
+                RoomType.BOSS -> { r.w = 2200f; r.h = 1400f }
+                RoomType.ELITE -> { r.w = 1700f; r.h = 1100f }
+                RoomType.CHEST, RoomType.SHOP -> { r.w = 1300f; r.h = 850f }
+                RoomType.START -> { r.w = 1400f; r.h = 900f }
+                else -> { r.w = 2000f; r.h = 1300f }
+            }
+        }
+
         return Result(rooms, start, boss, floor)
     }
 

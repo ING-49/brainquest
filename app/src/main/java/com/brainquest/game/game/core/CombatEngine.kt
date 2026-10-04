@@ -153,26 +153,15 @@ class CombatEngine {
     /** 职业被动 id（knight 格挡 / mage 击杀回血 / ranger 闪避），null = 无 */
     var passiveId: String? = null
 
-    // ---------- 主动技能 ----------
+    // ---------- 主动技能（职业固定专属，开局由 DungeonGame 注入，无过层选取） ----------
     var skillId: String? = null; private set
     var skillCd = 0f; private set
     var skillCdMax = 14f
-    /** 职业专属技能 id（开局注入）：未持有时必出现在三选一，持有后再选=强化（冷却 −2s，见 DungeonGame.chooseSkill） */
-    var classSkillId: String? = null
     var timeScale = 1f; private set      // 时间减速/冰冻全局倍率（只作用于敌人）
     private var timeScaleTimer = 0f
     var shake = 0f; private set          // 震屏强度（渲染层读，随 tick 衰减）
     var shieldTime = 0f; private set     // 护盾剩余时间
     private var shieldLeft = 0f          // 护盾剩余吸收量
-
-    /** 每层结束的三选一：职业技必占一席（持有后再选=强化减 CD）；已持有的通用技不再出现 */
-    fun rollSkills(rng: Random): List<String> {
-        val pool = mutableListOf("dash", "shield", "heal", "slowtime", "freeze", "meteor", "chain")
-        pool.remove(skillId)
-        val picks = pool.shuffled(rng).take(2).toMutableList()
-        classSkillId?.let { picks.add(it) }
-        return picks.shuffled(rng)
-    }
 
     fun setSkill(id: String) { skillId = id; skillCd = 0f }
 
@@ -268,7 +257,6 @@ class CombatEngine {
         joyActive = false; joyX = 0f; joyY = 0f
         attackHeld = false; aimTarget = null
         skillCd = 0f; shieldTime = 0f; shieldLeft = 0f
-        classSkillId = null
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         hitStop = 0f; playerFlash = 0f; velX = 0f; velY = 0f; activeSlash = null
         killStreak = 0; killStreakTimer = 0f
