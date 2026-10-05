@@ -279,7 +279,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             trails.forEach { it.t += dtFx }
             trails.removeAll { it.t > 0.3f }
             val e = game.engine
-            val boss = game.engine.enemies.firstOrNull { it.bossFloor > 0 && it.alive }
+            val boss = game.engine.enemies.firstOrNull { it.bossFloor > 0 && it.alive && !it.dormant }   // 待机的预刷新 Boss 不顶血条
             val h = Hud(
                 game.phase, game.floor, game.floorCleared, game.rooms.size,
                 e.hp, e.maxHp, e.level, game.runTimeSec, game.totalKills,

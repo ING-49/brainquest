@@ -287,22 +287,15 @@ class CombatEngine {
         if (timeScaleTimer > 0f) { timeScaleTimer -= dt; if (timeScaleTimer <= 0f) timeScale = 1f }
         if (shake > 0f) shake -= dt
 
-        // 玩家移动：摇杆 → 目标速度，惯性插值（加速 1200 / 减速 1500）；挥砍期间移速减半
+        // 玩家移动：摇杆 → 速度直接映射（往哪是哪、松手即停）；挥砍期间移速减半
         var jx = if (joyActive) joyX else 0f
         var jy = if (joyActive) joyY else 0f
         val inLen = hypot(jx, jy)
         if (inLen > 1f) { jx /= inLen; jy /= inLen }
         val slowK = if (activeSlash != null) 0.5f else 1f
         val chillK = if (chill > 0f) 0.72f else 1f   // 精英「霜环」：靠近被冻慢
-        val tx = jx * speed * slowK * chillK
-        val ty = jy * speed * slowK * chillK
-        val accel = if (inLen > 0.01f) 1600f else 1900f   // 起步更快、松手急停更跟手
-        val dvx = tx - velX; val dvy = ty - velY
-        val dl = hypot(dvx, dvy)
-        if (dl > 0.01f) {
-            val step = accel * dt
-            if (dl <= step) { velX = tx; velY = ty } else { velX += dvx / dl * step; velY += dvy / dl * step }
-        }
+        velX = jx * speed * slowK * chillK
+        velY = jy * speed * slowK * chillK
         val vx = hypot(velX, velY)
         moving = vx > 20f
         if (inLen > 0.01f) facing = atan2(velY, velX)   // facing 只跟随真实输入；惯性滑行不抢朝向（faceTo 锁敌不被覆盖）
@@ -951,14 +944,11 @@ interface Weapon {
     /** 尝试攻击；返回是否真的出手（出手才重置攻击计时） */
     fun attack(engine: CombatEngine): Boolean
 
-    /** 近战挥砍：前摇后对朝向扇形判定（剑士） */
+    /** 近战挥砍：前摇后对朝向扇形判定（剑士）；手动模式空 A 也出手（挥空不空手） */
     class MeleeSlash(val range: Float = 95f, val arcDeg: Float = 100f, val windup: Float = 0.1f) : Weapon {
         override fun attack(engine: CombatEngine): Boolean {
-            val t = if (engine.autoAttack) engine.nearestEnemy(range + 30f)
-                    else engine.aimTarget?.takeIf { hypot(it.x - engine.px, it.y - engine.py) <= range + it.r }
-                ?: return false
-            // 有目标才出刀：前摇 0.1s → 判定 → 后摇收刀（期间移速减半，tick 推进 activeSlash）
             if (engine.activeSlash != null) return false   // 上一刀没收完不连挥
+            if (engine.autoAttack && engine.nearestEnemy(range + 30f) == null) return false   // 自动模式有目标才出刀
             engine.beginSlash(CombatEngine.Slash(0f, windup, range, arcDeg, engine.attack.toFloat()))
             return true
         }

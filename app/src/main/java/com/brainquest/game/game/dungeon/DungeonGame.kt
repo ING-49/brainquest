@@ -28,7 +28,7 @@ class DungeonGame {
         const val GRID_X = 2400f   // 房间横向间距（含走廊）
         const val GRID_Y = 1700f   // 纵向间距
         const val BASE_ZOOM = 1.3f // 世界基础缩放：屏幕只看世界的一部分（房间远大于视口，相机跟随人物居中）
-        const val DOOR_H = 150f    // 门/走廊宽度
+        const val DOOR_H = 200f    // 门/走廊宽度（加宽后穿门更顺滑）
         const val DOOR_PROBE = 44f // 走廊端头向房间内伸的长度（保证与房间收边区无缝穿门）
         const val WALL = 26f       // 墙厚（绘制）
         const val MAX_FLOOR = 5
@@ -128,13 +128,7 @@ class DungeonGame {
             val k = (dt * 8f).coerceIn(0f, 1f)
             camX += (tx - camX) * k; camY += (ty - camY) * k
         }
-        // 房间比视口小才把相机固定在房间中心（此时画面看全房）；否则人物恒居中
-        currentRoom?.let { r ->
-            val l = roomLeft(r); val t = roomTop(r)
-            val vw = viewW / eff; val vh = viewH / eff
-            if (vw >= r.w + 60f) camX = l + r.w / 2 - vw / 2
-            if (vh >= r.h + 60f) camY = t + r.h / 2 - vh / 2
-        }
+        // 相机一律跟随人物居中（房间外露出的深色底是正常背景）——人物永远在屏幕正中
     }
 
     // ---------- 流程 ----------
