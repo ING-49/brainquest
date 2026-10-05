@@ -54,6 +54,7 @@ class CombatEngine {
         var kbVX = 0f; var kbVY = 0f; var kbT = 0f
         var stun = 0f
         var dormant = false   // 待机（预刷新可见但未激活：不动/不伤人/不可被击）
+        var entrancePending = false   // Boss 出场特效待触发（dormant→激活瞬间放震屏+冲击环，一次性）
         // 攻击状态机：0=普通 1=前摇（可预判） 2=出手/恢复
         var atkState = 0
         var atkTimer = 0f

@@ -261,7 +261,7 @@ class DungeonGame {
         shopNear = false
         // 激活本房待机敌人（进房即战）
         for (e in engine.enemies) {
-            if (e.dormant && roomContains(room, e.x, e.y)) e.dormant = false
+            if (e.dormant && roomContains(room, e.x, e.y)) { e.dormant = false; entranceFxIfPending(e) }
         }
         // 预刷新：相邻未清房提前布置敌人（待机可见）
         for (n in room.neighbors.values) {
@@ -280,6 +280,14 @@ class DungeonGame {
         engine.enemies.count { it.alive && !it.dormant && roomContains(r, it.x, it.y) }
 
     /** 按房型布置敌人（数量/强度随层数成长）；幂等，出生为待机态，进房才激活 */
+    /** dormant→激活瞬间的出场特效（Boss 专属：震屏+冲击环+出场音效，一次性；邻房预刷新时不放） */
+    private fun entranceFxIfPending(e: CombatEngine.Enemy) {
+        if (!e.entrancePending || e.dormant) return
+        e.entrancePending = false
+        engine.addShake(10f)
+        engine.events.add(CombatEngine.FxEvent(e.x, e.y, "", false, null, 4))
+    }
+
     private fun populateRoom(room: Room) {
         if (room.populated) return
         room.populated = true
@@ -366,9 +374,8 @@ class DungeonGame {
                 )
                 boss.bossFloor = floor
                 boss.dormant = true   // 预刷新待机：玩家进房才激活（否则落地即追击，隔房参战/被隔房斩杀）
+                boss.entrancePending = true   // 出场特效（震屏+冲击环）推迟到激活瞬间——populate 发生在邻房预刷新，提前放会误震邻房
                 engine.spawnLater(0.4f, boss)
-                engine.addShake(10f)   // Boss 出场震屏
-                engine.events.add(CombatEngine.FxEvent(boss.x, boss.y, "", false, null, 4))   // 出场冲击环
             }
             RoomType.CHEST -> {
                 // 房心放宝箱：开启前锁门，开启掉装备+金币（见 openChest）
@@ -609,7 +616,7 @@ class DungeonGame {
         // 本房待机敌持续激活（延迟刷怪落地时玩家已进房：进门瞬间的激活会漏掉它们）
         currentRoom?.let { cur ->
             for (e in engine.enemies) {
-                if (e.dormant && roomContains(cur, e.x, e.y)) e.dormant = false
+                if (e.dormant && roomContains(cur, e.x, e.y)) { e.dormant = false; entranceFxIfPending(e) }
             }
         }
         // 走进新房间

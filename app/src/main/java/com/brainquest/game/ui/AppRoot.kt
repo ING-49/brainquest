@@ -30,6 +30,7 @@ import com.brainquest.game.AppViewModel
 import com.brainquest.game.data.question.Subjects
 import com.brainquest.game.data.subjectFromKey
 import com.brainquest.game.ui.meta.AchievementsScreen
+import com.brainquest.game.ui.meta.TalentScreen
 import com.brainquest.game.ui.meta.DailyScreen
 import com.brainquest.game.ui.meta.ProfileScreen
 import com.brainquest.game.ui.meta.SettingsScreen
@@ -58,6 +59,7 @@ object Routes {
     const val WRONGBOOK = "wrongbook"
     const val SHOP = "shop"
     const val ACHIEVEMENTS = "achievements"
+    const val TALENTS = "talents"
     const val SETTINGS = "settings"
     const val PAPERS = "papers"
     const val PK = "pk"
@@ -138,6 +140,7 @@ fun AppRoot(vm: AppViewModel) {
             composable(Routes.WRONGBOOK) { WrongBookScreen(vm, nav) }
             composable(Routes.SHOP) { ShopScreen(vm, nav) }
             composable(Routes.ACHIEVEMENTS) { AchievementsScreen(vm, nav) }
+            composable(Routes.TALENTS) { TalentScreen(vm, nav) }
             composable(Routes.SETTINGS) { SettingsScreen(vm, nav) }
             composable(Routes.CLOUD_SAVE) { com.brainquest.game.ui.meta.CloudSaveScreen(vm, nav) }
             composable(Routes.PAPERS) { com.brainquest.game.ui.meta.PapersScreen(vm, nav) }

@@ -895,6 +895,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     modifier = Modifier.width(300.dp).padding(top = 12.dp).height(52.dp),
                 ) { Text("▶ 开始冒险", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                 OutlinedButton(
+                    onClick = { nav.navigate(com.brainquest.game.ui.Routes.TALENTS) },
+                    modifier = Modifier.width(300.dp).padding(top = 6.dp).height(40.dp),
+                ) { Text("⭐ 天赋养成", color = GamePalette.UI_EXP) }
+                OutlinedButton(
                     onClick = { nav.popBackStack() },
                     modifier = Modifier.width(300.dp).padding(top = 6.dp, bottom = 14.dp).height(40.dp),
                 ) { Text("返回应用") }
