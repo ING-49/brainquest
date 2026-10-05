@@ -776,11 +776,12 @@ class DungeonGame {
             0 -> {
                 val door = doorCenter(room, next)
                 apSteerTo(door.first, door.second)
-                // 越过门所在墙：房间序号变化由 enterRoom 完成；若仍在本房但已越过门心，切阶段
+                // 越过门所在墙：房间序号变化由 enterRoom 完成；若仍在本房但已越过门心，切阶段。
+                // 容差 8f：到位松杆（d<0.5f）后玩家可能停在门心前极近处，精确比较会永假
                 val crossed = if (room.gy == next.gy) {
-                    (next.gx > room.gx && engine.px >= door.first) || (next.gx < room.gx && engine.px <= door.first)
+                    (next.gx > room.gx && engine.px >= door.first - 8f) || (next.gx < room.gx && engine.px <= door.first + 8f)
                 } else {
-                    (next.gy > room.gy && engine.py >= door.second) || (next.gy < room.gy && engine.py <= door.second)
+                    (next.gy > room.gy && engine.py >= door.second - 8f) || (next.gy < room.gy && engine.py <= door.second + 8f)
                 }
                 if (crossed) apPhase = 1
             }
@@ -798,10 +799,14 @@ class DungeonGame {
 
     private fun apSteerTo(x: Float, y: Float) {
         val dx = x - engine.px; val dy = y - engine.py
-        val d = kotlin.math.hypot(dx, dy).coerceAtLeast(1f)
+        val d = kotlin.math.hypot(dx, dy)
+        // 到位即松杆；否则 joy 恒为单位向量——不能用 coerceAtLeast(1f) 做分母：
+        // 那会把 <1px 的剩余距离压成亚单位 joy，速度指数衰减成渐近逼近，
+        // 直接移动（无惯性）下永远差 float 最后一步，crossed 精确比较永不翻转 → 门口永滞
+        if (d < 0.5f) { engine.joyActive = false; return }
         engine.joyActive = true
-        engine.joyX = (dx / d).coerceIn(-1f, 1f)
-        engine.joyY = (dy / d).coerceIn(-1f, 1f)
+        engine.joyX = dx / d
+        engine.joyY = dy / d
     }
 
     private fun nearestUncleared(from: Room): Room? {
