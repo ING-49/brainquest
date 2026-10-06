@@ -103,3 +103,4 @@ adb exec-out screencap -p > screen.png
 35. **世界缩放（BASE_ZOOM 1.3×）下的 HUD 必须画在变换之外**：血条/摇杆等屏幕层元素若写进 `withTransform{}` 内，会被缩放推到屏幕外（v1.6.24 血条消失的真因）；相机坐标也**不要**再除以缩放系数（两层缩放叠加会让画面整体偏移 30% 屏宽）
 36. **引擎里的待机（dormant）敌人**：预刷新的邻房怪不动/不伤人/不可被击，清房判定按「本房 !dormant 且 alive」计数；延迟刷怪落地晚于进房激活，必须每帧持续激活本房 dormant，否则会漏怪或留暗桩
 37. **CI 抢跑发布会炸签名 + tag 打错提交（v1.6.30/31 各踩一次）**：release.yml 曾在 tag push 时自动构建发布，CI 沙箱 debug keystore ≠ 本地 → 全量用户 1.6.29→1.6.30 被 Android 拒装（签名不一致）。已剥离 CI 发布（`16ed75c`），发布一律本地发版三步；且 `gh release create` 会把 tag 打在**远端 master HEAD**——发布前必须先 push 包含发布代码的提交，否则 tag 与发布产物脱节；`publish_github.py` 末尾校验只比 latestVersionCode（弱校验），发布后必须独立读线核对 APK digest 与补丁链
+38. **模拟器磁盘硬门槛 ~2G + 强杀残留锁**：模拟器自检不认约定的 1G，E 盘 <~2G 直接 FATAL "not enough disk space"（v1.6.34 发版时 1.9G 起不动，删 BQ2.avd/snapshots 2.6G 解决）；taskkill 强杀会留 `BQ2.avd/hardware-qemu.ini.lock` **目录**（rm -rf 删）+ multiinstance.lock，起不动先清锁；SystemUI ANR 弹窗的 Wait 按钮实测坐标 (319,1328)（1080×2400 直读，勿用渲染缩放坐标）
