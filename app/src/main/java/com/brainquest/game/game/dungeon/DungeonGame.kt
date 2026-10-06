@@ -190,15 +190,13 @@ class DungeonGame {
             else -> 9f
         }
         engine.canPass = canPass
+        engine.onCoinPicked = { v -> coins += v }
         engine.onEnemyKilled = { e ->
             totalKills++
             if (c.id == "mage") engine.heal(1)   // 法师被动：击杀回 1 血
-            // 金币掉落：精英 +8 / Boss +25（商店与重铸的收入来源）
-            val coinDrop = if (e.bossFloor > 0) 25 else if (e.elite) 8 else 0
-            if (coinDrop > 0) {
-                coins += coinDrop
-                engine.events.add(CombatEngine.FxEvent(e.x, e.y - e.r - 14f, "金币 +$coinDrop", false, null, 2))
-            }
+            // 金币掉落：精英 +8 / Boss +25（改金币实体：飞散落地→磁吸→拾取才入账）
+            if (e.bossFloor > 0) { engine.spawnCoin(e.x - 10f, e.y, 10); engine.spawnCoin(e.x + 10f, e.y, 8); engine.spawnCoin(e.x, e.y + 10f, 7) }
+            else if (e.elite) engine.spawnCoin(e.x, e.y, 8)
             // 掉落：普通 10%、精英必掉史诗、Boss 必掉传说
             val item = when {
                 e.r > 30f -> Equipment.generateBoss(floor, rng)
@@ -286,6 +284,7 @@ class DungeonGame {
         e.entrancePending = false
         engine.addShake(10f)
         engine.events.add(CombatEngine.FxEvent(e.x, e.y, "", false, null, 4))
+        engine.events.add(CombatEngine.FxEvent(e.x, e.y, "第${floor}层 · 魔王现身", false, null, 7))   // 出场横幅（屏幕层渲染）
     }
 
     private fun populateRoom(room: Room) {

@@ -146,6 +146,36 @@ object EntityRenderer {
             scope.drawLine(pal.line, Offset(l + 12f, gy), Offset(l + w - 12f, gy), 2f)
             gy += step
         }
+        // 无状态地板装饰：按 (房间网格, 格索引) hash 撒裂缝/碎石/骨头/苔藓（每层色调不同、每格恒定）
+        run {
+            var cx2 = l + step / 2f
+            var col = 0
+            while (cx2 < l + w - 8f) {
+                var cy2 = t + step / 2f
+                var row = 0
+                while (cy2 < t + h - 8f) {
+                    val hsh = (room.gx * 73856093) xor (room.gy * 19349663) xor (col * 83492791) xor (row * 29712150)
+                    when ((hsh ushr 7) % 100) {
+                        in 0..5 -> {   // 裂缝：三段折线
+                            val cc = pal.line.copy(alpha = 0.85f)
+                            scope.drawLine(cc, Offset(cx2 - 9f, cy2 - 4f), Offset(cx2, cy2 + 2f), 1.5f)
+                            scope.drawLine(cc, Offset(cx2, cy2 + 2f), Offset(cx2 + 8f, cy2 - 5f), 1.5f)
+                        }
+                        in 6..10 -> scope.drawCircle(Color(0x20FFFFFF), 3.2f, Offset(cx2, cy2))   // 碎石
+                        in 11..13 -> {   // 骨头：短杆+两端节
+                            val bc = Color(0x4DECEFF1)
+                            scope.drawLine(bc, Offset(cx2 - 5f, cy2 + 3f), Offset(cx2 + 5f, cy2 - 3f), 2f)
+                            scope.drawCircle(bc, 1.8f, Offset(cx2 - 5f, cy2 + 3f))
+                            scope.drawCircle(bc, 1.8f, Offset(cx2 + 5f, cy2 - 3f))
+                        }
+                        in 14..19 -> scope.drawCircle(Color(0x1A66BB6A), 5.5f, Offset(cx2, cy2))   // 苔藓
+                        else -> {}
+                    }
+                    cy2 += step; row++
+                }
+                cx2 += step; col++
+            }
+        }
         // 墙（描边）+ 墙顶亮边 + 墙体投影暗带（立体感）
         scope.drawRoundRect(pal.wall, Offset(l, t), Size(w, h), CornerRadius(18f), style = Stroke(DungeonGame.WALL))
         scope.drawRect(GamePalette.BG_WALL_TOP, Offset(l + DungeonGame.WALL, t + DungeonGame.WALL), Size(w - DungeonGame.WALL * 2, 6f))
@@ -424,6 +454,17 @@ object EntityRenderer {
     }
 
     // ---------- 宝箱与货摊（CHEST/SHOP 房心的交互实体） ----------
+    /** 金币实体（小圆金币：铜边+高光，随时间轻微浮动） */
+    fun drawCoins(scope: DrawScope, game: DungeonGame, time: Float) {
+        for (c in game.engine.coinDrops) {
+            val sx = c.x - game.camX
+            val sy = c.y - game.camY + kotlin.math.sin(time * 6f + c.x * 0.05f) * 2f
+            scope.drawCircle(Color(0xFFD97706), 7f, Offset(sx, sy))
+            scope.drawCircle(Color(0xFFFDE68A), 2.8f, Offset(sx - 1.6f, sy - 1.6f))
+            scope.drawCircle(Color(0xFFD97706), 7f, Offset(sx, sy), style = Stroke(1.5f))
+        }
+    }
+
     fun drawFixtures(scope: DrawScope, game: DungeonGame, time: Float) {
         game.chest?.let { c ->
             val sx = c.first - game.camX

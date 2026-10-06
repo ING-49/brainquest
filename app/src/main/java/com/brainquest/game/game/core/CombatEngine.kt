@@ -55,6 +55,7 @@ class CombatEngine {
         var stun = 0f
         var dormant = false   // 待机（预刷新可见但未激活：不动/不伤人/不可被击）
         var entrancePending = false   // Boss 出场特效待触发（dormant→激活瞬间放震屏+冲击环，一次性）
+        var dashWarn = 0f   // Boss 冲刺预警倒计时（>0 期间锁方向亮预警线，归零瞬间突进）
         // 攻击状态机：0=普通 1=前摇（可预判） 2=出手/恢复
         var atkState = 0
         var atkTimer = 0f
@@ -83,6 +84,13 @@ class CombatEngine {
         var alive = true
         var magnet = false
         var vx = 0f; var vy = 0f   // 掉落弹出初速（阻尼衰减）
+    }
+
+    /** 金币掉落实体（飞散+磁吸+拾取才入账，仿 Orb；入账走 onCoinPicked 回调） */
+    class Coin(var x: Float, var y: Float, val value: Int) {
+        var alive = true
+        var magnet = false
+        var vx = 0f; var vy = 0f
     }
 
     /** 帧事件（伤害飘字/粒子/闪电，渲染层消费后转成持续特效） */
@@ -145,6 +153,8 @@ class CombatEngine {
     val enemies = ArrayList<Enemy>(64)
     val bullets = ArrayList<Bullet>(64)
     val orbs = ArrayList<Orb>(64)
+    val coinDrops = ArrayList<Coin>(48)
+    var onCoinPicked: ((Int) -> Unit)? = null   // 金币拾取入账（DungeonGame 接 coins += v）
     val events = ArrayList<FxEvent>(16)
     private val pendingSpawns = ArrayList<Pair<Float, Enemy>>(8)   // 延迟刷怪（进房分波）
     private val spawnNow = ArrayList<Enemy>(4)   // 迭代中的安全生成队列（Boss召唤/精英分裂）
@@ -179,7 +189,7 @@ class CombatEngine {
                 }
                 px += cos(facing) * 240f; py += sin(facing) * 240f
                 invincible = invincibleSec
-                shake = 6f
+                shake = 3f
             }
             "shield" -> { shieldTime = 8f; shieldLeft = 50f }
             "heal" -> { heal((maxHp * 0.4f).toInt()); events.add(FxEvent(px, py, "", false, null, 6)) }
@@ -217,7 +227,7 @@ class CombatEngine {
                     t.slowTimer = maxOf(t.slowTimer, 3f)
                 }
                 events.add(FxEvent(px, py, "", false, null, 11))
-                shake = 6f
+                shake = 3f
             }
             "arrowrain" -> {   // 箭雨（游侠）：朝面向 ±28° 扇形齐射 8 箭
                 repeat(8) { i ->
@@ -253,7 +263,7 @@ class CombatEngine {
     }
 
     fun reset() {
-        enemies.clear(); bullets.clear(); orbs.clear(); events.clear(); pendingSpawns.clear()
+        enemies.clear(); bullets.clear(); orbs.clear(); coinDrops.clear(); events.clear(); pendingSpawns.clear()
         hp = maxHp
         level = 1; xp = 0; xpNext = 6
         invincible = 0f; attackTimer = 0f; timeAcc = 0f; elapsed = 0f
@@ -334,12 +344,14 @@ class CombatEngine {
         tickEnemies(dt)
         tickBullets(dt)
         tickOrbs(dt)
+        tickCoins(dt)
         tickPendingSpawns(dt)
 
         // 清理：非死亡动画的尸体立即回收；死亡动画播完（deathTimer≤0）再回收
         enemies.removeAll { !it.alive && (!it.dying || it.deathTimer <= 0f) }
         bullets.removeAll { !it.alive }
         orbs.removeAll { !it.alive }
+        coinDrops.removeAll { !it.alive }
     }
 
     private fun tickPendingSpawns(dt: Float) {
@@ -600,6 +612,48 @@ class CombatEngine {
         }
     }
 
+    /** 金币实体：飞散初速阻尼 → 磁吸 → 拾取入账（onCoinPicked 回调 + kind 2 飘字叮声） */
+    private fun tickCoins(dt: Float) {
+        for (ci in coinDrops.indices) {
+            val c = coinDrops[ci]
+            if (!c.alive) continue
+            if (c.vx != 0f || c.vy != 0f) {
+                c.x += c.vx * dt; c.y += c.vy * dt
+                val k = kotlin.math.exp(-6f * dt)
+                c.vx *= k; c.vy *= k
+                if (c.vx * c.vx + c.vy * c.vy < 100f) { c.vx = 0f; c.vy = 0f }
+            }
+            if (arenaRight > arenaLeft) {
+                c.x = c.x.coerceIn(arenaLeft + 8f, arenaRight - 8f)
+                c.y = c.y.coerceIn(arenaTop + 8f, arenaBottom - 8f)
+            }
+            val dx = px - c.x; val dy = py - c.y
+            val d2 = dx * dx + dy * dy
+            val rr = playerR + 6f
+            if (d2 <= rr * rr) {
+                c.alive = false
+                onCoinPicked?.invoke(c.value)
+                events.add(FxEvent(c.x, c.y, "+" + c.value, false, null, 2))
+            } else {
+                if (!c.magnet && d2 <= pickupRange * pickupRange) c.magnet = true
+                if (c.magnet) {
+                    val d = hypot(dx, dy)
+                    if (d > 1f) { c.x += dx / d * 560f * dt; c.y += dy / d * 560f * dt }
+                }
+            }
+        }
+    }
+
+    /** 掉落一枚金币实体（飞散弹出；拾取才入账） */
+    fun spawnCoin(x: Float, y: Float, value: Int) {
+        if (coinDrops.size >= 48) return
+        val a = Random.nextFloat() * 6.283f
+        val sp = 90f + Random.nextFloat() * 130f
+        val c = Coin(x, y, value)
+        c.vx = cos(a) * sp; c.vy = sin(a) * sp
+        coinDrops.add(c)
+    }
+
     private fun tickOrbs(dt: Float) {
         for (oi in orbs.indices) {
             val o = orbs[oi]
@@ -802,6 +856,9 @@ class CombatEngine {
     }
 
     /** Boss 专属 AI：每层不同机制，血量 <30% 进入狂暴（阶段 2） */
+    /** 特殊技间隔抖动（±1s，去固定节奏的机械感） */
+    private fun jitter(base: Float): Float = (base + Random.nextFloat() * 2f - 1f).coerceAtLeast(1.5f)
+
     private fun bossAI(e: Enemy, dx: Float, dy: Float, d: Float, sp: Float, dt: Float) {
         val rage = e.phase >= 2
         val mult = if (rage) 1.5f else 1f
@@ -809,6 +866,16 @@ class CombatEngine {
             e.phase = 2
             shake = 12f
             events.add(FxEvent(e.x, e.y - e.r - 20f, "狂暴！", true, null, 0))
+        }
+        // 冲刺预警两拍：先锁方向亮预警线 0.45s（给玩家可读的躲窗），归零瞬间突进
+        if (e.dashWarn > 0f) {
+            e.dashWarn -= dt
+            if (e.dashWarn <= 0f) {
+                e.x += e.atkDirX * 300f; e.y += e.atkDirY * 300f
+                shake = 3f
+                repeat(2) { if (enemies.size < MAX_ENEMIES) spawnMinion(e, EnemyKind.SLIME) }
+            }
+            return
         }
         if (d > 1f && e.frozen <= 0f) {
             e.x += dx / d * sp * mult * dt
@@ -818,13 +885,17 @@ class CombatEngine {
         if (e.specialTimer > 0f) return
         val floor = e.bossFloor
         when (((floor - 1) % 4) + 1) {
-            1 -> {   // 冲刺 + 召唤小怪
-                e.specialTimer = if (rage) 3f else 5f
-                if (d > 120f) { e.x += dx / d * 300f; e.y += dy / d * 300f; shake = 6f }
+            1 -> {   // 冲刺 + 召唤小怪（两拍：预警→突进；贴脸不冲短重试）
+                e.specialTimer = jitter(if (rage) 3f else 5f)
+                if (d > 120f) {
+                    val dd = d.coerceAtLeast(1f)
+                    e.atkDirX = dx / dd; e.atkDirY = dy / dd
+                    e.dashWarn = 0.45f
+                } else e.specialTimer = 1f
                 repeat(2) { if (enemies.size < MAX_ENEMIES) spawnMinion(e, EnemyKind.SLIME) }
             }
             2 -> {   // 弹幕环 + 瞬移
-                e.specialTimer = if (rage) 2.5f else 4f
+                e.specialTimer = jitter(if (rage) 2.5f else 4f)
                 repeat(8) { i ->
                     val ang = i * 0.785f
                     if (bullets.size < MAX_BULLETS) bullets.add(Bullet(e.x, e.y, cos(ang) * 200f, sin(ang) * 200f, 6f, e.dmg * 0.6f, null, fromEnemy = true, life = 3f))
@@ -832,12 +903,12 @@ class CombatEngine {
                 if (d > 200f) { e.x = px + (Random.nextFloat() - 0.5f) * 300f; e.y = py + (Random.nextFloat() - 0.5f) * 300f }
             }
             3 -> {   // 护盾 + 反伤
-                e.specialTimer = if (rage) 4f else 6f
+                e.specialTimer = jitter(if (rage) 4f else 6f)
                 e.shieldHp = e.maxHp * 0.15f
                 e.reflect = true
             }
             4 -> {   // 分身 + 环形弹幕
-                e.specialTimer = if (rage) 3f else 5f
+                e.specialTimer = jitter(if (rage) 3f else 5f)
                 repeat(2) { if (enemies.size < MAX_ENEMIES) spawnMinion(e, EnemyKind.BAT) }
                 repeat(6) { i ->
                     val ang = i * 1.047f + elapsed
