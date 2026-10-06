@@ -537,6 +537,13 @@ object EntityRenderer {
                 com.brainquest.game.game.core.Element.THUNDER -> THUNDER_C
                 else -> if (b.fromEnemy) ENEMY_BULLET else BULLET_P
             }
+            // 弹道拖尾：沿速度反方向双段渐隐（弹丸更「有速度」）
+            val vmag = kotlin.math.hypot(b.dx, b.dy)
+            if (vmag > 1f) {
+                val ux = b.dx / vmag; val uy = b.dy / vmag
+                scope.drawLine(c.copy(alpha = 0.35f), Offset(sx - ux * b.r * 2.4f, sy - uy * b.r * 2.4f), Offset(sx, sy), 2.5f)
+                scope.drawLine(c.copy(alpha = 0.16f), Offset(sx - ux * b.r * 5.2f, sy - uy * b.r * 5.2f), Offset(sx - ux * b.r * 2.4f, sy - uy * b.r * 2.4f), 2f)
+            }
             scope.drawCircle(c, b.r, Offset(sx, sy))
         }
         for (o in game.engine.orbs) {

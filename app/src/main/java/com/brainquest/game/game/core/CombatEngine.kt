@@ -78,7 +78,7 @@ class CombatEngine {
     }
 
     /** 近战挥砍的前摇→判定（阶段 2 武器） */
-    class Slash(var timer: Float, val windup: Float, val range: Float, val arcDeg: Float, var dmg: Float, var fired: Boolean = false)
+    class Slash(var timer: Float, val windup: Float, val range: Float, val arcDeg: Float, var dmg: Float, var fired: Boolean = false, val flip: Boolean = false)   // flip=正反手交替
 
     class Orb(var x: Float, var y: Float, val value: Int) {
         var alive = true
@@ -335,6 +335,9 @@ class CombatEngine {
             s.timer += dt
             if (!s.fired && s.timer >= s.windup) {
                 s.fired = true
+                // 挥砍突进：出刀瞬间向面前小步突进（碰撞检查），攻击更「有重量」
+                val lx = px + cos(facing) * 10f; val ly = py + sin(facing) * 10f
+                if (canPass?.invoke(lx, ly) != false) { px = lx; py = ly }
                 meleeArc(s.range, Math.toRadians(s.arcDeg.toDouble()).toFloat(), s.dmg, Element.PHYSICAL)
             }
             if (s.timer >= s.windup + 0.25f) activeSlash = null
@@ -720,8 +723,13 @@ class CombatEngine {
             e.kbT = 0.12f
         }
         e.stun = maxOf(e.stun, if (crit) 0.15f else 0.1f)
-        hitStop = maxOf(hitStop, if (crit) 0.06f else 0.025f)
-        events.add(FxEvent(e.x, e.y - e.r, "${dmg.toInt()}", crit, element, 0))
+        // 分层顿帧：精英/Boss 受击更沉（Dead Cells 式打击分层）
+        hitStop = maxOf(hitStop, when {
+            e.bossFloor > 0 || e.elite -> if (crit) 0.09f else 0.05f
+            crit -> 0.06f
+            else -> 0.025f
+        })
+        events.add(FxEvent(e.x, e.y - e.r, "${dmg.toInt()}", crit, element, 0, x2 = e.x + kx * 12f, y2 = e.y + ky * 12f))   // x2/y2=攻击来向（方向性火花）
         if (element != null) ElementSystem.onHit(e, element, this)
         if (e.hp <= 0f && e.alive) killEnemy(e)
     }
@@ -795,7 +803,12 @@ class CombatEngine {
     /** DEBUG 兜底：自动驾驶用（升级空队列时恢复探索） */
     fun forcePlaying() { phase = Phase.PLAYING }
     /** 武器发起近战挥砍（前摇→判定→后摇由 tick 推进）；已有挥砍进行中则忽略 */
-    fun beginSlash(s: Slash) { if (activeSlash == null) activeSlash = s }
+    var slashFlip = false   // 近战正反手交替（渲染层镜像弧光）
+    fun beginSlash(s: Slash) {
+        if (activeSlash != null) return
+        slashFlip = !slashFlip
+        activeSlash = Slash(s.timer, s.windup, s.range, s.arcDeg, s.dmg, s.fired, slashFlip)
+    }
     /** 原地转向（不移动；自动驾驶近战站定输出用——facing 平时只随移动更新） */
     fun faceTo(x: Float, y: Float) { facing = atan2(y - py, x - px) }
     fun addShake(v: Float) { shake = maxOf(shake, v) }

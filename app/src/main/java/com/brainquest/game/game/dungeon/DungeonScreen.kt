@@ -161,6 +161,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val bolts = remember { ArrayList<BoltFx>(8) }
     val rings = remember { ArrayList<RingFx>(4) }
     val banners = remember { ArrayList<BannerFx>(2) }
+    val slashGhosts = remember { ArrayList<SlashGhost>(6) }
+    val slashPrevFired = remember { booleanArrayOf(false) }   // fired 跳变检测（上一帧状态）
     val trails = remember { ArrayList<TrailFx>(8) }
     val floatPool = remember { ArrayDeque<FloatFx>() }
     val partPool = remember { ArrayDeque<ParticleFx>() }
@@ -218,10 +220,15 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         if (floats.size < 100) {
                             floats.add(obtainFloat().also { it.set(ev.x, ev.y, ev.text, c, ev.crit) })
                         }
+                        // 攻击来向（hitEnemy 经 x2/y2 传入）：火花沿来向锥形喷溅，更有「被这一刀打中」的方向感
+                        val dirBase = if (ev.x2 != 0f || ev.y2 != 0f)
+                            kotlin.math.atan2(ev.y2 - ev.y, ev.x2 - ev.x) else null
                         if (parts.size < 300) when (ev.element) {
                             com.brainquest.game.game.core.Element.FIRE -> repeat(5) {   // 火：余焰上飘重力回落
+                                val spread = if (dirBase != null) dirBase + (rngFx.nextFloat() - 0.5f) * 1.2f else rngFx.nextFloat() * 6.283f
+                                val fsp = 50f + rngFx.nextFloat() * 90f
                                 parts.add(obtainPart().also {
-                                    it.set(ev.x, ev.y, (rngFx.nextFloat() - 0.5f) * 90f, -40f - rngFx.nextFloat() * 60f, 0.55f, GamePalette.ELEM_FIRE)
+                                    it.set(ev.x, ev.y, kotlin.math.cos(spread) * fsp, kotlin.math.sin(spread) * fsp - 40f, 0.55f, GamePalette.ELEM_FIRE)
                                     it.g = 260f; it.drag = 1.6f
                                 })
                             }
@@ -236,16 +243,17 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                             com.brainquest.game.game.core.Element.THUNDER -> if (bolts.size < 12) repeat(2) {   // 雷：短电弧段
                                 bolts.add(BoltFx(ev.x, ev.y, ev.x + (rngFx.nextFloat() - 0.5f) * 140f, ev.y + (rngFx.nextFloat() - 0.5f) * 140f, 0.15f))
                             }
-                            else -> repeat(4) {   // 物理：白火花（原行为）
-                                val ang = rngFx.nextFloat() * 6.283f
+                            else -> repeat(4) {   // 物理：白火花（沿攻击来向锥形喷溅）
+                                val ang = if (dirBase != null) dirBase + (rngFx.nextFloat() - 0.5f) * 1.2f
+                                          else rngFx.nextFloat() * 6.283f
                                 val sp = 60f + rngFx.nextFloat() * 120f
                                 parts.add(obtainPart().also {
                                     it.set(ev.x, ev.y, kotlin.math.cos(ang) * sp, kotlin.math.sin(ang) * sp, 0.3f, c)
                                 })
                             }
                         }
-                        if (ev.crit) DungeonSfx.play(context, player.soundOn, R.raw.dg_crit, 0.65f, 140)
-                        else DungeonSfx.play(context, player.soundOn, R.raw.dg_hit, 0.55f, 90)
+                        if (ev.crit) DungeonSfx.play(context, player.soundOn, R.raw.dg_crit, 0.65f, 120L + rngFx.nextInt(60))
+                        else DungeonSfx.play(context, player.soundOn, R.raw.dg_hit, 0.55f, 70L + rngFx.nextInt(50))
                     }
                     1 -> {   // 死亡碎片化：三角碎片旋转飞散（按敌人主色，带重力）
                         val pc = if (ev.tint != 0) Color(ev.tint) else GamePalette.UI_HP
@@ -299,6 +307,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             trails.removeAll { it.t > 0.3f }
             banners.forEach { it.t += dtFx }
             banners.removeAll { it.t > 2.4f }
+            slashGhosts.forEach { it.t += dtFx }
+            slashGhosts.removeAll { it.t > 0.22f }
             val e = game.engine
             val boss = game.engine.enemies.firstOrNull { it.bossFloor > 0 && it.alive && !it.dormant }   // 待机的预刷新 Boss 不顶血条
             val h = Hud(
@@ -503,6 +513,26 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
             // 挥砍轨迹：前摇淡显 → 挥出扇形渐扫 → 后摇淡出（由引擎 activeSlash 驱动）
             val en = game.engine
+            // B2 残影：fired false→true 跳变 → 留一道 0.22s 渐隐弧
+            val curFired = en.activeSlash?.fired ?: false
+            if (curFired && !slashPrevFired[0] && en.activeSlash != null) {
+                if (slashGhosts.size < 6) slashGhosts.add(SlashGhost(en.facing, en.activeSlash!!.range, en.activeSlash!!.flip))
+            }
+            slashPrevFired[0] = curFired
+            for (gh in slashGhosts) {   // 残影弧（先画，被当前弧覆盖）
+                val ga = ((1f - gh.t / 0.22f) * 0.30f).coerceIn(0f, 0.30f)
+                val grr = gh.range
+                val gdir = if (gh.flip) -1f else 1f
+                drawArc(
+                    Color(0x66FFFFFF).copy(alpha = ga),
+                    startAngle = Math.toDegrees(gh.facing.toDouble()).toFloat() - 50f * gdir,
+                    sweepAngle = 100f * gdir,
+                    useCenter = false,
+                    topLeft = Offset(en.px - game.camX - grr, en.py - game.camY - grr),
+                    size = Size(grr * 2f, grr * 2f),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(9f),
+                )
+            }
             en.activeSlash?.let { s ->
                 val psx = en.px - game.camX
                 val psy = en.py - game.camY
@@ -513,13 +543,15 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     inSwing -> 0.55f
                     else -> (0.55f * (1f - (s.timer - s.windup - 0.15f) / 0.1f)).coerceIn(0f, 0.55f)
                 }
-                val sweep = if (inSwing) 100f * ((s.timer - s.windup) / 0.15f).coerceIn(0f, 1f)
+                val sweepMag = if (inSwing) 100f * ((s.timer - s.windup) / 0.15f).coerceIn(0f, 1f)
                             else if (after || s.fired) 100f else 0f
+                val sweep = sweepMag * (if (s.flip) -1f else 1f)
                 if (alpha > 0.02f && sweep > 1f) {
                     val rr = s.range
                     val tl = Offset(psx - rr, psy - rr)
                     val sz = Size(rr * 2f, rr * 2f)
-                    val startDeg = Math.toDegrees(en.facing.toDouble()).toFloat() - 50f
+                    val dirSign = if (s.flip) -1f else 1f   // 正反手交替：反手镜像弧光
+                    val startDeg = Math.toDegrees(en.facing.toDouble()).toFloat() - 50f * dirSign
                     // 扇形微光：sweep 渐变（沿挥扫方向由透明到亮，替代死白填充）
                     drawArc(
                         androidx.compose.ui.graphics.Brush.sweepGradient(
@@ -561,6 +593,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 EntityRenderer.drawBars(this, game)
             }
             vignetteHolder[0]?.let { drawRect(it) }
+            // 低血脉动：hp<30% 时屏幕边缘红晕随时间正弦脉冲（越低越明显）
+            val hpFrac = if (game.engine.maxHp > 0) game.engine.hp.toFloat() / game.engine.maxHp else 1f
+            if (hpFrac < 0.30f && hud.phase == DungeonGame.Phase.EXPLORING) {
+                val pulse = ((kotlin.math.sin(animT.floatValue * 6f) + 1f) / 2f) * (0.30f - hpFrac) / 0.30f
+                drawRect(Color(0x28E15A5A).copy(alpha = 0.18f + 0.20f * pulse))
+            }
             if (game.engine.timeScale < 1f) drawRect(Color(0x14264CCF))   // 缓时滤镜
             if (lvlFlash.floatValue > 0f) drawRect(Color.White.copy(alpha = lvlFlash.floatValue.coerceAtMost(0.5f)))   // 升级白光
             if (banners.isNotEmpty()) {   // Boss 出场横幅（屏幕层，Hades 式）+ 暗角脉冲
@@ -1307,6 +1345,9 @@ private class ParticleFx() {
 private class BannerFx(val text: String) {
     var t = 0f
 }
+
+/** 挥砍残影（出刀瞬间的弧光拖尾，0.22s 渐隐——连击时形成连贯扇面） */
+private class SlashGhost(val facing: Float, val range: Float, val flip: Boolean, var t: Float = 0f)
 
 /** 闪电链段 */
 private class BoltFx(val x1: Float, val y1: Float, val x2: Float, val y2: Float, var t: Float)
