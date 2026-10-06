@@ -430,7 +430,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
             EntityRenderer.drawProjectiles(this, game)
             EntityRenderer.drawDrops(this, game, t)
-            EntityRenderer.drawCoins(this, game)
+            EntityRenderer.drawCoins(this, game, t)
             for (e in game.engine.enemies) EntityRenderer.drawEnemy(this, game, e, t)
             EntityRenderer.drawPlayer(this, game, t)
             // 锁定目标金色标记（头顶）
@@ -547,8 +547,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     // 风压粒子：挥出瞬间沿弧前缘甩出（本地粒子池）
                     if (inSwing && parts.size < 300 && rngFx.nextFloat() < 0.9f) {
                         val mid = startDeg + sweep
-                        val rad = Math.toRadians(mid.toDouble())
-                        parts.add(obtainPart().also {
+                        val rad = Math.toRadians(mid.toDouble()).toFloat()
+                        parts.add(ParticleFx().also {
                             it.set(en.px + kotlin.math.cos(rad) * rr * 0.8f, en.py + kotlin.math.sin(rad) * rr * 0.8f,
                                    kotlin.math.cos(rad) * 220f, kotlin.math.sin(rad) * 220f, 0.22f, Color(0xCCFFFFFF))
                             it.drag = 4f
