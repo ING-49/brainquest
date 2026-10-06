@@ -42,6 +42,13 @@ object Achievements {
         AchievementDef("gomoku_win", "棋逢对手", "五子棋战胜电脑", "⚫", 60, { (it.bestScores["gomoku_wins"] ?: 0) >= 1 }) { num(it.bestScores["gomoku_wins"] ?: 0, 1) },
         AchievementDef("gomoku_streak3", "连战连捷", "五子棋连胜 3 场", "🏅", 150, { (it.bestScores["gomoku_best_streak"] ?: 0) >= 3 }) { num(it.bestScores["gomoku_best_streak"] ?: 0, 3) },
         AchievementDef("snake_30", "蛇行三十", "贪吃蛇得分达到 30", "🐍", 100, { (it.bestScores["snake_best"] ?: 0) >= 30 }) { num(it.bestScores["snake_best"] ?: 0, 30) },
+        // 地牢幸存者（胜场型照 Hades/杀戮尖塔：通关才算胜；累计型照吸血鬼幸存者）
+        AchievementDef("dungeon_first_win", "地牢初探", "地牢幸存者首次通关", "🏰", 100, { it.dungeonWins >= 1 }) { num(it.dungeonWins, 1) },
+        AchievementDef("dungeon_floor5", "五层通幽", "地牢抵达第 5 层", "🗡️", 150, { (it.bestScores["dungeon_floor"] ?: 0) >= 5 }) { num(it.bestScores["dungeon_floor"] ?: 0, 5) },
+        AchievementDef("dungeon_floor8", "无尽之志", "无尽模式抵达第 8 层", "♾️", 200, { (it.bestScores["dungeon_floor"] ?: 0) >= 8 }) { num(it.bestScores["dungeon_floor"] ?: 0, 8) },
+        AchievementDef("dungeon_kill100", "百人斩", "地牢单局击杀达到 100", "⚔️", 200, { (it.bestScores["dungeon_kills"] ?: 0) >= 100 }) { num(it.bestScores["dungeon_kills"] ?: 0, 100) },
+        AchievementDef("dungeon_kill500", "屠戮成性", "地牢累计击杀 500", "💀", 300, { it.totalDungeonKills >= 500 }) { num(it.totalDungeonKills, 500) },
+        AchievementDef("dungeon_win10", "地牢常客", "地牢通关 10 次", "👑", 250, { it.dungeonWins >= 10 }) { num(it.dungeonWins, 10) },
     )
 
     fun byId(id: String): AchievementDef? = all.find { it.id == id }

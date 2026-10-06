@@ -298,10 +298,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return newBest
     }
 
-    /** 地牢幸存者结算：最高层数入档，金币（局内拾取 + 层数奖励）与经验入账 */
-    fun addDungeonResult(floor: Int, kills: Int, timeSec: Int, runCoins: Int): Boolean {
+    /** 地牢幸存者结算：最高层数入档，金币（局内拾取 + 层数奖励）与经验入账；won=仅通关 5 层算胜场 */
+    fun addDungeonResult(floor: Int, kills: Int, timeSec: Int, runCoins: Int, won: Boolean): Boolean {
         val newBest = reportBest("dungeon_floor", floor)
         reportBest("dungeon_kills", kills)
+        commit { it.copy(dungeonWins = it.dungeonWins + if (won) 1 else 0, totalDungeonKills = it.totalDungeonKills + kills) }
         addCoins(runCoins + floor * 10)
         addXp(kills / 3 + floor * 8)
         return newBest

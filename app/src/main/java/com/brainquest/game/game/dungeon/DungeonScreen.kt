@@ -316,7 +316,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         if ((hud.phase == DungeonGame.Phase.GAMEOVER || hud.phase == DungeonGame.Phase.VICTORY) && !rewarded) {
             rewarded = true
-            vm.addDungeonResult(hud.floor, hud.kills, hud.timeSec, game.coins)
+            vm.addDungeonResult(hud.floor, hud.kills, hud.timeSec, game.coins, hud.phase == DungeonGame.Phase.VICTORY)
         }
     }
 
