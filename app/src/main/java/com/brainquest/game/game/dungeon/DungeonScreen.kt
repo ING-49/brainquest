@@ -160,7 +160,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val parts = remember { ArrayList<ParticleFx>(64) }
     val bolts = remember { ArrayList<BoltFx>(8) }
     val rings = remember { ArrayList<RingFx>(4) }
-    val banners = ArrayList<BannerFx>(2)
+    val banners = remember { ArrayList<BannerFx>(2) }
     val trails = remember { ArrayList<TrailFx>(8) }
     val floatPool = remember { ArrayDeque<FloatFx>() }
     val partPool = remember { ArrayDeque<ParticleFx>() }
