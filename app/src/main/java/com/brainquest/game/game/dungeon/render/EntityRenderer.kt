@@ -674,7 +674,7 @@ object EntityRenderer {
     private val BULLET_ORB = Color(0xFFFF7043)
 
     // ---------- HUD 数值条（供 Screen 的 Canvas 调用；dp 定位适配横竖屏） ----------
-    fun drawBars(scope: DrawScope, game: DungeonGame) {
+    fun drawBars(scope: DrawScope, game: DungeonGame, time: Float = 0f) {
         val barW = with(scope) { (scope.size.width * 0.20f).coerceAtMost(220.dp.toPx()) }
         val x = with(scope) { 12.dp.toPx() }
         val hpY = with(scope) { 42.dp.toPx() }
@@ -692,12 +692,21 @@ object EntityRenderer {
         scope.drawCircle(acC, avatarR * 0.55f, Offset(x + avatarR, hpY + panelH / 2f - 6f - avatarR * 0.45f))
         scope.drawCircle(OUTLINE, avatarR, Offset(x + avatarR, hpY + panelH / 2f - 6f), style = Stroke(2f))
         val bx = x + avatarR * 2 + 8f
-        // 血条（权威数据在 engine）：白色残影显示刚掉的血，红色为当前
+        // 血条（权威数据在 engine）：白色残影显示刚掉的血，红色为当前；低血(<30%)时血条+边框红色呼吸脉冲（越低越明显）
+        val hpFrac = if (game.engine.maxHp > 0) game.engine.hp.toFloat() / game.engine.maxHp else 1f
+        val lowPulse = if (hpFrac < 0.30f) ((kotlin.math.sin(time * 6f) + 1f) / 2f) * (0.30f - hpFrac) / 0.30f else -1f
         scope.drawRoundRect(BAR_BG, Offset(bx, hpY), Size(barW, hpH), CornerRadius(hpH / 2))
         val ghostW = barW * (game.hpGhost / game.engine.maxHp).coerceIn(0f, 1f)
-        val hpW = barW * (game.engine.hp.toFloat() / game.engine.maxHp).coerceIn(0f, 1f)
+        val hpW = barW * hpFrac.coerceIn(0f, 1f)
         if (ghostW > hpW) scope.drawRoundRect(Color(0xAAFFFFFF), Offset(bx, hpY), Size(ghostW, hpH), CornerRadius(hpH / 2))
-        scope.drawRoundRect(HP_C, Offset(bx, hpY), Size(hpW, hpH), CornerRadius(hpH / 2))
+        val hpColor = if (lowPulse >= 0f) HP_C.copy(red = (HP_C.red + (1f - HP_C.red) * (0.3f + 0.5f * lowPulse)).coerceAtMost(1f)) else HP_C
+        scope.drawRoundRect(hpColor, Offset(bx, hpY), Size(hpW, hpH), CornerRadius(hpH / 2))
+        if (lowPulse >= 0f) {
+            scope.drawRoundRect(
+                Color(0xFFE15A5A).copy(alpha = 0.25f + 0.55f * lowPulse),
+                Offset(bx - 3f, hpY - 3f), Size(barW + 6f, hpH + 6f), CornerRadius((hpH + 6f) / 2), style = Stroke(1.5f + 1.5f * lowPulse),
+            )
+        }
         // 经验条（真实数据）
         scope.drawRoundRect(BAR_BG, Offset(bx, xpY), Size(barW, xpH), CornerRadius(xpH / 2))
         scope.drawRoundRect(

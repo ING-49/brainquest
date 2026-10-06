@@ -96,7 +96,7 @@ class CombatEngine {
     /** 帧事件（伤害飘字/粒子/闪电，渲染层消费后转成持续特效） */
     data class FxEvent(
         val x: Float, val y: Float, val text: String, val crit: Boolean,
-        val element: Element?, val kind: Int,   // kind 0=伤害 1=死亡 2=拾取 3=闪电段 4=冲击环
+        val element: Element?, val kind: Int,   // kind 0=伤害 1=死亡 2=拾取 3=闪电段 4=冲击环 12=旋风斩 13=冰锥 14=箭雨 15=出手挥砍
         val x2: Float = 0f, val y2: Float = 0f, // 闪电段终点
         val tint: Int = 0,                      // 死亡粒子着色（ARGB，0=默认）
     )
@@ -139,6 +139,9 @@ class CombatEngine {
     // 连杀：3 秒内连续击杀；受伤断连
     var killStreak = 0; private set
     var killStreakTimer = 0f; private set
+    // 连击：1.5 秒内连续命中（受击/空窗归零）
+    var hitCombo = 0; private set
+    var hitComboTimer = 0f; private set
     /** 进行中的近战挥砍（前摇→判定→后摇），渲染层读来画轨迹 */
     var activeSlash: Slash? = null; private set
 
@@ -214,7 +217,7 @@ class CombatEngine {
             }
             "whirlwind" -> {   // 旋风斩（剑士）：以自身为圆心的环形斩 + 小段击退
                 aoe(px, py, 135f, attack * 2.2f, Element.PHYSICAL)
-                events.add(FxEvent(px, py, "", false, null, 11))
+                events.add(FxEvent(px, py, "", false, null, 12))   // 双弧对转+风压粒子
                 shake = 8f
             }
             "blizzard" -> {    // 暴风雪（法师）：视野内至多 5 敌落冰锥，附带减速
@@ -222,14 +225,15 @@ class CombatEngine {
                     it.alive && !it.dormant && hypot(it.x - px, it.y - py) < 520f
                 }.shuffled(Random).take(5)
                 for (t in targets) {
+                    events.add(FxEvent(t.x, t.y, "", false, Element.ICE, 13))   // 每目标冰锥下落
                     hitEnemy(t, attack * 1.6f, Element.ICE)
                     t.slowStacks = maxOf(t.slowStacks, 2)
                     t.slowTimer = maxOf(t.slowTimer, 3f)
                 }
-                events.add(FxEvent(px, py, "", false, null, 11))
                 shake = 3f
             }
             "arrowrain" -> {   // 箭雨（游侠）：朝面向 ±28° 扇形齐射 8 箭
+                events.add(FxEvent(px, py, "", false, null, 14))   // 雨线粒子束
                 repeat(8) { i ->
                     val a = facing + (i - 3.5f) * 0.14f
                     fire(px + cos(a) * 20f, py + sin(a) * 20f, cos(a), sin(a), 460f, 5f, attack * 1.4f, Element.PHYSICAL)
@@ -274,6 +278,7 @@ class CombatEngine {
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         hitStop = 0f; playerFlash = 0f; velX = 0f; velY = 0f; activeSlash = null
         killStreak = 0; killStreakTimer = 0f
+        hitCombo = 0; hitComboTimer = 0f
         phase = Phase.IDLE
     }
 
@@ -285,6 +290,8 @@ class CombatEngine {
         if (hitStop > 0f) hitStop -= dt0
         // 连杀窗口
         if (killStreakTimer > 0f) { killStreakTimer -= dt0; if (killStreakTimer <= 0f) killStreak = 0 }
+        // 连击窗口
+        if (hitComboTimer > 0f) { hitComboTimer -= dt0; if (hitComboTimer <= 0f) hitCombo = 0 }
         // 命中停顿：世界以 5% 速度推进（打击感核心）
         val dt = dt0 * if (hitStop > 0f) 0.05f else 1f
         // 锁定：可视范围内且存活（同房间无遮挡物，按同房间处理）的最近敌人
@@ -328,7 +335,10 @@ class CombatEngine {
         attackTimer -= dt
         if (attackTimer < -attackInterval) attackTimer = -attackInterval   // 防久置漂移，点按永远即时
         if ((attackHeld || autoAttack) && attackTimer <= 0f) {
-            if (weapon.attack(this)) attackTimer = attackInterval
+            if (weapon.attack(this)) {
+                attackTimer = attackInterval
+                events.add(FxEvent(px, py, "", false, null, 15))   // 出手成功 → 空挥 whoosh
+            }
         }
         // 近战挥砍推进：前摇结束瞬间判定，播完后摇收刀
         activeSlash?.let { s ->
@@ -712,6 +722,7 @@ class CombatEngine {
             dmg -= absorbed
         }
         e.hp -= dmg
+        hitCombo++; hitComboTimer = 1.5f   // 连击：任意有效命中续窗
         // 精英「吸血」：命中回血
         if (e.affix == Affix.VAMPIRE && dmg > 0f) e.hp = minOf(e.hp + dmg * 0.2f, e.maxHp)
         if (e.reflect && e.bossFloor == 0 && dmg > 0f) hurtPlayer(dmg * 0.15f)
@@ -790,7 +801,8 @@ class CombatEngine {
         hp -= dmg.toInt()
         invincible = invincibleSec
         playerFlash = 0.15f
-        killStreak = 0   // 受伤断连击
+        killStreak = 0   // 受伤断连杀
+        hitCombo = 0     // 受伤断连击
         events.add(FxEvent(px, py - 30f, "-${dmg.toInt()}", false, null, 0))
         if (hp <= 0) { hp = 0; phase = Phase.GAMEOVER }
     }

@@ -32,6 +32,7 @@ object DungeonSfx {
         val list = listOf(
             R.raw.dg_hit, R.raw.dg_crit, R.raw.dg_shoot, R.raw.dg_hurt, R.raw.dg_pickup,
             R.raw.dg_levelup, R.raw.dg_skill, R.raw.dg_boss, R.raw.dg_victory, R.raw.dg_lose,
+            R.raw.dg_whoosh,
         )
         for (res in list) ids[res] = p.load(context, res, 1)
         pool = p

@@ -90,4 +90,6 @@ save('dg_boss', mix(growl, noise(0.45, 0.1) * 0.6, sweep(200, 60, 0.5) * 0.5), 0
 save('dg_victory', seq(tone(523, 0.14), tone(659, 0.14), tone(784, 0.14), mix(tone(1046, 0.34), tone(784, 0.3) * 0.4)), 0.8)
 # 失败：下行三音
 save('dg_lose', seq(tone(392, 0.2), tone(311, 0.2), mix(tone(233, 0.42), tone(220, 0.4) * 0.6)), 0.75)
+# 空挥 whoosh：下扫气声（出手成功提示，批6）
+save('dg_whoosh', mix(sweep(300, 90, 0.18), noise(0.15, 0.3) * 0.5), 0.5)
 print('done ->', os.path.abspath(OUT))

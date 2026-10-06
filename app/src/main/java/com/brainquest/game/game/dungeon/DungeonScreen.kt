@@ -88,6 +88,7 @@ private data class Hud(
     val skillReady: Boolean,
     val skillCd: Int,
     val streak: Int,
+    val combo: Int,
     val lobbyCls: String,
     val endless: Boolean,
     val portalNear: Boolean,
@@ -115,7 +116,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         game.engine.autoAttack = game.autopilot   // 手动模式走攻击键；自动驾驶保持持续攻击
     }
     var hud by remember {
-        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0, 0f, 0, true, 0, 0, "knight", false, false, false, false, false, false, false, 0f))
+        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0, 0f, 0, true, 0, 0, 0, "knight", false, false, false, false, false, false, false, 0f))
     }
     var apShopOpenT by remember { mutableFloatStateOf(0f) }   // 自动驾驶开店兜底计时
     var confirmExit by remember { mutableStateOf(false) }
@@ -164,6 +165,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val slashGhosts = remember { ArrayList<SlashGhost>(6) }
     val slashPrevFired = remember { booleanArrayOf(false) }   // fired 跳变检测（上一帧状态）
     val trails = remember { ArrayList<TrailFx>(8) }
+    val whirls = remember { ArrayList<WhirlFx>(2) }
+    val spikes = remember { ArrayList<SpikeFx>(6) }
+    val rains = remember { ArrayList<RainFx>(10) }
     val floatPool = remember { ArrayDeque<FloatFx>() }
     val partPool = remember { ArrayDeque<ParticleFx>() }
     val textCache = remember { HashMap<String, androidx.compose.ui.text.TextLayoutResult>() }
@@ -291,6 +295,28 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         DungeonSfx.play(context, player.soundOn, R.raw.dg_levelup, 0.55f, 400)
                     }
                     11 -> rings.add(RingFx(ev.x, ev.y, Color(0xB0FFFFFF), 150f, 0.35f))   // 技能施放白环
+                    12 -> {   // 旋风斩：双弧对转 + 环形风压粒子
+                        if (whirls.size < 3) whirls.add(WhirlFx(ev.x, ev.y))
+                        if (parts.size < 300) repeat(8) {
+                            val ang = rngFx.nextFloat() * 6.283f
+                            val sp = 90f + rngFx.nextFloat() * 110f
+                            parts.add(obtainPart().also {
+                                it.set(ev.x + kotlin.math.cos(ang) * 30f, ev.y + kotlin.math.sin(ang) * 30f,
+                                    kotlin.math.cos(ang + 1.57f) * sp, kotlin.math.sin(ang + 1.57f) * sp - 20f, 0.4f, Color(0xFFE0E0E0))
+                                it.g = 60f; it.drag = 2.4f
+                            })
+                        }
+                    }
+                    13 -> if (spikes.size < 8) spikes.add(SpikeFx(ev.x, ev.y))   // 暴风雪：冰锥下落
+                    14 -> repeat(3) {   // 箭雨：雨线粒子束（沿面向扇形下落）
+                        if (rains.size < 14) {
+                            val a = game.engine.facing + (rngFx.nextFloat() - 0.5f) * 1.0f
+                            rains.add(RainFx(ev.x + kotlin.math.cos(a) * (20f + rngFx.nextFloat() * 60f),
+                                ev.y + kotlin.math.sin(a) * (20f + rngFx.nextFloat() * 60f) - 120f,
+                                kotlin.math.cos(a) * 90f, kotlin.math.sin(a) * 90f + 260f))
+                        }
+                    }
+                    15 -> DungeonSfx.play(context, player.soundOn, R.raw.dg_whoosh, 0.35f, 100L + rngFx.nextInt(40))   // 空挥 whoosh
                 }
             }
             game.engine.events.clear()
@@ -305,6 +331,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             rings.removeAll { it.t > it.life }
             trails.forEach { it.t += dtFx }
             trails.removeAll { it.t > 0.3f }
+            whirls.forEach { it.t += dtFx }
+            whirls.removeAll { it.t > 0.4f }
+            spikes.forEach { it.t += dtFx }
+            spikes.removeAll { it.t > 0.25f }
+            rains.forEach { it.t += dtFx; it.x += it.dx * dtFx; it.y += it.dy * dtFx }
+            rains.removeAll { it.t > 0.35f }
             banners.forEach { it.t += dtFx }
             banners.removeAll { it.t > 2.4f }
             slashGhosts.forEach { it.t += dtFx }
@@ -319,6 +351,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 boss?.phase ?: 0,
                 e.skillCd <= 0f, e.skillCd.toInt(),
                 e.killStreak,
+                e.hitCombo,
                 game.lobbyClassId,
                 game.endless,
                 game.portalNear,
@@ -492,6 +525,44 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 val bodyC = game.cls?.bodyColor?.let { Color(it) } ?: Color.White
                 drawCircle(bodyC.copy(alpha = 0.35f * a), 14f, Offset(tr.x - game.camX, tr.y - game.camY))
             }
+            for (wh in whirls) {   // 旋风斩：双弧对转（顺/逆时针各一道，透明度先扬后抑）
+                val k = (wh.t / 0.4f).coerceIn(0f, 1f)
+                val a = (if (k < 0.2f) k / 0.2f else 1f - (k - 0.2f) / 0.8f)
+                val rot = wh.t * 900f   // 每秒 2.5 圈
+                val r = 60f + k * 75f
+                val arcTL = Offset(wh.x - game.camX - r, wh.y - game.camY - r)
+                for (s in 0..1) {
+                    drawArc(
+                        Color(0xFFE0E0E0).copy(alpha = 0.75f * a),
+                        startAngle = rot * if (s == 0) 1f else -1f, sweepAngle = 150f, useCenter = false,
+                        topLeft = arcTL, size = Size(r * 2f, r * 2f), style = Stroke(5f * (1f - k) + 1.5f),
+                    )
+                }
+            }
+            for (sp in spikes) {   // 暴风雪：冰锥从上方 140px 落至地面（三角，淡入+落地白溅）
+                val k = (sp.t / 0.25f).coerceIn(0f, 1f)
+                val sy = sp.y - 140f * (1f - k)
+                val a = (k * 4f).coerceIn(0f, 1f) * (1f - (k - 0.75f).coerceAtLeast(0f) * 4f * 0.5f)
+                val po = Offset(sp.x - game.camX, sy - game.camY)
+                val tri = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(po.x, po.y + 10f); lineTo(po.x - 5f, po.y - 6f); lineTo(po.x + 5f, po.y - 6f); close()
+                }
+                drawPath(tri, GamePalette.ELEM_ICE.copy(alpha = a))
+                drawPath(tri, Color.White.copy(alpha = a * 0.7f), style = Stroke(1.5f))
+            }
+            for (rn in rains) {   // 箭雨：雨线（沿速度方向的短线段，淡出）
+                val k = (rn.t / 0.35f).coerceIn(0f, 1f)
+                val a = (1f - k) * 0.8f
+                val ln = 14f
+                val nl = kotlin.math.hypot(rn.dx, rn.dy).coerceAtLeast(1f)
+                val ux = rn.dx / nl * ln; val uy = rn.dy / nl * ln
+                drawLine(
+                    Color(0xFFCFD8DC).copy(alpha = a),
+                    Offset(rn.x - game.camX, rn.y - game.camY),
+                    Offset(rn.x - game.camX + ux, rn.y - game.camY + uy),
+                    2f,
+                )
+            }
             for (ft in floats) {
                 val a = (1f - ft.t / 0.7f).coerceIn(0f, 1f)
                 // 画布外跳过（相机移动后飘字可能落在屏外，drawText 负 constraints 会崩溃）
@@ -590,15 +661,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
             }   // withTransform（震屏+缩放）——数值条/暗角在屏幕层
             if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
-                EntityRenderer.drawBars(this, game)
+                EntityRenderer.drawBars(this, game, animT.floatValue)
             }
             vignetteHolder[0]?.let { drawRect(it) }
-            // 低血脉动：hp<30% 时屏幕边缘红晕随时间正弦脉冲（越低越明显）
-            val hpFrac = if (game.engine.maxHp > 0) game.engine.hp.toFloat() / game.engine.maxHp else 1f
-            if (hpFrac < 0.30f && hud.phase == DungeonGame.Phase.EXPLORING) {
-                val pulse = ((kotlin.math.sin(animT.floatValue * 6f) + 1f) / 2f) * (0.30f - hpFrac) / 0.30f
-                drawRect(Color(0x28E15A5A).copy(alpha = 0.18f + 0.20f * pulse))
-            }
             if (game.engine.timeScale < 1f) drawRect(Color(0x14264CCF))   // 缓时滤镜
             if (lvlFlash.floatValue > 0f) drawRect(Color.White.copy(alpha = lvlFlash.floatValue.coerceAtMost(0.5f)))   // 升级白光
             if (banners.isNotEmpty()) {   // Boss 出场横幅（屏幕层，Hades 式）+ 暗角脉冲
@@ -903,6 +968,17 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (hud.streak >= 10) Color(0xFFFFD54F) else Color.White,
+            )
+        }
+
+        // 连击提示（连杀下方，位置错开；1.5 秒内持续命中才显示）
+        if (hud.combo >= 5 && hud.phase == DungeonGame.Phase.EXPLORING) {
+            Text(
+                "⚡ ${hud.combo} 连击",
+                Modifier.align(Alignment.TopCenter).padding(top = 104.dp),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = if (hud.combo >= 20) Color(0xFF82B1FF) else Color(0xFFB0BEC5),
             )
         }
 
@@ -1361,3 +1437,12 @@ private class RingFx(val x: Float, val y: Float, val color: Color, val maxR: Flo
 private class TrailFx(val x: Float, val y: Float) {
     var t = 0f
 }
+
+/** 旋风斩双弧对转（0.4s） */
+private class WhirlFx(val x: Float, val y: Float, var t: Float = 0f)
+
+/** 暴风雪冰锥下落（0.25s，从上方 140px 落至落点） */
+private class SpikeFx(val x: Float, val y: Float, var t: Float = 0f)
+
+/** 箭雨雨线（0.35s，沿 dx/dy 方向运动的短线段） */
+private class RainFx(var x: Float, var y: Float, val dx: Float, val dy: Float, var t: Float = 0f)
