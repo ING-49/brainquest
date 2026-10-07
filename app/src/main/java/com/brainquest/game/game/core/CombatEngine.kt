@@ -66,7 +66,7 @@ class CombatEngine {
 
     class Bullet(
         var x: Float, var y: Float,
-        val dx: Float, val dy: Float,
+        var dx: Float, var dy: Float,
         val r: Float,
         var dmg: Float,
         val element: Element?,
@@ -76,6 +76,7 @@ class CombatEngine {
     ) {
         var alive = true
         var age = 0f
+        var bounceUsed = 0   // 弹射升级：已弹射次数
     }
 
     /** 近战挥砍的前摇→判定（阶段 2 武器） */
@@ -141,6 +142,8 @@ class CombatEngine {
     var burst = 0f; private set
     val burstReady: Boolean get() = burst >= 100f
     var boomChance = 0f   // 爆裂连锁升级：敌人死亡爆炸概率（0.25/0.5/0.75）
+    var leechHeal = 0     // 吸血升级：击杀回血
+    var bounceLevel = 0   // 弹射升级：玩家子弹命中后弹向下一敌人（0-3）
     private var velX = 0f; private var velY = 0f
     // 连杀：3 秒内连续击杀；受伤断连
     var killStreak = 0; private set
@@ -286,7 +289,7 @@ class CombatEngine {
         chill = 0f
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         hitStop = 0f; playerFlash = 0f; punchZoom = 0f; velX = 0f; velY = 0f; activeSlash = null
-        burst = 0f; boomChance = 0f
+        burst = 0f; boomChance = 0f; leechHeal = 0; bounceLevel = 0
         killStreak = 0; killStreakTimer = 0f
         hitCombo = 0; hitComboTimer = 0f
         phase = Phase.IDLE
@@ -631,6 +634,25 @@ class CombatEngine {
                     val knx = if (bl > 1f) b.dx / bl else 0f
                     val kny = if (bl > 1f) b.dy / bl else 0f
                     hitEnemy(e, b.dmg, b.element, knx, kny)
+                    // 弹射升级：命中有剩余弹射次数 → 重定向到 340px 内最近的其它敌人（弹射快感，VS 弹珠）
+                    if (bounceLevel > b.bounceUsed) {
+                        var best: Enemy? = null; var bestD = 340f * 340f
+                        for (e2 in enemies) {
+                            if (!e2.alive || e2.dormant || e2 === e) continue
+                            val ddx = e2.x - b.x; val ddy = e2.y - b.y
+                            val dd2 = ddx * ddx + ddy * ddy
+                            if (dd2 <= bestD) { bestD = dd2; best = e2 }
+                        }
+                        if (best != null) {
+                            val dl = hypot(best.x - b.x, best.y - b.y).coerceAtLeast(1f)
+                            val sp = hypot(b.dx, b.dy).coerceAtLeast(1f)
+                            b.dx = (best.x - b.x) / dl * sp
+                            b.dy = (best.y - b.y) / dl * sp
+                            b.bounceUsed++
+                            b.age = 0f   // 弹射重置寿命，鼓励长链
+                            break
+                        }
+                    }
                     if (b.pierce > 0) b.pierce-- else { b.alive = false }
                     break
                 }
@@ -794,6 +816,7 @@ class CombatEngine {
         }
         // 觉醒能量：击杀攒（普怪 6/精英 15/Boss 40）
         burst = (burst + when { e.bossFloor > 0 -> 40f; e.elite -> 15f; else -> 6f }).coerceAtMost(100f)
+        if (leechHeal > 0 && phase == Phase.PLAYING) heal(leechHeal)   // 吸血升级
         // 爆裂连锁：死亡概率爆炸（递归深度守卫 3 层，防爆爆爆死循环）
         if (boomChance > 0f && e.bossFloor == 0 && boomDepth < 3 && Random.nextFloat() < boomChance) {
             boomDepth++
@@ -897,6 +920,9 @@ class CombatEngine {
         Upgrade("pickup", "🧲 拾取", "拾取范围 +30%"),
         Upgrade("elem", "🔥 元素", "元素伤害 +25%"),
         Upgrade("boom", "💥 爆裂", "敌人死亡 25% 概率爆炸（可叠 3 次）"),
+        Upgrade("leech", "💗 吸血", "击杀回复 2 点生命"),
+        Upgrade("gale", "🌪 风行", "移动速度 +8%，攻击间隔 −8%"),
+        Upgrade("bounce", "🎯 弹射", "远程子弹命中后弹向下一个敌人（可叠 3 次）"),
     ).shuffled(Random).take(3)
 
     fun chooseUpgrade(id: String) {
@@ -909,6 +935,9 @@ class CombatEngine {
             "pickup" -> pickupRange *= 1.30f
             "elem" -> elemPower *= 1.18f
             "boom" -> boomChance = (boomChance + 0.25f).coerceAtMost(0.75f)
+            "leech" -> leechHeal += 2
+            "gale" -> { speed *= 1.08f; attackInterval *= 0.92f }
+            "bounce" -> bounceLevel = (bounceLevel + 1).coerceAtMost(3)
         }
         pendingUpgrades = emptyList()
         phase = Phase.PLAYING

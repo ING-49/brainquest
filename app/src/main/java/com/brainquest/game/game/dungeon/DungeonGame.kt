@@ -391,7 +391,7 @@ class DungeonGame {
                 )
             }
             RoomType.BATTLE -> {
-                val n = 5 + rng.nextInt(2) + (floor - 1)   // 大房间：首层 5-6 只，逐层+1
+                val n = 7 + rng.nextInt(3) + floor   // 怪海（批10）：首层 8-10 只，逐层+1
                 repeat(n) {
                     val kind = when {
                         floor >= 3 && rng.nextInt(7) == 0 -> EnemyKind.SHIELD_GUARD   // 盾卫第 3 层起
@@ -407,6 +407,22 @@ class DungeonGame {
                 }
             }
             else -> {}
+        }
+    }
+
+    /** 怪海第二波：战斗房首波清空后概率补 3-4 只（Room.secondWave 幂等，落地即待机、进房激活逻辑自动点亮） */
+    private fun spawnSecondWave(room: Room) {
+        val endlessK = if (floor > MAX_FLOOR) 1.15f.pow(floor - MAX_FLOOR) else 1f
+        val scaleHp = (1f + 0.40f * (floor - 1)) * endlessK
+        val scaleDmg = (1f + 0.2f * (floor - 1)) * endlessK
+        repeat(3 + rng.nextInt(2)) { i ->
+            val kind = listOf(EnemyKind.SKELETON, EnemyKind.BAT, EnemyKind.CASTER, EnemyKind.BOOM_SLIME, EnemyKind.BONE_ARCHER).random(rng)
+            val x = roomLeft(room) + 120f + rng.nextFloat() * (room.w - 240f)
+            val y = roomTop(room) + 100f + rng.nextFloat() * (room.h - 200f)
+            val e = CombatEngine.Enemy(x, y, 17f, 30f * scaleHp, 30f * scaleHp, 70f + floor * 4f,
+                6f * scaleDmg, kind, xpValue = 1)
+            e.dormant = true
+            engine.spawnLater(i * 0.25f, e)
         }
     }
 
@@ -628,7 +644,13 @@ class DungeonGame {
             if (here != null && here !== currentRoom) enterRoom(here)
             // 清房判定（本房延迟刷怪全落地且清空才开门；宝箱房必须开箱，chest 为空的异常房自动放行兜底）
             val room = currentRoom
-            if (room != null && locked && (room.type != RoomType.CHEST || chest == null) &&
+            // 怪海第二波（批10）：第 2 层起战斗房首波清空 50% 概率补波，门保持锁住
+            if (room != null && locked && room.type == RoomType.BATTLE && floor >= 2 &&
+                !room.secondWave && roomEnemiesLeft(room) == 0 && !engine.hasPendingSpawns() && rng.nextFloat() < 0.5f) {
+                room.secondWave = true
+                spawnSecondWave(room)
+                engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 70f, "第二波来袭！", true, null, 0))
+            } else if (room != null && locked && (room.type != RoomType.CHEST || chest == null) &&
                 roomEnemiesLeft(room) == 0 && !engine.hasPendingSpawns()) {
                 room.cleared = true
                 android.util.Log.d("DGROOM", "clear-check clears ${room.type} ${room.gx},${room.gy}")

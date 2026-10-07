@@ -88,6 +88,24 @@ object EntityRenderer {
 
     private fun drawCorridor(scope: DrawScope, game: DungeonGame, a: Room, b: Room, pal: GamePalette.FloorTone) {
         val open = game.doorOpen(a, b)
+        // 门后房间类型徽章（Hades 门奖励预览）：锁门时预告门后是什么房，进门前做路线决策
+        val next = if (game.currentRoom === a) b else if (game.currentRoom === b) a else null
+        if (!open && next != null) {
+            val horizontal = a.gy == b.gy
+            val bx: Float; val by: Float
+            if (horizontal) {
+                val l = minOf(game.roomLeft(a) + a.w, game.roomLeft(b) + b.w) - DungeonGame.DOOR_PROBE
+                val r = maxOf(game.roomLeft(a), game.roomLeft(b)) + DungeonGame.DOOR_PROBE
+                val cy = a.gy * DungeonGame.GRID_Y
+                bx = (l + r) / 2f - game.camX; by = cy - DungeonGame.DOOR_H / 2 - 26f - game.camY
+            } else {
+                val t = minOf(game.roomTop(a) + a.h, game.roomTop(b) + b.h) - DungeonGame.DOOR_PROBE
+                val bb = maxOf(game.roomTop(a), game.roomTop(b)) + DungeonGame.DOOR_PROBE
+                val cx = a.gx * DungeonGame.GRID_X
+                bx = cx - DungeonGame.DOOR_H / 2 - 26f - game.camX; by = (t + bb) / 2f - game.camY
+            }
+            drawDoorBadge(scope, next.type, bx, by)
+        }
         if (a.gy == b.gy) {
             val l = minOf(game.roomLeft(a) + a.w, game.roomLeft(b) + b.w) - DungeonGame.DOOR_PROBE
             val r = maxOf(game.roomLeft(a), game.roomLeft(b)) + DungeonGame.DOOR_PROBE
@@ -123,6 +141,36 @@ object EntityRenderer {
             } else {
                 scope.drawRect(DOOR_GLOW, Offset(sx, sy + h / 2 - 14f), Size(w, 28f))
             }
+        }
+    }
+
+    /** 门后房间类型徽章：彩色圆 + 白色类型图形（战=交叉剑线 英=菱 箱=方 店=圆 王=红底白眼） */
+    private fun drawDoorBadge(scope: DrawScope, type: RoomType, bx: Float, by: Float) {
+        val (col, r) = when (type) {
+            RoomType.BATTLE -> 0xFFE57373 to 13f
+            RoomType.ELITE -> 0xFFFFD54F to 14f
+            RoomType.CHEST -> 0xFFA1887F to 13f
+            RoomType.SHOP -> 0xFF81C784 to 13f
+            RoomType.BOSS -> 0xFFE53935 to 16f
+            else -> return
+        }
+        val c = Color(col)
+        scope.drawCircle(c.copy(alpha = 0.85f), r, Offset(bx, by))
+        scope.drawCircle(Color(0xAA000000), r, Offset(bx, by), style = Stroke(2f))
+        when (type) {
+            RoomType.BATTLE -> {   // 交叉剑：两条白斜线
+                scope.drawLine(Color.White, Offset(bx - 6f, by - 6f), Offset(bx + 6f, by + 6f), 2.5f)
+                scope.drawLine(Color.White, Offset(bx + 6f, by - 6f), Offset(bx - 6f, by + 6f), 2.5f)
+            }
+            RoomType.ELITE -> scope.drawDiamond(bx, by, Color.White)
+            RoomType.CHEST -> scope.drawRect(Color.White, Offset(bx - 6f, by - 5f), Size(12f, 10f))
+            RoomType.SHOP -> scope.drawCircle(Color.White, 5f, Offset(bx, by))
+            RoomType.BOSS -> {   // 骷髅双眼
+                scope.drawCircle(Color.White, 3f, Offset(bx - 5f, by - 3f))
+                scope.drawCircle(Color.White, 3f, Offset(bx + 5f, by - 3f))
+                scope.drawRect(Color.White, Offset(bx - 1.5f, by + 3f), Size(3f, 6f))
+            }
+            else -> {}
         }
     }
 

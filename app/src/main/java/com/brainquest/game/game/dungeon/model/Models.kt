@@ -35,6 +35,7 @@ class Room(
 
     var visited = false          // 玩家进过
     var populated = false        // 敌人已布置（预刷新幂等）
+    var secondWave = false       // 怪海第二波已触发（战斗房首波清空后概率补波）
     var cleared = type == RoomType.START  // 清怪开门；起点房常开
     val discovered: Boolean get() = visited || neighbors.values.any { it.visited }
 
