@@ -168,6 +168,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val whirls = remember { ArrayList<WhirlFx>(2) }
     val spikes = remember { ArrayList<SpikeFx>(6) }
     val rains = remember { ArrayList<RainFx>(10) }
+    val frosts = remember { ArrayList<FrostFx>(8) }
     val floatPool = remember { ArrayDeque<FloatFx>() }
     val partPool = remember { ArrayDeque<ParticleFx>() }
     val textCache = remember { HashMap<String, androidx.compose.ui.text.TextLayoutResult>() }
@@ -295,25 +296,39 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         DungeonSfx.play(context, player.soundOn, R.raw.dg_levelup, 0.55f, 400)
                     }
                     11 -> rings.add(RingFx(ev.x, ev.y, Color(0xB0FFFFFF), 150f, 0.35f))   // 技能施放白环
-                    12 -> {   // 旋风斩：双弧对转 + 环形风压粒子
+                    12 -> {   // 旋风斩：双弧对转 + 环形风压粒子 + 金环收尾（三段式：白环闪→过程→残留）
                         if (whirls.size < 3) whirls.add(WhirlFx(ev.x, ev.y))
-                        if (parts.size < 300) repeat(8) {
+                        if (rings.size < 8) rings.add(RingFx(ev.x, ev.y, GamePalette.UI_GOLD, 120f, 0.6f))
+                        if (parts.size < 300) repeat(12) {
                             val ang = rngFx.nextFloat() * 6.283f
                             val sp = 90f + rngFx.nextFloat() * 110f
                             parts.add(obtainPart().also {
                                 it.set(ev.x + kotlin.math.cos(ang) * 30f, ev.y + kotlin.math.sin(ang) * 30f,
-                                    kotlin.math.cos(ang + 1.57f) * sp, kotlin.math.sin(ang + 1.57f) * sp - 20f, 0.4f, Color(0xFFE0E0E0))
+                                    kotlin.math.cos(ang + 1.57f) * sp, kotlin.math.sin(ang + 1.57f) * sp - 20f, 0.5f, Color(0xFFE0E0E0))
                                 it.g = 60f; it.drag = 2.4f
                             })
                         }
                     }
-                    13 -> if (spikes.size < 8) spikes.add(SpikeFx(ev.x, ev.y))   // 暴风雪：冰锥下落
-                    14 -> repeat(3) {   // 箭雨：雨线粒子束（沿面向扇形下落）
-                        if (rains.size < 14) {
+                    13 -> if (spikes.size < 8) {   // 暴风雪：冰锥下落 + 落地冰晶迸溅（延迟粒子）+ 地面霜圈残留
+                        spikes.add(SpikeFx(ev.x, ev.y))
+                        if (frosts.size < 8) frosts.add(FrostFx(ev.x, ev.y))
+                        if (parts.size < 300) repeat(6) {
+                            val ang = rngFx.nextFloat() * 6.283f
+                            val sp = 90f + rngFx.nextFloat() * 130f
+                            parts.add(obtainPart().also {
+                                it.set(ev.x, ev.y, kotlin.math.cos(ang) * sp, kotlin.math.sin(ang) * sp - 40f, 0.45f, GamePalette.ELEM_ICE)
+                                it.t = -0.18f   // 延迟 0.18s（冰锥落地时刻才迸溅）
+                                it.shape = 1f; it.rot = rngFx.nextFloat() * 360f; it.vr = (rngFx.nextFloat() - 0.5f) * 720f
+                                it.g = 260f; it.drag = 2.6f
+                            })
+                        }
+                    }
+                    14 -> repeat(6) {   // 箭雨：雨线粒子束加倍（沿面向扇形下落，更高更快）
+                        if (rains.size < 28) {
                             val a = game.engine.facing + (rngFx.nextFloat() - 0.5f) * 1.0f
-                            rains.add(RainFx(ev.x + kotlin.math.cos(a) * (20f + rngFx.nextFloat() * 60f),
-                                ev.y + kotlin.math.sin(a) * (20f + rngFx.nextFloat() * 60f) - 120f,
-                                kotlin.math.cos(a) * 90f, kotlin.math.sin(a) * 90f + 260f))
+                            rains.add(RainFx(ev.x + kotlin.math.cos(a) * (20f + rngFx.nextFloat() * 70f),
+                                ev.y + kotlin.math.sin(a) * (20f + rngFx.nextFloat() * 70f) - 160f,
+                                kotlin.math.cos(a) * 180f, kotlin.math.sin(a) * 180f + 340f))
                         }
                     }
                     15 -> DungeonSfx.play(context, player.soundOn, R.raw.dg_whoosh, 0.35f, 100L + rngFx.nextInt(40))   // 空挥 whoosh
@@ -323,8 +338,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             // 特效寿命推进（到期回收进池）
             floats.forEach { it.t += dtFx }
             floats.removeAll { if (it.t > 0.7f) { if (floatPool.size < 120) floatPool.addLast(it); true } else false }
-            parts.forEach { it.t += dtFx; it.x += it.vx * dtFx; it.y += it.vy * dtFx }
+            // delay 粒子（t<0）：只计时不动不画（暴风雪冰锥落地迸溅用）
+            parts.forEach { it.t += dtFx; if (it.t >= 0f) { it.x += it.vx * dtFx; it.y += it.vy * dtFx } }
             parts.removeAll { if (it.t > it.life) { if (partPool.size < 320) partPool.addLast(it); true } else false }
+            frosts.forEach { it.t += dtFx }
+            frosts.removeAll { it.t > 1.2f }
             bolts.forEach { it.t += dtFx }
             bolts.removeAll { it.t > 0.15f }
             rings.forEach { it.t += dtFx }
@@ -332,11 +350,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             trails.forEach { it.t += dtFx }
             trails.removeAll { it.t > 0.3f }
             whirls.forEach { it.t += dtFx }
-            whirls.removeAll { it.t > 0.4f }
+            whirls.removeAll { it.t > 0.6f }
             spikes.forEach { it.t += dtFx }
-            spikes.removeAll { it.t > 0.25f }
+            spikes.removeAll { it.t > 0.18f }
             rains.forEach { it.t += dtFx; it.x += it.dx * dtFx; it.y += it.dy * dtFx }
-            rains.removeAll { it.t > 0.35f }
+            rains.removeAll { it.t > 0.5f }
             banners.forEach { it.t += dtFx }
             banners.removeAll { it.t > 2.4f }
             slashGhosts.forEach { it.t += dtFx }
@@ -495,6 +513,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 drawLine(c, Offset(mx - game.camX, my - game.camY), Offset(b.x2 - game.camX, b.y2 - game.camY), 3f)
             }
             for (pt in parts) {
+                if (pt.t < 0f) continue   // 延迟粒子：尚未激活
                 val a = (1f - pt.t / pt.life.coerceAtLeast(0.1f)).coerceIn(0f, 1f)
                 val po = Offset(pt.x - game.camX, pt.y - game.camY)
                 if (pt.shape >= 1f) {
@@ -525,11 +544,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 val bodyC = game.cls?.bodyColor?.let { Color(it) } ?: Color.White
                 drawCircle(bodyC.copy(alpha = 0.35f * a), 14f, Offset(tr.x - game.camX, tr.y - game.camY))
             }
-            for (wh in whirls) {   // 旋风斩：双弧对转（顺/逆时针各一道，透明度先扬后抑）
-                val k = (wh.t / 0.4f).coerceIn(0f, 1f)
-                val a = (if (k < 0.2f) k / 0.2f else 1f - (k - 0.2f) / 0.8f)
+            for (wh in whirls) {   // 旋风斩：双弧对转（顺/逆时针各一道，0.6s，透明度先扬后抑）
+                val k = (wh.t / 0.6f).coerceIn(0f, 1f)
+                val a = (if (k < 0.15f) k / 0.15f else 1f - (k - 0.15f) / 0.85f)
                 val rot = wh.t * 900f   // 每秒 2.5 圈
-                val r = 60f + k * 75f
+                val r = 70f + k * 80f
                 val arcTL = Offset(wh.x - game.camX - r, wh.y - game.camY - r)
                 for (s in 0..1) {
                     drawArc(
@@ -539,8 +558,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     )
                 }
             }
-            for (sp in spikes) {   // 暴风雪：冰锥从上方 140px 落至地面（三角，淡入+落地白溅）
-                val k = (sp.t / 0.25f).coerceIn(0f, 1f)
+            for (sp in spikes) {   // 暴风雪：冰锥从上方 140px 落至地面（0.18s，三角，淡入）
+                val k = (sp.t / 0.18f).coerceIn(0f, 1f)
                 val sy = sp.y - 140f * (1f - k)
                 val a = (k * 4f).coerceIn(0f, 1f) * (1f - (k - 0.75f).coerceAtLeast(0f) * 4f * 0.5f)
                 val po = Offset(sp.x - game.camX, sy - game.camY)
@@ -550,10 +569,24 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 drawPath(tri, GamePalette.ELEM_ICE.copy(alpha = a))
                 drawPath(tri, Color.White.copy(alpha = a * 0.7f), style = Stroke(1.5f))
             }
+            for (fr in frosts) {   // 暴风雪地面霜圈：淡入 0.2s → 保持 → 淡出 0.4s（残留 1.2s）
+                val k = (fr.t / 1.2f).coerceIn(0f, 1f)
+                val aIn = (fr.t / 0.2f).coerceIn(0f, 1f)
+                val aOut = ((1.2f - fr.t) / 0.4f).coerceIn(0f, 1f)
+                val fo = Offset(fr.x - game.camX, fr.y - game.camY)
+                drawOval(
+                    GamePalette.ELEM_ICE.copy(alpha = 0.28f * aIn * aOut),
+                    topLeft = Offset(fo.x - 44f, fo.y - 18f), size = Size(88f, 36f),
+                )
+                drawOval(
+                    Color.White.copy(alpha = 0.20f * aIn * aOut),
+                    topLeft = Offset(fo.x - 30f, fo.y - 12f), size = Size(60f, 24f),
+                )
+            }
             for (rn in rains) {   // 箭雨：雨线（沿速度方向的短线段，淡出）
-                val k = (rn.t / 0.35f).coerceIn(0f, 1f)
+                val k = (rn.t / 0.5f).coerceIn(0f, 1f)
                 val a = (1f - k) * 0.8f
-                val ln = 14f
+                val ln = 18f
                 val nl = kotlin.math.hypot(rn.dx, rn.dy).coerceAtLeast(1f)
                 val ux = rn.dx / nl * ln; val uy = rn.dy / nl * ln
                 drawLine(
@@ -1444,5 +1477,8 @@ private class WhirlFx(val x: Float, val y: Float, var t: Float = 0f)
 /** 暴风雪冰锥下落（0.25s，从上方 140px 落至落点） */
 private class SpikeFx(val x: Float, val y: Float, var t: Float = 0f)
 
-/** 箭雨雨线（0.35s，沿 dx/dy 方向运动的短线段） */
+/** 箭雨雨线（0.5s，沿 dx/dy 方向运动的短线段） */
 private class RainFx(var x: Float, var y: Float, val dx: Float, val dy: Float, var t: Float = 0f)
+
+/** 暴风雪地面霜圈（残留 1.2s） */
+private class FrostFx(val x: Float, val y: Float, var t: Float = 0f)

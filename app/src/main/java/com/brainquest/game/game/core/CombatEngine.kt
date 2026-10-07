@@ -217,10 +217,12 @@ class CombatEngine {
             }
             "whirlwind" -> {   // 旋风斩（剑士）：以自身为圆心的环形斩 + 小段击退
                 aoe(px, py, 135f, attack * 2.2f, Element.PHYSICAL)
+                events.add(FxEvent(px, py, "", false, null, 11))   // 施法白环（即时反馈）
                 events.add(FxEvent(px, py, "", false, null, 12))   // 双弧对转+风压粒子
                 shake = 8f
             }
             "blizzard" -> {    // 暴风雪（法师）：视野内至多 5 敌落冰锥，附带减速
+                events.add(FxEvent(px, py, "", false, null, 11))   // 施法白环
                 val targets = enemies.filter {
                     it.alive && !it.dormant && hypot(it.x - px, it.y - py) < 520f
                 }.shuffled(Random).take(5)
@@ -233,6 +235,7 @@ class CombatEngine {
                 shake = 3f
             }
             "arrowrain" -> {   // 箭雨（游侠）：朝面向 ±28° 扇形齐射 8 箭
+                events.add(FxEvent(px, py, "", false, null, 11))   // 施法白环
                 events.add(FxEvent(px, py, "", false, null, 14))   // 雨线粒子束
                 repeat(8) { i ->
                     val a = facing + (i - 3.5f) * 0.14f
@@ -284,7 +287,9 @@ class CombatEngine {
 
     // ---------- 主循环 ----------
     fun tick(dtRaw: Float) {
-        events.clear()
+        // 事件由 UI 消费端每帧清空（DungeonScreen 消费完自行 clear）——这里不能 clear：
+        // autopilot 技能（DungeonGame.tick）与手动技能键都在 engine.tick 之前发事件，先 clear 会吞掉技能特效（v1.6.35 技能特效时有时无的根因）
+        while (events.size > 256) events.removeAt(0)   // 防泄漏上限（UI 停止消费时不无限堆积）
         if (phase != Phase.PLAYING) return
         val dt0 = dtRaw.coerceIn(0f, 0.05f)
         if (hitStop > 0f) hitStop -= dt0
