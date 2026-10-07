@@ -23,9 +23,20 @@ SERVER = os.path.join(ROOT, "update-server")
 
 def gh(*args, capture=True):
     gh_exe = os.environ.get("GH_EXE", "gh")
-    r = subprocess.run([gh_exe, *args], capture_output=capture, text=True)
+
+    def run():
+        return subprocess.run([gh_exe, *args], capture_output=capture, text=True)
+
+    r = run()
     if r.returncode != 0:
-        raise SystemExit(f"gh {' '.join(args[:2])} 失败:\n{r.stderr}")
+        # release create 偶发 GitHub 服务端 5xx：重试 2 次（v1.6.40 发版实录：连续两次 create 失败后手动成功）
+        if args[:2] == ["release", "create"]:
+            for _ in range(2):
+                time.sleep(20)
+                r = run()
+                if r.returncode == 0:
+                    return r.stdout if capture else ""
+        raise SystemExit(f"gh {' '.join(args[:2])} 失败:\n{r.stderr or r.stdout}")
     return r.stdout if capture else ""
 
 
