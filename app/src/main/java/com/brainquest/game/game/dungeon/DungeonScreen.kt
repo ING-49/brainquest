@@ -353,6 +353,23 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         if (floats.size < 100) floats.add(obtainFloat().also { it.set(ev.x, ev.y, ev.text, GamePalette.UI_GOLD, true) })
                         DungeonSfx.play(context, player.soundOn, R.raw.dg_pickup, 0.5f, 500)
                     }
+                    17 -> {   // 觉醒爆发：巨型双环 + 金字 + 升级音（白闪由 lvlFlash 承担）
+                        rings.add(RingFx(ev.x, ev.y, GamePalette.UI_GOLD, 500f, 0.7f))
+                        rings.add(RingFx(ev.x, ev.y, Color.White, 320f, 0.5f))
+                        if (floats.size < 100) floats.add(obtainFloat().also { it.set(ev.x, ev.y - 50f, ev.text, GamePalette.UI_GOLD, true) })
+                        lvlFlash.floatValue = 0.45f
+                    }
+                    18 -> {   // 爆裂连锁：火环 + 火花
+                        rings.add(RingFx(ev.x, ev.y, GamePalette.ELEM_FIRE, 90f, 0.35f))
+                        if (parts.size < 300) repeat(4) {
+                            val ang = rngFx.nextFloat() * 6.283f
+                            val sp = 70f + rngFx.nextFloat() * 110f
+                            parts.add(obtainPart().also {
+                                it.set(ev.x, ev.y, kotlin.math.cos(ang) * sp, kotlin.math.sin(ang) * sp, 0.35f, GamePalette.ELEM_FIRE)
+                                it.g = 160f
+                            })
+                        }
+                    }
                 }
             }
             game.engine.events.clear()
@@ -650,7 +667,16 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     )
                     textCache[key] = layout
                 }
-                drawText(layout, color = ft.color.copy(alpha = a), topLeft = Offset(tx, ty))
+                if (ft.crit) {
+                    // 暴击数字弹跳：1.5 倍平滑弹回 1.0
+                    val k2 = ft.t / 0.7f
+                    val pop = 1.5f - 0.5f * k2 * k2
+                    withTransform({ translate(tx, ty); scale(pop, pop, pivot = Offset.Zero); translate(-tx, -ty) }) {
+                        drawText(layout, color = ft.color.copy(alpha = a), topLeft = Offset(tx, ty))
+                    }
+                } else {
+                    drawText(layout, color = ft.color.copy(alpha = a), topLeft = Offset(tx, ty))
+                }
             }
             // 挥砍轨迹：前摇淡显 → 挥出扇形渐扫 → 后摇淡出（由引擎 activeSlash 驱动）
             val en = game.engine
@@ -831,6 +857,37 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // 觉醒爆发键：能量环进度，满时金光呼吸，点按全屏 AOE（批9 爽感主菜）
+                Box(
+                    Modifier
+                        .size(56.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                if (engineRef.useBurst()) {
+                                    DungeonSfx.play(context, player.soundOn, R.raw.dg_boss, 0.7f, 400)
+                                }
+                            })
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        frame.intValue
+                        animT.floatValue   // 呼吸动画订阅
+                        drawCircle(Color(0xCC1A1F2E), size.minDimension / 2f - 1f)
+                        val frac = (engineRef.burst / 100f).coerceIn(0f, 1f)
+                        drawCircle(
+                            GamePalette.UI_PANEL_EDGE, size.minDimension / 2f - 1f, style = Stroke(1.5f),
+                        )
+                        if (frac > 0f) {
+                            drawArc(Color(0xB3FFB300), -90f, 360f * frac, useCenter = false, style = Stroke(4f))
+                        }
+                        if (engineRef.burstReady) {   // 就绪：金光呼吸双环
+                            val br = 0.6f + 0.4f * ((kotlin.math.sin(animT.floatValue * 6f) + 1f) / 2f)
+                            drawArc(Color(0xFFFFD54F).copy(alpha = br), -90f, 360f, useCenter = false, style = Stroke(3f))
+                        }
+                    }
+                    Text("💥", style = MaterialTheme.typography.titleMedium)
+                }
                 // 技能键：圆形 + 冷却环（就绪时绿环）
                 Box(
                     Modifier

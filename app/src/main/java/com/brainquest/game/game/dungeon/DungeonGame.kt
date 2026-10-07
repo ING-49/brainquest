@@ -545,8 +545,9 @@ class DungeonGame {
                     }
                 }
                 autopilotSteer(dt)
-                // 战斗中技能好了就用
+                // 战斗中技能好了就用；能量满且怪≥3 放觉醒爆发
                 if (locked && engine.enemies.isNotEmpty() && engine.skillCd <= 0f) engine.useSkill()
+                if (locked && engine.burstReady && engine.enemies.size >= 3) engine.useBurst()
             }
         }
         // 过场：黑幕期间冻结世界，倒计时结束进下层（技能=职业专属，无需过层选取）

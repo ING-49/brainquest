@@ -46,6 +46,7 @@ class CombatEngine {
         var frozen = 0f
         // 受击闪白 / 死亡动画（渲染用）
         var hitFlash = 0f
+        var hitSquash = 0f   // 受击 pop 弹跳（1→0 快速衰减，渲染层放大）
         // AI 辅助（各 kind 自用；灼烧节拍单独用 burnTick，避免互踩）
         var aiTimer = 0f
         var burnTick = 0f
@@ -136,6 +137,10 @@ class CombatEngine {
     var hitStop = 0f; private set
     var playerFlash = 0f; private set
     var punchZoom = 0f; private set
+    // 觉醒爆发：击杀攒能量，满 100 放全屏 AOE（爽感主菜，Vampire Survivors 宝箱/Hades 神力槽）
+    var burst = 0f; private set
+    val burstReady: Boolean get() = burst >= 100f
+    var boomChance = 0f   // 爆裂连锁升级：敌人死亡爆炸概率（0.25/0.5/0.75）
     private var velX = 0f; private var velY = 0f
     // 连杀：3 秒内连续击杀；受伤断连
     var killStreak = 0; private set
@@ -281,6 +286,7 @@ class CombatEngine {
         chill = 0f
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         hitStop = 0f; playerFlash = 0f; punchZoom = 0f; velX = 0f; velY = 0f; activeSlash = null
+        burst = 0f; boomChance = 0f
         killStreak = 0; killStreakTimer = 0f
         hitCombo = 0; hitComboTimer = 0f
         phase = Phase.IDLE
@@ -734,6 +740,7 @@ class CombatEngine {
         if (e.affix == Affix.VAMPIRE && dmg > 0f) e.hp = minOf(e.hp + dmg * 0.2f, e.maxHp)
         if (e.reflect && e.bossFloor == 0 && dmg > 0f) hurtPlayer(dmg * 0.15f, e.x, e.y)
         e.hitFlash = 0.12f
+        e.hitSquash = 1f
         // 打击感：击退（Boss/精英减半）+ 硬直 + 命中停顿（暴击更长）
         if (kx != 0f || ky != 0f) {
             val power = if (e.bossFloor > 0 || e.elite) 130f else 260f
@@ -785,7 +792,31 @@ class CombatEngine {
                     e.maxHp * 0.25f, e.speed * 1.2f, e.dmg * 0.5f, e.kind, elite = false, xpValue = 1))
             }
         }
+        // 觉醒能量：击杀攒（普怪 6/精英 15/Boss 40）
+        burst = (burst + when { e.bossFloor > 0 -> 40f; e.elite -> 15f; else -> 6f }).coerceAtMost(100f)
+        // 爆裂连锁：死亡概率爆炸（递归深度守卫 3 层，防爆爆爆死循环）
+        if (boomChance > 0f && e.bossFloor == 0 && boomDepth < 3 && Random.nextFloat() < boomChance) {
+            boomDepth++
+            aoe(e.x, e.y, 85f, attack * 1.2f, Element.FIRE)
+            events.add(FxEvent(e.x, e.y, "", false, Element.FIRE, 18))
+            boomDepth--
+        }
+        // Boss 击杀慢动作：尸体淡出全程慢放（动作游戏高潮镜头）
+        if (e.bossFloor > 0) { timeScale = 0.25f; timeScaleTimer = 1.0f; shake = maxOf(shake, 8f) }
         onEnemyKilled?.invoke(e)
+    }
+
+    /** 觉醒爆发：满能量放全屏 AOE（白闪+金环+震屏+慢动作由 kind 17 与状态驱动） */
+    private var boomDepth = 0
+    fun useBurst(): Boolean {
+        if (phase != Phase.PLAYING || !burstReady) return false
+        burst = 0f
+        aoe(px, py, 420f, attack * 6f, null)
+        shake = 12f
+        hitStop = 0.12f
+        timeScale = 0.3f; timeScaleTimer = 0.7f
+        events.add(FxEvent(px, py, "觉醒爆发！", true, null, 17))
+        return true
     }
 
     fun hurtPlayer(raw: Float, sx: Float = 0f, sy: Float = 0f) {
@@ -865,6 +896,7 @@ class CombatEngine {
         Upgrade("hp", "❤️ 生命", "生命上限 +25 并回复 25"),
         Upgrade("pickup", "🧲 拾取", "拾取范围 +30%"),
         Upgrade("elem", "🔥 元素", "元素伤害 +25%"),
+        Upgrade("boom", "💥 爆裂", "敌人死亡 25% 概率爆炸（可叠 3 次）"),
     ).shuffled(Random).take(3)
 
     fun chooseUpgrade(id: String) {
@@ -876,6 +908,7 @@ class CombatEngine {
             "hp" -> { maxHp += 25; hp = min(hp + 25, maxHp) }
             "pickup" -> pickupRange *= 1.30f
             "elem" -> elemPower *= 1.18f
+            "boom" -> boomChance = (boomChance + 0.25f).coerceAtMost(0.75f)
         }
         pendingUpgrades = emptyList()
         phase = Phase.PLAYING

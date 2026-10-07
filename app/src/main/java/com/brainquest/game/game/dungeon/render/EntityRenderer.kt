@@ -233,7 +233,7 @@ object EntityRenderer {
         // 死亡动画：先弹大再缩没（deathTimer 0.3 → 0）
         val dieK = if (e.dying) (e.deathTimer / 0.3f).coerceIn(0f, 1f) else 1f
         if (dieK <= 0.02f) return
-        val popScale = if (e.dying) 0.4f + 1.1f * dieK * dieK else 1f
+        val popScale = if (e.dying) 0.4f + 1.1f * dieK * dieK else 1f + 0.18f * e.hitSquash   // 受击 pop（squash&stretch）
         scope.withTransform({ scale(popScale, popScale, pivot = Offset(sx, sy)) }) {
             val hop = if (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME) abs(sin(time * 5f + e.wobbleSeed)) * 6f else 0f
             val wing = sin(time * 14f + e.wobbleSeed)
