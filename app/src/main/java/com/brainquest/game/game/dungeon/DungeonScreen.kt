@@ -119,6 +119,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0, 0f, 0, true, 0, 0, 0, "knight", false, false, false, false, false, false, false, 0f))
     }
     var apShopOpenT by remember { mutableFloatStateOf(0f) }   // 自动驾驶开店兜底计时
+    // Boss 血条 Hades 化：白色残影缓落 / 阶段切换白闪
+    var bossGhost by remember { mutableFloatStateOf(1f) }
+    var bossPhasePrev by remember { mutableIntStateOf(0) }
+    var bossFlash by remember { mutableFloatStateOf(0f) }
     var confirmExit by remember { mutableStateOf(false) }
     var showBag by remember { mutableStateOf(false) }
     var rerollPick by remember { mutableStateOf(false) }   // 商店重铸第二步（选槽位）；无条件 hoist（坑 21）
@@ -169,6 +173,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val spikes = remember { ArrayList<SpikeFx>(6) }
     val rains = remember { ArrayList<RainFx>(10) }
     val frosts = remember { ArrayList<FrostFx>(8) }
+    val souls = remember { ArrayList<SoulFx>(12) }
     val floatPool = remember { ArrayDeque<FloatFx>() }
     val partPool = remember { ArrayDeque<ParticleFx>() }
     val textCache = remember { HashMap<String, androidx.compose.ui.text.TextLayoutResult>() }
@@ -204,6 +209,14 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 if (apShopOpenT > 3f) { game.closeShop(); apShopOpenT = 0f }
             } else apShopOpenT = 0f
             if (lvlFlash.floatValue > 0f) lvlFlash.floatValue = (lvlFlash.floatValue - dt).coerceAtLeast(0f)
+            // Boss 血条残影缓落（白色残影显示刚掉的血）+ 阶段切换白闪
+            if (hud.bossHp <= 0f) { bossGhost = 1f; bossPhasePrev = 0 } else {
+                if (hud.bossHp > bossGhost) bossGhost = hud.bossHp   // 新 Boss 直接贴上
+                else bossGhost = (bossGhost - dt * 0.35f).coerceAtLeast(hud.bossHp)
+                if (hud.bossPhase > bossPhasePrev && bossPhasePrev > 0) bossFlash = 0.3f
+                bossPhasePrev = hud.bossPhase
+            }
+            if (bossFlash > 0f) bossFlash = (bossFlash - dt).coerceAtLeast(0f)
             if (game.engine.playerFlash > 0.13f && lastPlayerFlash <= 0.13f) {
                 DungeonSfx.play(context, player.soundOn, R.raw.dg_hurt, 0.7f, 250)
             }
@@ -260,7 +273,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         if (ev.crit) DungeonSfx.play(context, player.soundOn, R.raw.dg_crit, 0.65f, 120L + rngFx.nextInt(60))
                         else DungeonSfx.play(context, player.soundOn, R.raw.dg_hit, 0.55f, 70L + rngFx.nextInt(50))
                     }
-                    1 -> {   // 死亡碎片化：三角碎片旋转飞散（按敌人主色，带重力）
+                    1 -> {   // 死亡碎片化：三角碎片旋转飞散（按敌人主色，带重力）+ 灵魂光点飞向玩家
                         val pc = if (ev.tint != 0) Color(ev.tint) else GamePalette.UI_HP
                         if (parts.size < 300) repeat(9) {
                             val ang = rngFx.nextFloat() * 6.283f
@@ -270,6 +283,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                                 it.shape = 1f; it.rot = rngFx.nextFloat() * 360f; it.vr = (rngFx.nextFloat() - 0.5f) * 640f
                                 it.g = 300f; it.drag = 1.2f
                             })
+                        }
+                        if (souls.size < 12) repeat(2) {
+                            souls.add(SoulFx(ev.x + (rngFx.nextFloat() - 0.5f) * 24f, ev.y + (rngFx.nextFloat() - 0.5f) * 24f))
                         }
                     }
                     2 -> { if (floats.size < 100) floats.add(obtainFloat().also { it.set(ev.x, ev.y, ev.text, GamePalette.UI_ORB, false) }); DungeonSfx.play(context, player.soundOn, R.raw.dg_pickup, 0.4f, 120) }
@@ -332,6 +348,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         }
                     }
                     15 -> DungeonSfx.play(context, player.soundOn, R.raw.dg_whoosh, 0.35f, 100L + rngFx.nextInt(40))   // 空挥 whoosh
+                    16 -> {   // 清房开门：金环 + 金字 + 拾取音（Hades 式段落反馈）
+                        rings.add(RingFx(ev.x, ev.y, GamePalette.UI_GOLD, 140f, 0.5f))
+                        if (floats.size < 100) floats.add(obtainFloat().also { it.set(ev.x, ev.y, ev.text, GamePalette.UI_GOLD, true) })
+                        DungeonSfx.play(context, player.soundOn, R.raw.dg_pickup, 0.5f, 500)
+                    }
                 }
             }
             game.engine.events.clear()
@@ -343,6 +364,15 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             parts.removeAll { if (it.t > it.life) { if (partPool.size < 320) partPool.addLast(it); true } else false }
             frosts.forEach { it.t += dtFx }
             frosts.removeAll { it.t > 1.2f }
+            // 灵魂光点：每帧朝玩家追踪加速（吸血鬼幸存者式击杀反馈，纯视觉）
+            souls.forEach { s ->
+                s.t += dtFx
+                val tx = game.engine.px - s.x; val ty = game.engine.py - s.y
+                val dl = kotlin.math.hypot(tx, ty).coerceAtLeast(1f)
+                val sp = 260f + s.t * 900f
+                s.x += tx / dl * sp * dtFx; s.y += ty / dl * sp * dtFx
+            }
+            souls.removeAll { it.t > 0.45f }
             bolts.forEach { it.t += dtFx }
             bolts.removeAll { it.t > 0.15f }
             rings.forEach { it.t += dtFx }
@@ -469,7 +499,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             val shy = if (shk > 0f) (kotlin.random.Random.nextFloat() - 0.5f) * shk * 2f else 0f
             withTransform({
                 translate(shx, shy)
-                scale(game.camZoom * DungeonGame.BASE_ZOOM, game.camZoom * DungeonGame.BASE_ZOOM, pivot = Offset(size.width / 2f, size.height / 2f))
+                val pz = 1f + game.engine.punchZoom   // 暴击 punch-zoom（Dead Cells）：只影响世界层，HUD 在变换外（坑35）
+                scale(game.camZoom * DungeonGame.BASE_ZOOM * pz, game.camZoom * DungeonGame.BASE_ZOOM * pz, pivot = Offset(size.width / 2f, size.height / 2f))
             }) {
             EntityRenderer.drawWorld(this, game, t)
             EntityRenderer.drawFixtures(this, game, t)
@@ -595,6 +626,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     Offset(rn.x - game.camX + ux, rn.y - game.camY + uy),
                     2f,
                 )
+            }
+            for (sl in souls) {   // 灵魂光点：青白发光小点飞向玩家
+                val a = (1f - sl.t / 0.45f).coerceIn(0f, 1f)
+                val so = Offset(sl.x - game.camX, sl.y - game.camY)
+                drawCircle(Color(0xFF80DEEA).copy(alpha = 0.5f * a), 6f, so)
+                drawCircle(Color.White.copy(alpha = 0.9f * a), 2.5f, so)
             }
             for (ft in floats) {
                 val a = (1f - ft.t / 0.7f).coerceIn(0f, 1f)
@@ -981,9 +1018,18 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     Modifier.fillMaxWidth().height(10.dp).background(Color(0x66000000), RoundedCornerShape(5.dp)),
                 ) {
                     Box(
+                        Modifier.fillMaxWidth(bossGhost.coerceIn(0f, 1f)).height(10.dp)
+                            .background(Color(0xAAFFFFFF), RoundedCornerShape(5.dp)),   // 白色残影：刚掉的血缓落
+                    )
+                    Box(
                         Modifier.fillMaxWidth(hud.bossHp.coerceIn(0f, 1f)).height(10.dp)
                             .background(Color(0xFFE15A5A), RoundedCornerShape(5.dp)),
                     )
+                    Canvas(Modifier.matchParentSize()) {   // 阶段刻度 33%/66% + 阶段切换白闪
+                        drawLine(Color.White.copy(alpha = 0.45f), Offset(size.width / 3f, 0f), Offset(size.width / 3f, size.height), 1.5f)
+                        drawLine(Color.White.copy(alpha = 0.45f), Offset(size.width * 2f / 3f, 0f), Offset(size.width * 2f / 3f, size.height), 1.5f)
+                        if (bossFlash > 0f) drawRect(Color.White.copy(alpha = (bossFlash / 0.3f).coerceIn(0f, 1f) * 0.7f), size = size)
+                    }
                 }
             }
         }
@@ -1482,3 +1528,6 @@ private class RainFx(var x: Float, var y: Float, val dx: Float, val dy: Float, v
 
 /** 暴风雪地面霜圈（残留 1.2s） */
 private class FrostFx(val x: Float, val y: Float, var t: Float = 0f)
+
+/** 击杀灵魂光点（0.45s，追踪玩家） */
+private class SoulFx(var x: Float, var y: Float, var t: Float = 0f)

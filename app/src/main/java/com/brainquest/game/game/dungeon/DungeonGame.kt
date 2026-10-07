@@ -634,6 +634,11 @@ class DungeonGame {
                 locked = false
                 clearedRooms++
                 floorCleared++
+                // 清房反馈（Hades 式段落感）：金环+金字+音效由渲染层消费 kind 16
+                engine.events.add(
+                    CombatEngine.FxEvent(engine.px, engine.py - 60f,
+                        if (room.type == RoomType.BOSS) "魔王已倒下！" else "房间清空！", true, null, 16)
+                )
                 if (room.type == RoomType.BOSS) {
                     // Boss 后一律生成传送门：走进传送门才结算（最终层）/进下层（无尽）
                     portal = roomLeft(room) + room.w / 2 to roomTop(room) + room.h / 2

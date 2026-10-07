@@ -132,9 +132,10 @@ class CombatEngine {
     var attackTimer = 0f; private set
     private var timeAcc = 0f
     var elapsed = 0f; private set
-    // 打击感：命中停顿 / 玩家受击闪白 / 移动惯性
+    // 打击感：命中停顿 / 玩家受击闪白 / 移动惯性 / 暴击微缩放（Dead Cells punch-zoom）
     var hitStop = 0f; private set
     var playerFlash = 0f; private set
+    var punchZoom = 0f; private set
     private var velX = 0f; private var velY = 0f
     // 连杀：3 秒内连续击杀；受伤断连
     var killStreak = 0; private set
@@ -279,7 +280,7 @@ class CombatEngine {
         skillCd = 0f; shieldTime = 0f; shieldLeft = 0f
         chill = 0f
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
-        hitStop = 0f; playerFlash = 0f; velX = 0f; velY = 0f; activeSlash = null
+        hitStop = 0f; playerFlash = 0f; punchZoom = 0f; velX = 0f; velY = 0f; activeSlash = null
         killStreak = 0; killStreakTimer = 0f
         hitCombo = 0; hitComboTimer = 0f
         phase = Phase.IDLE
@@ -293,6 +294,7 @@ class CombatEngine {
         if (phase != Phase.PLAYING) return
         val dt0 = dtRaw.coerceIn(0f, 0.05f)
         if (hitStop > 0f) hitStop -= dt0
+        if (punchZoom > 0f) punchZoom = (punchZoom - dt0 * 0.4f).coerceAtLeast(0f)
         // 连杀窗口
         if (killStreakTimer > 0f) { killStreakTimer -= dt0; if (killStreakTimer <= 0f) killStreak = 0 }
         // 连击窗口
@@ -498,7 +500,7 @@ class CombatEngine {
                     } else if (e.atkState == 1) {
                         e.atkTimer -= dt
                         if (e.atkTimer <= 0f) {
-                            if (d < 95f) hurtPlayer(e.dmg)
+                            if (d < 95f) hurtPlayer(e.dmg, e.x, e.y)
                             events.add(FxEvent(e.x, e.y, "", false, null, 8))   // 挥砍白弧
                             e.atkState = 2; e.atkTimer = 0.5f; e.atkCd = 1.6f
                         }
@@ -539,7 +541,7 @@ class CombatEngine {
                     } else if (e.atkState == 1) {
                         e.atkTimer -= dt
                         if (e.atkTimer <= 0f) {
-                            if (d < 120f) hurtPlayer(e.dmg)
+                            if (d < 120f) hurtPlayer(e.dmg, e.x, e.y)
                             events.add(FxEvent(e.x, e.y, "", false, null, 8))
                             e.atkState = 2; e.atkTimer = 0.6f; e.atkCd = 2.4f
                         }
@@ -557,7 +559,7 @@ class CombatEngine {
                     } else {
                         e.atkTimer -= dt
                         if (e.atkTimer <= 0f) {
-                            if (d < 170f) hurtPlayer(e.dmg * 1.6f)
+                            if (d < 170f) hurtPlayer(e.dmg * 1.6f, e.x, e.y)
                             events.add(FxEvent(e.x, e.y, "", false, Element.FIRE, 1, tint = 0xFFFF7043.toInt()))
                             shake = maxOf(shake, 5f)
                             killEnemy(e)
@@ -589,7 +591,7 @@ class CombatEngine {
             if (invincible <= 0f) {
                 val rr = e.r + playerR
                 if (dx * dx + dy * dy <= rr * rr) {
-                    hurtPlayer(e.dmg)
+                    hurtPlayer(e.dmg, e.x, e.y)
                 }
             }
         }
@@ -608,7 +610,7 @@ class CombatEngine {
                 val rr = b.r + playerR
                 if (dx * dx + dy * dy <= rr * rr) {
                     b.alive = false
-                    hurtPlayer(b.dmg)
+                    hurtPlayer(b.dmg, b.x, b.y)
                 }
                 continue
             }
@@ -730,7 +732,7 @@ class CombatEngine {
         hitCombo++; hitComboTimer = 1.5f   // 连击：任意有效命中续窗
         // 精英「吸血」：命中回血
         if (e.affix == Affix.VAMPIRE && dmg > 0f) e.hp = minOf(e.hp + dmg * 0.2f, e.maxHp)
-        if (e.reflect && e.bossFloor == 0 && dmg > 0f) hurtPlayer(dmg * 0.15f)
+        if (e.reflect && e.bossFloor == 0 && dmg > 0f) hurtPlayer(dmg * 0.15f, e.x, e.y)
         e.hitFlash = 0.12f
         // 打击感：击退（Boss/精英减半）+ 硬直 + 命中停顿（暴击更长）
         if (kx != 0f || ky != 0f) {
@@ -739,12 +741,13 @@ class CombatEngine {
             e.kbT = 0.12f
         }
         e.stun = maxOf(e.stun, if (crit) 0.15f else 0.1f)
-        // 分层顿帧：精英/Boss 受击更沉（Dead Cells 式打击分层）
+        // 分层顿帧：精英/Boss 受击更沉（Dead Cells 式打击分层）；暴击加 punch-zoom 微缩放
         hitStop = maxOf(hitStop, when {
             e.bossFloor > 0 || e.elite -> if (crit) 0.09f else 0.05f
             crit -> 0.06f
             else -> 0.025f
         })
+        if (crit) punchZoom = if (e.bossFloor > 0 || e.elite) 0.07f else 0.05f
         events.add(FxEvent(e.x, e.y - e.r, "${dmg.toInt()}", crit, element, 0, x2 = e.x + kx * 12f, y2 = e.y + ky * 12f))   // x2/y2=攻击来向（方向性火花）
         if (element != null) ElementSystem.onHit(e, element, this)
         if (e.hp <= 0f && e.alive) killEnemy(e)
@@ -785,7 +788,7 @@ class CombatEngine {
         onEnemyKilled?.invoke(e)
     }
 
-    fun hurtPlayer(raw: Float) {
+    fun hurtPlayer(raw: Float, sx: Float = 0f, sy: Float = 0f) {
         if (com.brainquest.game.util.DebugFlags.god) { hp = maxHp; return }   // 上帝模式：不掉血且回满（防 bot 低血撤退模式卡死）
         var dmg = raw
         when (passiveId) {
@@ -808,6 +811,13 @@ class CombatEngine {
         playerFlash = 0.15f
         killStreak = 0   // 受伤断连杀
         hitCombo = 0     // 受伤断连击
+        // 受击方向击退（元气骑士式）：沿「玩家-来源」方向给惯性速度加冲量 + 微顿帧
+        if (sx != 0f || sy != 0f) {
+            val dx = px - sx; val dy = py - sy
+            val dl = hypot(dx, dy).coerceAtLeast(1f)
+            velX += dx / dl * 170f; velY += dy / dl * 170f
+            hitStop = maxOf(hitStop, 0.02f)
+        }
         events.add(FxEvent(px, py - 30f, "-${dmg.toInt()}", false, null, 0))
         if (hp <= 0) { hp = 0; phase = Phase.GAMEOVER }
     }
