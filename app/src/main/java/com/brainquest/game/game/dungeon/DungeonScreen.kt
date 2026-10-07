@@ -123,6 +123,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     var bossGhost by remember { mutableFloatStateOf(1f) }
     var bossPhasePrev by remember { mutableIntStateOf(0) }
     var bossFlash by remember { mutableFloatStateOf(0f) }
+    // 新手引导（一次性）：SharedPreferences 落盘，首次 EXPLORING 弹出
+    val prefsEdit = remember { context.getSharedPreferences("bg_dungeon", android.content.Context.MODE_PRIVATE) }
+    var showTutorial by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(hud.phase) {
+        if (hud.phase == DungeonGame.Phase.EXPLORING &&
+            !prefsEdit.getBoolean("dg_tutorial_shown", false)) showTutorial = true
+    }
     var confirmExit by remember { mutableStateOf(false) }
     var showBag by remember { mutableStateOf(false) }
     var rerollPick by remember { mutableStateOf(false) }   // 商店重铸第二步（选槽位）；无条件 hoist（坑 21）
@@ -154,6 +161,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
         onDispose {
+            DungeonBgm.stop()   // BGM 必须随界面销毁停止（批11 体验层）
             activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             ctrl?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             win?.let { androidx.core.view.WindowCompat.setDecorFitsSystemWindows(it, true) }
@@ -217,6 +225,15 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 bossPhasePrev = hud.bossPhase
             }
             if (bossFlash > 0f) bossFlash = (bossFlash - dt).coerceAtLeast(0f)
+            // BGM 三态（批11 体验层）：Boss 在场=boss / 锁门战斗=combat / 其余=explore / 非局内=off
+            val bgmState: Pair<String, Int?> = when {
+                hud.phase == DungeonGame.Phase.GAMEOVER || hud.phase == DungeonGame.Phase.VICTORY ||
+                    hud.phase == DungeonGame.Phase.READY || hud.phase == DungeonGame.Phase.CLASS_SELECT -> "off" to null
+                hud.bossHp > 0f -> "boss" to R.raw.dg_bgm_boss
+                game.combatActive -> "combat" to R.raw.dg_bgm_combat
+                else -> "explore" to R.raw.dg_bgm_explore
+            }
+            DungeonBgm.update(context, player.soundOn, bgmState.first, bgmState.second)
             if (game.engine.playerFlash > 0.13f && lastPlayerFlash <= 0.13f) {
                 DungeonSfx.play(context, player.soundOn, R.raw.dg_hurt, 0.7f, 250)
             }
@@ -1118,19 +1135,56 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             )
         }
 
-        // ---------- 过场：黑幕 + 「第 X 层」 ----------
+        // ---------- 过场：黑幕 + 「第 X 层」 + 层引言（空洞骑士/Hades 式碎片叙事） ----------
         if (hud.transition > 0f) {
             val a = (minOf(hud.transition / 0.25f, (1.2f - hud.transition) / 0.25f)).coerceIn(0f, 1f)
             Box(
                 Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f * a)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    "第 ${hud.floor + 1} 层",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = a),
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "第 ${hud.floor + 1} 层",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = a),
+                    )
+                    Text(
+                        FLOOR_QUOTES[(hud.floor + 1).mod(FLOOR_QUOTES.size)],
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF90A4AE).copy(alpha = a),
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                }
+            }
+        }
+
+        // ---------- 首次进地牢新手引导（一次性，点任意处消失） ----------
+        if (showTutorial) {
+            Box(
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.78f))
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = {
+                            showTutorial = false
+                            prefsEdit.edit().putBoolean("dg_tutorial_shown", true).apply()
+                        })
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("地牢生存指南", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD)
+                    Spacer(Modifier.height(18.dp))
+                    listOf(
+                        "🕹 左侧摇杆移动，贴近敌人自动攻击",
+                        "🌀 右下技能键好了就放，各职业各有绝活",
+                        "💥 击杀攒能量，爆发键满了放全屏清场",
+                        "🚪 清空房间开门，徽章预告门后是什么",
+                    ).forEach {
+                        Text(it, style = MaterialTheme.typography.bodyLarge, color = Color.White, modifier = Modifier.padding(vertical = 6.dp))
+                    }
+                    Spacer(Modifier.height(22.dp))
+                    Text("—— 点击任意处开始探索 ——", style = MaterialTheme.typography.labelMedium, color = Color(0xFF90A4AE))
+                }
             }
         }
 
@@ -1588,3 +1642,19 @@ private class FrostFx(val x: Float, val y: Float, var t: Float = 0f)
 
 /** 击杀灵魂光点（0.45s，追踪玩家） */
 private class SoulFx(var x: Float, var y: Float, var t: Float = 0f)
+
+/** 每层引言（空洞骑士/Hades 式碎片叙事，按层数轮换） */
+private val FLOOR_QUOTES = listOf(
+    "越深的黑暗，越接近真相。",
+    "火把会熄灭，勇气不会。",
+    "骷髅也曾是冒险者——别走他们的老路。",
+    "魔王在第五层等你，如果那时你还活着。",
+    "金币叮当作响的地方，陷阱也在低语。",
+    "精英怪带着词缀，也带着更肥的掉落。",
+    "能量满了就放，犹豫的爆发不如不放。",
+    "门后的徽章，是你唯一靠谱的地图。",
+    "盾卫的正面是墙，绕后是门。",
+    "自爆的史莱姆跑得欢——离它远点。",
+    "有人在这里找到了传世神装，也有人只找到了骨头。",
+    "真正的地牢没有回头的路，只有更深的路。",
+)

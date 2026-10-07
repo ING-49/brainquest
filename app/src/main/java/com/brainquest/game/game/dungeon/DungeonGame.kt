@@ -68,6 +68,7 @@ class DungeonGame {
     private var timeAcc = 0f
     private var rng = Random(0)
     private var locked = false   // 锁门：在未清房间战斗时所有走廊封闭
+    val combatActive: Boolean get() = locked   // BGM 三态判定用（只读暴露）
 
     /**
      * DEBUG 自动驾驶（仅自动化验收；DebugFlags.autopilot 时由 Screen 打开）：

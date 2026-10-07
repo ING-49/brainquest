@@ -92,4 +92,55 @@ save('dg_victory', seq(tone(523, 0.14), tone(659, 0.14), tone(784, 0.14), mix(to
 save('dg_lose', seq(tone(392, 0.2), tone(311, 0.2), mix(tone(233, 0.42), tone(220, 0.4) * 0.6)), 0.75)
 # 空挥 whoosh：下扫气声（出手成功提示，批6）
 save('dg_whoosh', mix(sweep(300, 90, 0.18), noise(0.15, 0.3) * 0.5), 0.5)
+
+# ---------- 批11 BGM 三态循环（8s @22050 单声道，首尾淡出入接缝） ----------
+BGM_SR, BGM_DUR = SR, 8.0
+BN = int(BGM_DUR * BGM_SR)
+bt = np.arange(BN) / BGM_SR
+benv = np.ones(BN)   # 首尾淡出入（接缝轻）
+fade = int(0.15 * BGM_SR)
+benv[:fade] = np.linspace(0, 1, fade)
+benv[-fade:] = np.linspace(1, 0, fade)
+
+def note(freq, start, dur, amp=1.0, kind='sine'):
+    """在 BGM 时基上放一个音"""
+    s = tone(freq, dur, kind)
+    i0 = int(start * BGM_SR)
+    n = min(len(s), BN - i0)
+    seg = np.zeros(BN)
+    if n > 0: seg[i0:i0 + n] += s[:n] * amp
+    return seg
+
+# explore：柔和氛围垫（Am-F-C-G 长音 + 低音根），音量最低
+pad = np.zeros(BN)
+for bar, chord in enumerate([[110, 220, 261.6], [87.3, 174.6, 220], [130.8, 261.6, 329.6], [98, 196, 246.9]]):
+    for f in chord:
+        pad += note(f, bar * 2.0, 2.1, 0.16) * (1 + 0.15 * np.sin(2 * np.pi * 0.25 * bt))
+save('dg_bgm_explore', pad * benv, 0.5)
+
+# combat：140BPM（拍长 0.4286s）——底鼓 + 军鼓噪声 + 贝斯琶音 A2/A2/C3/E3
+beat = 60 / 140
+cb = np.zeros(BN)
+k = int(beat * BGM_SR)
+bi = 0
+while bi < BN:
+    cb += note(55, bi / BGM_SR, 0.12, 0.9)          # 底鼓（低音 thump）
+    sn = noise(0.08, 0.5)                            # 军鼓：短噪声（每 2 拍 1 次）
+    n = min(len(sn), BN - bi - k // 2)
+    if n > 0: cb[bi + k // 2: bi + k // 2 + n] += sn[:n] * 0.35
+    bi += k
+arp = np.zeros(BN)
+bass_line = [110, 110, 130.8, 164.8] * 14
+for idx, f in enumerate(bass_line):
+    arp += note(f, idx * beat / 2, beat / 2 * 0.9, 0.22, kind='saw')
+save('dg_bgm_combat', (cb * 0.7 + arp) * benv, 0.5)
+
+# boss：低音驱动 + 三全音点缀（压迫感）
+bb = np.zeros(BN)
+bass_line2 = [82.4, 82.4, 82.4, 116.5] * 14   # E2 与 A#3 三全音张力
+for idx, f in enumerate(bass_line2):
+    bb += note(f, idx * beat / 2, beat / 2 * 0.95, 0.3, kind='square')
+bb += note(466.2, 0, 8.0, 0.05)   # A#3 高垫（持续不协和）
+bb += note(233.1, 0, 8.0, 0.06)
+save('dg_bgm_boss', bb * benv, 0.5)
 print('done ->', os.path.abspath(OUT))
