@@ -1163,112 +1163,6 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // ---------- ⚙ 地牢设置面板（批12：体验参数实时生效，SharedPreferences 持久化） ----------
-        if (showSettings) {
-            val ctx = context
-            Box(
-                Modifier.fillMaxSize().background(Color(0xF60B0D14))
-                    .verticalScroll(rememberScrollState()).padding(horizontal = 26.dp, vertical = 20.dp),
-            ) {
-                Column {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("⚙ 地牢设置", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.weight(1f))
-                        Text("完成", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                            color = GamePalette.UI_GOLD,
-                            modifier = Modifier.clickable { showSettings = false }.padding(8.dp))
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    // 音效（联动全局声音开关，PlayerState 持久化）
-                    SettingRow("🔊 音效", if (player.soundOn) "开" else "关") {
-                        vm.setSettings(sound = !player.soundOn)
-                    }
-                    // BGM 音量
-                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                        Text("🎵 BGM 音量  ${DungeonSettings.bgmVolume(ctx)}%", style = MaterialTheme.typography.bodyLarge, color = Color.White)
-                        var bv by remember { mutableFloatStateOf(DungeonSettings.bgmVolume(ctx).toFloat()) }
-                        Slider(
-                            value = bv, onValueChange = { bv = it; DungeonSettings.setBgmVolume(ctx, it.toInt()) },
-                            valueRange = 0f..100f,
-                            colors = SliderDefaults.colors(thumbColor = GamePalette.UI_GOLD, activeTrackColor = GamePalette.UI_GOLD),
-                        )
-                    }
-                    // 伤害数字
-                    SettingRow("🔢 伤害数字", if (DungeonSettings.damageNumbers(ctx)) "开" else "关") {
-                        DungeonSettings.setDamageNumbers(ctx, !DungeonSettings.damageNumbers(ctx))
-                    }
-                    // 震屏强度
-                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                        Text("📳 震屏强度", style = MaterialTheme.typography.bodyLarge, color = Color.White)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                            listOf("关" to 0, "弱" to 1, "强" to 2).forEach { (label, v) ->
-                                val sel = DungeonSettings.shakeLevel(ctx) == v
-                                Box(
-                                    Modifier.clip(RoundedCornerShape(8.dp))
-                                        .background(if (sel) GamePalette.UI_GOLD else Color(0x33FFFFFF))
-                                        .clickable { DungeonSettings.setShakeLevel(ctx, v) }
-                                        .padding(horizontal = 18.dp, vertical = 8.dp),
-                                ) { Text(label, color = if (sel) Color.Black else Color.White, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
-                            }
-                        }
-                    }
-                    // 暴击缩放
-                    SettingRow("🔍 暴击画面缩放", if (DungeonSettings.critZoom(ctx)) "开" else "关") {
-                        DungeonSettings.setCritZoom(ctx, !DungeonSettings.critZoom(ctx))
-                    }
-                    // 粒子密度
-                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                        Text("✨ 粒子密度（低端机可调低）", style = MaterialTheme.typography.bodyLarge, color = Color.White)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                            listOf("低" to 0, "中" to 1, "高" to 2).forEach { (label, v) ->
-                                val sel = DungeonSettings.particleDensity(ctx) == v
-                                Box(
-                                    Modifier.clip(RoundedCornerShape(8.dp))
-                                        .background(if (sel) GamePalette.UI_EXP else Color(0x33FFFFFF))
-                                        .clickable { DungeonSettings.setParticleDensity(ctx, v) }
-                                        .padding(horizontal = 18.dp, vertical = 8.dp),
-                                ) { Text(label, color = if (sel) Color.Black else Color.White, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { DungeonSettings.resetTutorial(ctx); showTutorial = true },
-                        modifier = Modifier.fillMaxWidth().height(42.dp),
-                    ) { Text("📖 重看新手引导") }
-                    Spacer(Modifier.height(30.dp))
-                }
-            }
-        }
-
-        // ---------- 首次进地牢新手引导（一次性，点任意处消失） ----------
-        if (showTutorial) {
-            Box(
-                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.78f))
-                    .pointerInput(Unit) {
-                        detectTapGestures(onTap = {
-                            showTutorial = false
-                            prefsEdit.edit().putBoolean("dg_tutorial_shown", true).apply()
-                        })
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("地牢生存指南", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD)
-                    Spacer(Modifier.height(18.dp))
-                    listOf(
-                        "🕹 左侧摇杆移动，贴近敌人自动攻击",
-                        "🌀 右下技能键好了就放，各职业各有绝活",
-                        "💥 击杀攒能量，爆发键满了放全屏清场",
-                        "🚪 清空房间开门，徽章预告门后是什么",
-                    ).forEach {
-                        Text(it, style = MaterialTheme.typography.bodyLarge, color = Color.White, modifier = Modifier.padding(vertical = 6.dp))
-                    }
-                    Spacer(Modifier.height(22.dp))
-                    Text("—— 点击任意处开始探索 ——", style = MaterialTheme.typography.labelMedium, color = Color(0xFF90A4AE))
-                }
-            }
-        }
-
         // ---------- 游戏大厅（居中式：中央人物 + 底部行动区） ----------
         if (hud.phase == DungeonGame.Phase.READY) {
             val lobbyCls = ClassDef.byId(hud.lobbyCls)
@@ -1601,6 +1495,112 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 },
             )
         }
+        // ---------- ⚙ 地牢设置面板（批12：体验参数实时生效，SharedPreferences 持久化） ----------
+        if (showSettings) {
+            val ctx = context
+            Box(
+                Modifier.fillMaxSize().background(Color(0xF60B0D14))
+                    .verticalScroll(rememberScrollState()).padding(horizontal = 26.dp, vertical = 20.dp),
+            ) {
+                Column {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("⚙ 地牢设置", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.weight(1f))
+                        Text("完成", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                            color = GamePalette.UI_GOLD,
+                            modifier = Modifier.clickable { showSettings = false }.padding(8.dp))
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    // 音效（联动全局声音开关，PlayerState 持久化）
+                    SettingRow("🔊 音效", if (player.soundOn) "开" else "关") {
+                        vm.setSettings(sound = !player.soundOn)
+                    }
+                    // BGM 音量
+                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Text("🎵 BGM 音量  ${DungeonSettings.bgmVolume(ctx)}%", style = MaterialTheme.typography.bodyLarge, color = Color.White)
+                        var bv by remember { mutableFloatStateOf(DungeonSettings.bgmVolume(ctx).toFloat()) }
+                        Slider(
+                            value = bv, onValueChange = { bv = it; DungeonSettings.setBgmVolume(ctx, it.toInt()) },
+                            valueRange = 0f..100f,
+                            colors = SliderDefaults.colors(thumbColor = GamePalette.UI_GOLD, activeTrackColor = GamePalette.UI_GOLD),
+                        )
+                    }
+                    // 伤害数字
+                    SettingRow("🔢 伤害数字", if (DungeonSettings.damageNumbers(ctx)) "开" else "关") {
+                        DungeonSettings.setDamageNumbers(ctx, !DungeonSettings.damageNumbers(ctx))
+                    }
+                    // 震屏强度
+                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Text("📳 震屏强度", style = MaterialTheme.typography.bodyLarge, color = Color.White)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                            listOf("关" to 0, "弱" to 1, "强" to 2).forEach { (label, v) ->
+                                val sel = DungeonSettings.shakeLevel(ctx) == v
+                                Box(
+                                    Modifier.clip(RoundedCornerShape(8.dp))
+                                        .background(if (sel) GamePalette.UI_GOLD else Color(0x33FFFFFF))
+                                        .clickable { DungeonSettings.setShakeLevel(ctx, v) }
+                                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                                ) { Text(label, color = if (sel) Color.Black else Color.White, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
+                            }
+                        }
+                    }
+                    // 暴击缩放
+                    SettingRow("🔍 暴击画面缩放", if (DungeonSettings.critZoom(ctx)) "开" else "关") {
+                        DungeonSettings.setCritZoom(ctx, !DungeonSettings.critZoom(ctx))
+                    }
+                    // 粒子密度
+                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Text("✨ 粒子密度（低端机可调低）", style = MaterialTheme.typography.bodyLarge, color = Color.White)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                            listOf("低" to 0, "中" to 1, "高" to 2).forEach { (label, v) ->
+                                val sel = DungeonSettings.particleDensity(ctx) == v
+                                Box(
+                                    Modifier.clip(RoundedCornerShape(8.dp))
+                                        .background(if (sel) GamePalette.UI_EXP else Color(0x33FFFFFF))
+                                        .clickable { DungeonSettings.setParticleDensity(ctx, v) }
+                                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                                ) { Text(label, color = if (sel) Color.Black else Color.White, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { DungeonSettings.resetTutorial(ctx); showTutorial = true },
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
+                    ) { Text("📖 重看新手引导") }
+                    Spacer(Modifier.height(30.dp))
+                }
+            }
+        }
+
+        // ---------- 首次进地牢新手引导（一次性，点任意处消失） ----------
+        if (showTutorial) {
+            Box(
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.78f))
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = {
+                            showTutorial = false
+                            prefsEdit.edit().putBoolean("dg_tutorial_shown", true).apply()
+                        })
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("地牢生存指南", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD)
+                    Spacer(Modifier.height(18.dp))
+                    listOf(
+                        "🕹 左侧摇杆移动，贴近敌人自动攻击",
+                        "🌀 右下技能键好了就放，各职业各有绝活",
+                        "💥 击杀攒能量，爆发键满了放全屏清场",
+                        "🚪 清空房间开门，徽章预告门后是什么",
+                    ).forEach {
+                        Text(it, style = MaterialTheme.typography.bodyLarge, color = Color.White, modifier = Modifier.padding(vertical = 6.dp))
+                    }
+                    Spacer(Modifier.height(22.dp))
+                    Text("—— 点击任意处开始探索 ——", style = MaterialTheme.typography.labelMedium, color = Color(0xFF90A4AE))
+                }
+            }
+        }
+
     }
 }
 
