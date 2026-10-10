@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.drawscope.translate
@@ -126,6 +129,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     // 新手引导（一次性）：SharedPreferences 落盘，首次 EXPLORING 弹出
     val prefsEdit = remember { context.getSharedPreferences("bg_dungeon", android.content.Context.MODE_PRIVATE) }
     var showTutorial by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }   // ⚙ 地牢设置面板（批12）
     androidx.compose.runtime.LaunchedEffect(hud.phase) {
         if (hud.phase == DungeonGame.Phase.EXPLORING &&
             !prefsEdit.getBoolean("dg_tutorial_shown", false)) showTutorial = true
@@ -233,7 +237,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 game.combatActive -> "combat" to R.raw.dg_bgm_combat
                 else -> "explore" to R.raw.dg_bgm_explore
             }
-            DungeonBgm.update(context, player.soundOn, bgmState.first, bgmState.second)
+            DungeonBgm.update(context, player.soundOn, bgmState.first, bgmState.second, DungeonSettings.bgmVolume(context) / 100f)   // BGM 音量设置（批12）
             if (game.engine.playerFlash > 0.13f && lastPlayerFlash <= 0.13f) {
                 DungeonSfx.play(context, player.soundOn, R.raw.dg_hurt, 0.7f, 250)
             }
@@ -252,13 +256,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                             ev.crit -> GamePalette.UI_GOLD
                             else -> GamePalette.UI_TEXT
                         }
-                        if (floats.size < 100) {
+                        if (floats.size < 100 && DungeonSettings.damageNumbers(context)) {   // 伤害数字设置（批12）
                             floats.add(obtainFloat().also { it.set(ev.x, ev.y, ev.text, c, ev.crit) })
                         }
                         // 攻击来向（hitEnemy 经 x2/y2 传入）：火花沿来向锥形喷溅，更有「被这一刀打中」的方向感
                         val dirBase = if (ev.x2 != 0f || ev.y2 != 0f)
                             kotlin.math.atan2(ev.y2 - ev.y, ev.x2 - ev.x) else null
-                        if (parts.size < 300) when (ev.element) {
+                        if (parts.size < DungeonSettings.particleCap(context)) when (ev.element) {
                             com.brainquest.game.game.core.Element.FIRE -> repeat(5) {   // 火：余焰上飘重力回落
                                 val spread = if (dirBase != null) dirBase + (rngFx.nextFloat() - 0.5f) * 1.2f else rngFx.nextFloat() * 6.283f
                                 val fsp = 50f + rngFx.nextFloat() * 90f
@@ -292,7 +296,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     1 -> {   // 死亡碎片化：三角碎片旋转飞散（按敌人主色，带重力）+ 灵魂光点飞向玩家
                         val pc = if (ev.tint != 0) Color(ev.tint) else GamePalette.UI_HP
-                        if (parts.size < 300) repeat(9) {
+                        if (parts.size < DungeonSettings.particleCap(context)) repeat(9) {
                             val ang = rngFx.nextFloat() * 6.283f
                             val sp = 80f + rngFx.nextFloat() * 150f
                             parts.add(obtainPart().also {
@@ -309,7 +313,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     3 -> bolts.add(BoltFx(ev.x, ev.y, ev.x2, ev.y2, 0.15f))
                     4 -> { rings.add(RingFx(ev.x, ev.y, GamePalette.BOSS_GLOW, 220f, 0.6f)); DungeonSfx.play(context, player.soundOn, R.raw.dg_boss, 0.8f, 1500) }
                     8 -> rings.add(RingFx(ev.x, ev.y, Color(0xB0ECEFF1), 70f, 0.22f))
-                    9 -> if (parts.size < 300) {
+                    9 -> if (parts.size < DungeonSettings.particleCap(context)) {
                         val mc = when (ev.element) {
                             com.brainquest.game.game.core.Element.FIRE -> GamePalette.ELEM_FIRE
                             com.brainquest.game.game.core.Element.ICE -> GamePalette.ELEM_ICE
@@ -332,7 +336,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     12 -> {   // 旋风斩：双弧对转 + 环形风压粒子 + 金环收尾（三段式：白环闪→过程→残留）
                         if (whirls.size < 3) whirls.add(WhirlFx(ev.x, ev.y))
                         if (rings.size < 8) rings.add(RingFx(ev.x, ev.y, GamePalette.UI_GOLD, 120f, 0.6f))
-                        if (parts.size < 300) repeat(12) {
+                        if (parts.size < DungeonSettings.particleCap(context)) repeat(12) {
                             val ang = rngFx.nextFloat() * 6.283f
                             val sp = 90f + rngFx.nextFloat() * 110f
                             parts.add(obtainPart().also {
@@ -345,7 +349,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     13 -> if (spikes.size < 8) {   // 暴风雪：冰锥下落 + 落地冰晶迸溅（延迟粒子）+ 地面霜圈残留
                         spikes.add(SpikeFx(ev.x, ev.y))
                         if (frosts.size < 8) frosts.add(FrostFx(ev.x, ev.y))
-                        if (parts.size < 300) repeat(6) {
+                        if (parts.size < DungeonSettings.particleCap(context)) repeat(6) {
                             val ang = rngFx.nextFloat() * 6.283f
                             val sp = 90f + rngFx.nextFloat() * 130f
                             parts.add(obtainPart().also {
@@ -378,7 +382,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     18 -> {   // 爆裂连锁：火环 + 火花
                         rings.add(RingFx(ev.x, ev.y, GamePalette.ELEM_FIRE, 90f, 0.35f))
-                        if (parts.size < 300) repeat(4) {
+                        if (parts.size < DungeonSettings.particleCap(context)) repeat(4) {
                             val ang = rngFx.nextFloat() * 6.283f
                             val sp = 70f + rngFx.nextFloat() * 110f
                             parts.add(obtainPart().also {
@@ -528,12 +532,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 )
             }
             // 震屏 + 相机缩放（Boss 战拉远）：世界层统一变换
-            val shk = game.engine.shake
+            val shk = game.engine.shake * DungeonSettings.shakeFactor(context)   // 震屏强度设置（批12）
             val shx = if (shk > 0f) (kotlin.random.Random.nextFloat() - 0.5f) * shk * 2f else 0f
             val shy = if (shk > 0f) (kotlin.random.Random.nextFloat() - 0.5f) * shk * 2f else 0f
             withTransform({
                 translate(shx, shy)
-                val pz = 1f + game.engine.punchZoom   // 暴击 punch-zoom（Dead Cells）：只影响世界层，HUD 在变换外（坑35）
+                val pz = if (DungeonSettings.critZoom(context)) 1f + game.engine.punchZoom else 1f   // 暴击 punch-zoom（Dead Cells）：只影响世界层，HUD 在变换外（坑35）；设置可关（批12）
                 scale(game.camZoom * DungeonGame.BASE_ZOOM * pz, game.camZoom * DungeonGame.BASE_ZOOM * pz, pivot = Offset(size.width / 2f, size.height / 2f))
             }) {
             EntityRenderer.drawWorld(this, game, t)
@@ -1159,6 +1163,83 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
+        // ---------- ⚙ 地牢设置面板（批12：体验参数实时生效，SharedPreferences 持久化） ----------
+        if (showSettings) {
+            val ctx = context
+            Box(
+                Modifier.fillMaxSize().background(Color(0xF60B0D14))
+                    .verticalScroll(rememberScrollState()).padding(horizontal = 26.dp, vertical = 20.dp),
+            ) {
+                Column {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("⚙ 地牢设置", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.weight(1f))
+                        Text("完成", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                            color = GamePalette.UI_GOLD,
+                            modifier = Modifier.clickable { showSettings = false }.padding(8.dp))
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    // 音效（联动全局声音开关，PlayerState 持久化）
+                    SettingRow("🔊 音效", if (player.soundOn) "开" else "关") {
+                        vm.setSettings(sound = !player.soundOn)
+                    }
+                    // BGM 音量
+                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Text("🎵 BGM 音量  ${DungeonSettings.bgmVolume(ctx)}%", style = MaterialTheme.typography.bodyLarge, color = Color.White)
+                        var bv by remember { mutableFloatStateOf(DungeonSettings.bgmVolume(ctx).toFloat()) }
+                        Slider(
+                            value = bv, onValueChange = { bv = it; DungeonSettings.setBgmVolume(ctx, it.toInt()) },
+                            valueRange = 0f..100f,
+                            colors = SliderDefaults.colors(thumbColor = GamePalette.UI_GOLD, activeTrackColor = GamePalette.UI_GOLD),
+                        )
+                    }
+                    // 伤害数字
+                    SettingRow("🔢 伤害数字", if (DungeonSettings.damageNumbers(ctx)) "开" else "关") {
+                        DungeonSettings.setDamageNumbers(ctx, !DungeonSettings.damageNumbers(ctx))
+                    }
+                    // 震屏强度
+                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Text("📳 震屏强度", style = MaterialTheme.typography.bodyLarge, color = Color.White)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                            listOf("关" to 0, "弱" to 1, "强" to 2).forEach { (label, v) ->
+                                val sel = DungeonSettings.shakeLevel(ctx) == v
+                                Box(
+                                    Modifier.clip(RoundedCornerShape(8.dp))
+                                        .background(if (sel) GamePalette.UI_GOLD else Color(0x33FFFFFF))
+                                        .clickable { DungeonSettings.setShakeLevel(ctx, v) }
+                                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                                ) { Text(label, color = if (sel) Color.Black else Color.White, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
+                            }
+                        }
+                    }
+                    // 暴击缩放
+                    SettingRow("🔍 暴击画面缩放", if (DungeonSettings.critZoom(ctx)) "开" else "关") {
+                        DungeonSettings.setCritZoom(ctx, !DungeonSettings.critZoom(ctx))
+                    }
+                    // 粒子密度
+                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Text("✨ 粒子密度（低端机可调低）", style = MaterialTheme.typography.bodyLarge, color = Color.White)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                            listOf("低" to 0, "中" to 1, "高" to 2).forEach { (label, v) ->
+                                val sel = DungeonSettings.particleDensity(ctx) == v
+                                Box(
+                                    Modifier.clip(RoundedCornerShape(8.dp))
+                                        .background(if (sel) GamePalette.UI_EXP else Color(0x33FFFFFF))
+                                        .clickable { DungeonSettings.setParticleDensity(ctx, v) }
+                                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                                ) { Text(label, color = if (sel) Color.Black else Color.White, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { DungeonSettings.resetTutorial(ctx); showTutorial = true },
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
+                    ) { Text("📖 重看新手引导") }
+                    Spacer(Modifier.height(30.dp))
+                }
+            }
+        }
+
         // ---------- 首次进地牢新手引导（一次性，点任意处消失） ----------
         if (showTutorial) {
             Box(
@@ -1269,6 +1350,18 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     onClick = { nav.navigate(com.brainquest.game.ui.Routes.TALENTS) },
                     modifier = Modifier.width(300.dp).padding(top = 6.dp).height(40.dp),
                 ) { Text("⭐ 天赋养成", color = GamePalette.UI_EXP) }
+                OutlinedButton(
+                    onClick = { showSettings = true },
+                    modifier = Modifier.width(300.dp).padding(top = 6.dp).height(40.dp),
+                ) { Text("⚙ 地牢设置", color = Color(0xFFB0BEC5)) }
+                // 战绩一览（批12 局外拓展）：通关/累计击杀/最高层数/最高单局击杀
+                Text(
+                    "🏆 通关 ${player.dungeonWins} 次 · 累计击杀 ${player.totalDungeonKills} · " +
+                        "最高 ${player.bestScores["dungeon_floor"] ?: 0} 层 · 单局最高 ${player.bestScores["dungeon_kills"] ?: 0} 杀",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF78909C),
+                    modifier = Modifier.padding(top = 10.dp),
+                )
                 OutlinedButton(
                     onClick = { nav.popBackStack() },
                     modifier = Modifier.width(300.dp).padding(top = 6.dp, bottom = 14.dp).height(40.dp),
@@ -1658,3 +1751,19 @@ private val FLOOR_QUOTES = listOf(
     "有人在这里找到了传世神装，也有人只找到了骨头。",
     "真正的地牢没有回头的路，只有更深的路。",
 )
+
+
+/** 设置面板行：左标签右取值，点击整行切换（批12） */
+@Composable
+private fun SettingRow(label: String, value: String, onTap: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+            .background(Color(0x14FFFFFF))
+            .clickable { onTap() }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = Color.White, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD)
+    }
+}

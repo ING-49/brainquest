@@ -13,15 +13,20 @@ object DungeonBgm {
     private var mp: MediaPlayer? = null
     private var state = ""
 
-    fun update(context: Context, enabled: Boolean, newState: String, res: Int?) {
+    fun update(context: Context, enabled: Boolean, newState: String, res: Int?, volume: Float = 0.32f) {
         if (!enabled || res == null) { stop(); return }
-        if (state == newState) return
+        val v = volume.coerceIn(0f, 1f)
+        if (state == newState) {
+            // 音量实时跟随设置（状态不变也每帧校正，MediaPlayer.setVolume 开销可忽略）
+            mp?.setVolume(v, v)
+            return
+        }
         state = newState
         mp?.release()
         mp = try {
             MediaPlayer.create(context, res)?.apply {
                 isLooping = true
-                setVolume(0.32f, 0.32f)
+                setVolume(v, v)
                 start()
             }
         } catch (_: Exception) { null }

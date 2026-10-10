@@ -322,6 +322,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             "hp" -> 30 + n * 25
             "atk" -> 40 + n * 35
             "spd" -> 30 + n * 30
+            "crit" -> 35 + n * 30
+            "skillcd" -> 40 + n * 35
+            "gold" -> 30 + n * 25
             else -> 9999
         }
     }

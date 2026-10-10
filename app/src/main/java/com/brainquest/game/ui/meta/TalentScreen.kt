@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,15 +32,21 @@ private val TALENTS = listOf(
     TalentDef("hp", "❤️", "生命强化", "+8 生命上限 / 级") { n -> "生命上限 +${8 * n}" },
     TalentDef("atk", "⚔️", "攻击强化", "+1 攻击 / 级") { n -> "攻击 +${1 * n}" },
     TalentDef("spd", "👟", "敏捷强化", "+4 移速 / 级") { n -> "移速 +${4 * n}" },
+    TalentDef("crit", "🎯", "暴击强化", "+3% 暴击率 / 级") { n -> "暴击率 +${3 * n}%" },
+    TalentDef("skillcd", "🌀", "技能强化", "技能冷却 −6% / 级") { n -> "技能冷却 −${6 * n}%" },
+    TalentDef("gold", "💰", "财富天赋", "开局金币 +30 / 级") { n -> "开局金币 +${30 * n}" },
 )
 
-/** 地牢局外养成：三系永久天赋（金币升级，进地牢自动生效） */
+/** 地牢局外养成：六系永久天赋（金币升级，进地牢自动生效） */
 @Composable
 fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     val totalLevels = player.dungeonPerks.values.sum()
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        Modifier.fillMaxSize().padding(16.dp)
+            .verticalScroll(rememberScrollState()),   // 6 卡可能超出屏幕（批12 扩容）
+    ) {
         PageHeader(
             "⭐ 天赋养成",
             onBack = { nav.popBackStack() },

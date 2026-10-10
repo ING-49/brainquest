@@ -91,6 +91,7 @@ class DungeonGame {
     var cls: ClassDef? = null; private set
     /** DEBUG/局外成长：永久升级（选职业前由 Screen 注入，startRun 应用） */
     var pendingPerks: Map<String, Int> = emptyMap()
+    private var skillCdPerkMult = 1f   // 🌀 技能强化天赋倍率（进局算好，选职业时乘上）
 
     // ---------- 视口（平滑相机：前瞻偏移 + Boss 拉远 + 房间边界） ----------
     var viewW = 2000f; var viewH = 1080f   // 横屏视口（onSizeChanged 会覆盖）
@@ -172,11 +173,14 @@ class DungeonGame {
         engine.setStats(c.maxHp, c.attack, c.attackInterval, c.speed)
         hpGhost = engine.maxHp.toFloat()
         camInit = false
-        // 永久升级（局外成长）：生命/攻击/移速
+        // 永久升级（局外成长）：生命/攻击/移速/暴击/技能CD/开局金币（批12 扩容 3→6）
         val perks = pendingPerks
         engine.setMaxHp(engine.maxHp + 8 * (perks["hp"] ?: 0))
         engine.buffAttack(1 * (perks["atk"] ?: 0))
         engine.buffSpeed(4f * (perks["spd"] ?: 0))
+        engine.buffCrit(0.03f * (perks["crit"] ?: 0))
+        skillCdPerkMult = 0.94f.pow(perks["skillcd"] ?: 0)
+        coins += 30 * (perks["gold"] ?: 0)
         engine.passiveId = c.id
         engine.weapon = when (c.id) {
             "knight" -> Weapon.MeleeSlash()
@@ -189,7 +193,7 @@ class DungeonGame {
             "whirlwind" -> 10f
             "blizzard" -> 13f
             else -> 9f
-        }
+        } * skillCdPerkMult   // 🌀 技能强化天赋（批12）
         engine.canPass = canPass
         engine.onCoinPicked = { v -> coins += v }
         engine.onEnemyKilled = { e ->
