@@ -47,6 +47,7 @@ class CombatEngine {
         // 受击闪白 / 死亡动画（渲染用）
         var hitFlash = 0f
         var hitSquash = 0f   // 受击 pop 弹跳（1→0 快速衰减，渲染层放大）
+        var spawnPop = 0f    // 出生弹入（批16：落地置 1 衰减，渲染层弹入曲线）
         // AI 辅助（各 kind 自用；灼烧节拍单独用 burnTick，避免互踩）
         var aiTimer = 0f
         var burnTick = 0f
@@ -386,10 +387,11 @@ class CombatEngine {
     private fun tickPendingSpawns(dt: Float) {
         if (pendingSpawns.isEmpty()) return
         val it = pendingSpawns.listIterator()
+        var landed = false
         while (it.hasNext()) {
             val p = it.next()
             val left = p.first - dt
-            if (left <= 0f) { enemies.add(p.second); it.remove() } else it.set(left to p.second)
+            if (left <= 0f) { p.second.spawnPop = 1f; enemies.add(p.second); it.remove() } else it.set(left to p.second)
         }
     }
 
@@ -411,6 +413,8 @@ class CombatEngine {
             if (!e.alive) continue
             if (e.dormant) continue   // 待机敌人：不 AI/不接触伤害（渲染层照常显示）
             if (e.hitFlash > 0f) e.hitFlash -= dt
+            if (e.hitSquash > 0f) e.hitSquash = (e.hitSquash - dt * 7f).coerceAtLeast(0f)   // 批16 修复：批9 的衰减行曾假成功丢失（受击永久放大 bug）
+            if (e.spawnPop > 0f) e.spawnPop = (e.spawnPop - dt * 5f).coerceAtLeast(0f)
             // 元素状态
             ElementSystem.tickStatus(e, dt, this)
             // 精英「再生」：每秒回 3% 最大生命（鼓励集火）

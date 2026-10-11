@@ -37,4 +37,12 @@ object DungeonSettings {
     fun particleCap(context: Context): Int = when (particleDensity(context)) { 0 -> 120; 1 -> 210; else -> 300 }
 
     fun resetTutorial(context: Context) = p(context).edit().putBoolean("dg_tutorial_shown", false).apply()
+
+    /** 显示帧率（批16：真机性能量化通道） */
+    fun fpsVisible(context: Context): Boolean = p(context).getBoolean("fps_visible", false)
+    fun setFpsVisible(context: Context, on: Boolean) = p(context).edit().putBoolean("fps_visible", on).apply()
+
+    /** 精灵图渲染（批16 素材样例：Slime/Skeleton；无素材自动 fallback） */
+    fun useSprites(context: Context): Boolean = p(context).getBoolean("use_sprites", true)
+    fun setUseSprites(context: Context, on: Boolean) = p(context).edit().putBoolean("use_sprites", on).apply()
 }

@@ -10,6 +10,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.brainquest.game.game.dungeon.DungeonGame
 import com.brainquest.game.game.dungeon.Equipment
@@ -274,14 +276,50 @@ object EntityRenderer {
     }
 
     // ---------- 敌人（按种类差异化；受击闪白/元素状态/精英发光） ----------
-    fun drawEnemy(scope: DrawScope, game: DungeonGame, e: com.brainquest.game.game.core.CombatEngine.Enemy, time: Float) {
+    fun drawEnemy(scope: DrawScope, game: DungeonGame, e: com.brainquest.game.game.core.CombatEngine.Enemy, time: Float, spritesOn: Boolean = false) {
         val sx = e.x - game.camX
         val sy = e.y - game.camY
         if (sx < -60f || sy < -60f || sx > scope.size.width + 60f || sy > scope.size.height + 60f) return
         // 死亡动画：先弹大再缩没（deathTimer 0.3 → 0）
         val dieK = if (e.dying) (e.deathTimer / 0.3f).coerceIn(0f, 1f) else 1f
         if (dieK <= 0.02f) return
-        val popScale = if (e.dying) 0.4f + 1.1f * dieK * dieK else 1f + 0.18f * e.hitSquash   // 受击 pop（squash&stretch）
+        val spawnK = e.spawnPop   // 出生弹入（批16）：1→0，从小弹出
+        val popScale = when {
+            e.dying -> 0.4f + 1.1f * dieK * dieK
+            spawnK > 0f -> 0.35f + 0.75f * (1f - spawnK) + 0.18f * spawnK * (1f - spawnK) * 4f * 0.5f + 0.18f * e.hitSquash
+            else -> 1f + 0.18f * e.hitSquash   // 受击 pop（squash&stretch）
+        }
+        if (spawnK > 0.5f) {   // 出生落地白环（批16）
+            scope.drawCircle(Color.White.copy(alpha = 0.5f * (spawnK - 0.5f) * 2f), e.r + 14f * (1.5f - spawnK), Offset(sx, sy), style = Stroke(3f))
+        }
+        // 精灵图渲染（批16 样例：Slime/Skeleton；设置开关 + 素材就绪双条件，否则走矢量）
+        if (spritesOn && SpriteSheet.ready &&
+            (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME ||
+                e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SKELETON)) {
+            val (tcol, trow) = if (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME) 0 to 9 else 3 to 9
+            val frame = ((time * 3f + e.wobbleSeed).toInt()) % 2   // 两帧伪动画（缩放呼吸替代真帧动画）
+            val dsize = (e.r * 2.3f).toInt()
+            val bmp = SpriteSheet.bitmap()!!
+            val bob = if (frame == 0) 0 else -2
+            scope.drawImage(
+                bmp,
+                srcOffset = IntOffset(tcol * 16, trow * 16),
+                srcSize = IntSize(16, 16),
+                dstOffset = IntOffset((sx - dsize / 2).toInt(), (sy - dsize / 2 + bob).toInt()),
+                dstSize = IntSize(dsize, dsize),
+            )
+            if (e.atkState == 1 && !e.dying) {   // 前摇预警（精灵路径保留黄圈）
+                val pulse = sin(time * 22f) * 3f
+                scope.drawCircle(Color(0x88FFEB3B), e.r + 6f + pulse, Offset(sx, sy), style = Stroke(3f))
+            }
+            if (e.hitFlash > 0f) scope.drawCircle(Color(0xAAFFFFFF), e.r + 1f, Offset(sx, sy))
+            val hb = (e.hp / e.maxHp).coerceIn(0f, 1f)
+            if (hb < 1f && !e.dying) {   // 血条（精灵路径保留）
+                scope.drawRoundRect(Color(0x66000000), Offset(sx - e.r, sy - e.r - 8f), Size(e.r * 2f, 4f), CornerRadius(2f))
+                scope.drawRoundRect(if (hb > 0.4f) Color(0xFF7EE38A) else Color(0xFFE15A5A), Offset(sx - e.r, sy - e.r - 8f), Size(e.r * 2f * hb, 4f), CornerRadius(2f))
+            }
+            return
+        }
         scope.withTransform({ scale(popScale, popScale, pivot = Offset(sx, sy)) }) {
             val hop = if (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME) abs(sin(time * 5f + e.wobbleSeed)) * 6f else 0f
             val wing = sin(time * 14f + e.wobbleSeed)
@@ -627,9 +665,12 @@ object EntityRenderer {
         val facingRight = fx >= 0f
         val facingUp = fy < -0.5f
 
+        // 移动倾斜（批16）：随步伐 ±3° 摇摆，加动感
+        val lean = if (game.engine.moving) sin(game.engine.walkPhase) * 3f else 0f
         // 0 角色微光（同心圆代替渐变笔刷，零分配）
         scope.drawCircle(Color(0x06FFFFFF), 95f, Offset(sx, sy))
         scope.drawCircle(Color(0x0AFFFFFF), 60f, Offset(sx, sy))
+        scope.withTransform({ rotate(lean, pivot = Offset(sx, sy)) }) {
         // 1 阴影
         scope.drawOval(SHADOW, Offset(sx - 18f, sy + 14f), Size(36f, 10f))
 
@@ -691,6 +732,10 @@ object EntityRenderer {
         val handX = sx + 15f + swing * 0.6f
         val handY = bodyTop + 12f + swing * 0.6f
         // 挥砍时武器从 -60° 甩到 +60°（随 activeSlash 进度）
+        // 攻击冷却进度（批16）：1=即将出手（蓄能满），0=刚出手（后座大）
+        val atkProg = if (game.engine.attackInterval > 0f)
+            (1f - game.engine.attackTimer / game.engine.attackInterval).coerceIn(0f, 1f) else 0f
+        val recoil = (1f - atkProg).coerceIn(0f, 1f)   // 刚出手=1，渐回
         val swingOff = game.engine.activeSlash?.let { sl ->
             if (sl.timer >= sl.windup && sl.timer <= sl.windup + 0.15f)
                 Math.toDegrees((-60.0 + 120.0 * ((sl.timer - sl.windup) / 0.15f))).toFloat()
@@ -706,17 +751,21 @@ object EntityRenderer {
                     drawRect(Color(0xFFECEFF1), Offset(handX - 2f, handY - 34f), Size(4f, 26f))
                 }
                 "mage" -> {
-                    // 法杖：杆 + 顶端宝珠
+                    // 法杖：杆 + 顶端宝珠（批16：随冷却蓄能变大发光，出手瞬间后座缩小）
+                    val charge = atkProg * atkProg
                     drawRect(Color(0xFF8D6E63), Offset(handX - 2f, handY - 30f), Size(4f, 34f))
-                    drawCircle(BULLET_ORB, 5f, Offset(handX, handY - 32f))
+                    drawCircle(BULLET_ORB.copy(alpha = 0.25f + 0.45f * charge), 5f + 4f * charge, Offset(handX, handY - 32f))
+                    drawCircle(Color(0xFFFFFFFF), (2f + 2.5f * charge), Offset(handX, handY - 32f))
                 }
                 "ranger" -> {
-                    // 弓：弧 + 弦
-                    drawArc(Color(0xFF8D6E63), -80f, 160f, false, Offset(handX - 4f, handY - 18f), Size(8f, 36f), style = Stroke(3f))
-                    drawLine(Color(0xFFECEFF1), Offset(handX, handY - 17f), Offset(handX, handY + 17f), 1.5f)
+                    // 弓：弧 + 弦（批16：拉弓/后座随攻击冷却进度）
+                    val drawPull = atkProg * 5f   // 快出手时弦拉满（蓄力感）
+                    drawArc(Color(0xFF8D6E63), -80f, 160f, false, Offset(handX - 4f - drawPull * 0.3f, handY - 18f), Size(8f, 36f), style = Stroke(3f))
+                    drawLine(Color(0xFFECEFF1), Offset(handX, handY - 17f), Offset(handX - drawPull, handY + 17f), 1.5f)
                 }
             }
         }
+        }   // lean rotate（批16）
     }
 
     private val BULLET_ORB = Color(0xFFFF7043)

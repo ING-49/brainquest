@@ -151,6 +151,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     var joyBase by remember { mutableStateOf(Offset.Zero) }
     var joyOn by remember { mutableStateOf(false) }
     val frame = remember { mutableIntStateOf(0) }
+    val fpsAvg = remember { mutableFloatStateOf(0f) }   // FPS 滚动平均（批16）
     val animT = remember { mutableFloatStateOf(0f) }   // 统一动画时间源（真实 dt 累计，秒）
     val joyMaxPx = with(LocalDensity.current) { 54.dp.toPx() }   // 批13：48→54
     val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
@@ -202,6 +203,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 last = t
             }
             frame.intValue++
+            // FPS 滚动平均（批16 帧率量化：指数平滑，dt>0 防除零）
+            if (dt > 0f) {
+                val inst = 1f / dt
+                fpsAvg.floatValue = if (fpsAvg.floatValue <= 0f) inst else fpsAvg.floatValue * 0.95f + inst * 0.05f
+            }
             animT.floatValue += dt
             // 自动驾驶开店 3 秒自动关（防无人值守挂死；真人操作不受影响）
             if (game.autopilot && hud.phase == DungeonGame.Phase.SHOP) {
@@ -576,15 +582,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 val a = (1f - pt.t / pt.life.coerceAtLeast(0.1f)).coerceIn(0f, 1f)
                 val po = Offset(pt.x - game.camX, pt.y - game.camY)
                 if (pt.shape >= 1f) {
-                    // 三角碎片（旋转飞散）
+                    // 三角碎片（旋转飞散；批16 零分配：三线段拼三角，不 new Path）
                     val sz = 7f
                     val ca = kotlin.math.cos(pt.rot); val sa = kotlin.math.sin(pt.rot)
                     fun tp(ax: Float, ay: Float) = Offset(po.x + ax * ca - ay * sa, po.y + ax * sa + ay * ca)
-                    val tri = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(tp(0f, -sz).x, tp(0f, -sz).y); lineTo(tp(sz * 0.9f, sz * 0.7f).x, tp(sz * 0.9f, sz * 0.7f).y)
-                        lineTo(tp(-sz * 0.9f, sz * 0.7f).x, tp(-sz * 0.9f, sz * 0.7f).y); close()
-                    }
-                    drawPath(tri, pt.color.copy(alpha = a))
+                    val p1 = tp(0f, -sz); val p2 = tp(sz * 0.9f, sz * 0.7f); val p3 = tp(-sz * 0.9f, sz * 0.7f)
+                    val col = pt.color.copy(alpha = a)
+                    drawLine(col, p1, p2, 3f); drawLine(col, p2, p3, 3f); drawLine(col, p3, p1, 3f)
                 } else {
                     drawCircle(pt.color.copy(alpha = a), 3.5f, po)
                 }
@@ -622,11 +626,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 val sy = sp.y - 140f * (1f - k)
                 val a = (k * 4f).coerceIn(0f, 1f) * (1f - (k - 0.75f).coerceAtLeast(0f) * 4f * 0.5f)
                 val po = Offset(sp.x - game.camX, sy - game.camY)
-                val tri = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(po.x, po.y + 10f); lineTo(po.x - 5f, po.y - 6f); lineTo(po.x + 5f, po.y - 6f); close()
-                }
-                drawPath(tri, GamePalette.ELEM_ICE.copy(alpha = a))
-                drawPath(tri, Color.White.copy(alpha = a * 0.7f), style = Stroke(1.5f))
+                val t1 = Offset(po.x, po.y + 10f); val t2 = Offset(po.x - 5f, po.y - 6f); val t3 = Offset(po.x + 5f, po.y - 6f)
+                drawLine(GamePalette.ELEM_ICE.copy(alpha = a), t1, t2, 4f)
+                drawLine(GamePalette.ELEM_ICE.copy(alpha = a), t1, t3, 4f)
+                drawLine(GamePalette.ELEM_ICE.copy(alpha = a), t2, t3, 3f)
+                drawLine(Color.White.copy(alpha = a * 0.7f), t2, t3, 1.5f)
             }
             for (fr in frosts) {   // 暴风雪地面霜圈：淡入 0.2s → 保持 → 淡出 0.4s（残留 1.2s）
                 val k = (fr.t / 1.2f).coerceIn(0f, 1f)
@@ -758,7 +762,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     if (inSwing && parts.size < 300 && rngFx.nextFloat() < 0.9f) {
                         val mid = startDeg + sweep
                         val rad = Math.toRadians(mid.toDouble()).toFloat()
-                        parts.add(ParticleFx().also {
+                        parts.add((partPool.removeFirstOrNull() ?: ParticleFx()).also {   // Canvas 作用域直用对象池（批16）
                             it.set(en.px + kotlin.math.cos(rad) * rr * 0.8f, en.py + kotlin.math.sin(rad) * rr * 0.8f,
                                    kotlin.math.cos(rad) * 220f, kotlin.math.sin(rad) * 220f, 0.22f, Color(0xCCFFFFFF))
                             it.drag = 4f
@@ -782,7 +786,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 drawRect(Color(0xB0120A0A).copy(alpha = a), Offset(0f, midY - 46f), Size(size.width, 92f))
                 drawLine(GamePalette.UI_GOLD.copy(alpha = a), Offset(0f, midY - 46f), Offset(size.width, midY - 46f), 2f)
                 drawLine(GamePalette.UI_GOLD.copy(alpha = a), Offset(0f, midY + 46f), Offset(size.width, midY + 46f), 2f)
-                val bl = textMeasurer.measure(b.text, androidx.compose.ui.text.TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold))
+                val bl = textCache.getOrPut("banner#" + b.text) {   // 批16：横幅 2.4s 期间不再每帧 measure
+                    textMeasurer.measure(b.text, androidx.compose.ui.text.TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold))
+                }
                 drawText(bl, color = GamePalette.UI_GOLD.copy(alpha = a), topLeft = Offset((size.width - bl.size.width) / 2f, midY - bl.size.height / 2f))
             }
             // 虚拟摇杆（批13 王者式）：底座 58dp + 12 刻度外环；热区 96dp 不可见
@@ -1110,6 +1116,16 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                 }
             }
+        }
+
+        // FPS 显示（批16：设置开关，真机性能量化）
+        if (hud.phase == DungeonGame.Phase.EXPLORING && DungeonSettings.fpsVisible(context) && fpsAvg.floatValue > 0f) {
+            Text(
+                "FPS ${fpsAvg.floatValue.toInt()}",
+                Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 126.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (fpsAvg.floatValue >= 55f) Color(0xFF7EE38A) else if (fpsAvg.floatValue >= 40f) Color(0xFFFFD54F) else Color(0xFFFF6E6E),
+            )
         }
 
         // 小地图（右上，暂停按钮下方；横屏压缩尺寸）
@@ -1586,6 +1602,12 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     // 伤害数字
                     SettingRow("🔢 伤害数字", if (DungeonSettings.damageNumbers(ctx)) "开" else "关") {
                         DungeonSettings.setDamageNumbers(ctx, !DungeonSettings.damageNumbers(ctx))
+                    }
+                    SettingRow("📈 显示帧率", if (DungeonSettings.fpsVisible(ctx)) "开" else "关") {
+                        DungeonSettings.setFpsVisible(ctx, !DungeonSettings.fpsVisible(ctx))
+                    }
+                    SettingRow("🧩 精灵图渲染（样例）", if (DungeonSettings.useSprites(ctx)) "开" else "关") {
+                        DungeonSettings.setUseSprites(ctx, !DungeonSettings.useSprites(ctx))
                     }
                     // 震屏强度
                     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
