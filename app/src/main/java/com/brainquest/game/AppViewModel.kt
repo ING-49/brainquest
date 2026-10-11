@@ -309,7 +309,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** 地牢永久升级：花费金币买一级，返回是否成功 */
+    fun dungeonPerkMax(id: String) = 10   // 每系天赋等级上限（批15 平衡）
+
     fun buyDungeonPerk(id: String): Boolean {
+        if ((_player.value.dungeonPerks[id] ?: 0) >= dungeonPerkMax(id)) return false   // 批15：满级拒绝
         val cost = dungeonPerkCost(id)
         if (_player.value.coins < cost) return false
         commit { it.copy(coins = it.coins - cost, dungeonPerks = it.dungeonPerks + (id to (it.dungeonPerks[id] ?: 0) + 1)) }

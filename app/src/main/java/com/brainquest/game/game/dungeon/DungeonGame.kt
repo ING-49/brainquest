@@ -8,6 +8,7 @@ import com.brainquest.game.game.dungeon.model.Dir
 import com.brainquest.game.game.dungeon.model.EnemyKind
 import com.brainquest.game.game.dungeon.model.Room
 import com.brainquest.game.game.dungeon.model.RoomType
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.random.Random
 
@@ -92,6 +93,9 @@ class DungeonGame {
     /** DEBUG/局外成长：永久升级（选职业前由 Screen 注入，startRun 应用） */
     var pendingPerks: Map<String, Int> = emptyMap()
     private var skillCdPerkMult = 1f   // 🌀 技能强化天赋倍率（进局算好，选职业时乘上）
+    var runMode: String = "standard"; private set   // standard/endless/bossrush/arena（批15 玩法模式）
+    private var arenaWave = 0   // 角斗场当前波数
+    fun setRunMode(m: String) { runMode = m; endless = m == "endless" || m == "arena" }
 
     // ---------- 视口（平滑相机：前瞻偏移 + Boss 拉远 + 房间边界） ----------
     var viewW = 2000f; var viewH = 1080f   // 横屏视口（onSizeChanged 会覆盖）
@@ -181,6 +185,7 @@ class DungeonGame {
         engine.buffCrit(0.03f * (perks["crit"] ?: 0))
         skillCdPerkMult = 0.94f.pow(perks["skillcd"] ?: 0)
         coins += 30 * (perks["gold"] ?: 0)
+        engine.clampStats()   // 批15：天赋注入后收口
         engine.passiveId = c.id
         engine.weapon = when (c.id) {
             "knight" -> Weapon.MeleeSlash()
@@ -227,6 +232,31 @@ class DungeonGame {
         engine.enemies.clear(); engine.bullets.clear()
         val result = DungeonGenerator.generate(floor, rng)
         rooms = result.rooms
+        // 批15 玩法模式：魔王连战=战斗/精英房全部改型 Boss（宝箱/商店保留作休整）；角斗场=除起点外全部删 room 单房
+        if (runMode == "bossrush") {
+            result.rooms.forEach { r -> if (r.type == RoomType.BATTLE || r.type == RoomType.ELITE) r.type = RoomType.BOSS }
+        } else if (runMode == "arena") {
+            val keep = result.rooms.filter { it.type == RoomType.START || it.type == RoomType.BOSS }
+            // 保主链（start + boss 位）做骨架，其余全改 BOSS：单层全是 Boss 战 → 角斗场改用「首房放大+邻居断开」更简单：
+            // 方案：只留 START，其余房从图中摘除（neighbors 双向断开），START 改型为大战斗房
+            val start = result.start
+            start.type = RoomType.BATTLE
+            start.w = 2400f; start.h = 1400f
+            start.cleared = false
+            val others = result.rooms.filter { it !== start }
+            for (r in others) for ((d, n) in r.neighbors.toList()) {
+                r.neighbors.remove(d)
+                if (n.neighbors[d] == r) n.neighbors.remove(d)
+            }
+            start.neighbors.clear()
+            rooms = listOf(start)
+            floorCleared = 0
+            startRoom = start
+            engine.px = roomLeft(start) + start.w / 2
+            engine.py = roomTop(start) + start.h / 2
+            enterRoom(start)
+            return
+        }
         floorCleared = 0
         startRoom = result.start
         engine.px = roomLeft(result.start) + result.start.w / 2
@@ -295,6 +325,7 @@ class DungeonGame {
     private fun populateRoom(room: Room) {
         if (room.populated) return
         room.populated = true
+        if (runMode == "arena") return   // 角斗场：波次状态机接管，不常规布怪
         android.util.Log.d("DGROOM", "populate floor=$floor ${room.type} at ${room.gx},${room.gy}")
         val endlessK = if (floor > MAX_FLOOR) 1.15f.pow(floor - MAX_FLOOR) else 1f   // 无尽第 5 层后指数加难
         val scaleHp = (1f + 0.40f * (floor - 1)) * endlessK
@@ -322,7 +353,7 @@ class DungeonGame {
                 EnemyKind.CASTER -> 60f
                 EnemyKind.SHIELD_GUARD -> 45f
                 else -> 68f
-            }) + floor * 4f
+            }) + min(floor, 12) * 4f   // 批15：速度成长 12 层封顶
             val r = when {
                 big -> 48f
                 elite -> 27f
@@ -373,7 +404,7 @@ class DungeonGame {
                 // 每层 Boss：大体型 + 多阶段（<30% 狂暴）+ 每层不同机制（见 engine.bossAI）
                 val boss = CombatEngine.Enemy(
                     roomLeft(room) + room.w / 2, roomTop(room) + room.h / 2 - 40f,
-                    46f, 400f * scaleHp, 400f * scaleHp, 62f + floor * 3f,
+                    46f, 400f * scaleHp, 400f * scaleHp, 62f + min(floor, 12) * 3f,
                     11f * scaleDmg, EnemyKind.DUMMY, elite = false, xpValue = 8,
                 )
                 boss.bossFloor = floor
@@ -396,7 +427,7 @@ class DungeonGame {
                 )
             }
             RoomType.BATTLE -> {
-                val n = 7 + rng.nextInt(3) + floor   // 怪海（批10）：首层 8-10 只，逐层+1
+                val n = min(7 + rng.nextInt(3) + floor, 16)   // 怪海（批10）：逐层+1，批15 封顶 16
                 repeat(n) {
                     val kind = when {
                         floor >= 3 && rng.nextInt(7) == 0 -> EnemyKind.SHIELD_GUARD   // 盾卫第 3 层起
@@ -415,6 +446,38 @@ class DungeonGame {
         }
     }
 
+    /** 角斗场波次：环形入场（数量/强度随波数），每 3 波 1 精英 + 掉稀有装备（批15） */
+    private fun spawnArenaWave(room: Room) {
+        val scaleHp = 1f + 0.40f * (floor - 1)
+        val scaleDmg = 1f + 0.2f * (floor - 1)
+        val n = min(5 + arenaWave / 2, 14)
+        val rad = min(room.w, room.h) * 0.38f
+        repeat(n) { i ->
+            val ang = 6.283f * i / n + rng.nextFloat() * 0.5f
+            val x = roomLeft(room) + room.w / 2 + kotlin.math.cos(ang) * rad
+            val y = roomTop(room) + room.h / 2 + kotlin.math.sin(ang) * rad
+            val kind = when {
+                floor >= 3 && rng.nextInt(7) == 0 -> EnemyKind.SHIELD_GUARD
+                floor >= 2 && rng.nextInt(6) == 0 -> EnemyKind.BONE_ARCHER
+                floor >= 2 && rng.nextInt(6) == 0 -> EnemyKind.BOOM_SLIME
+                floor >= 2 && rng.nextInt(5) == 0 -> EnemyKind.CASTER
+                rng.nextInt(3) == 0 -> EnemyKind.SKELETON
+                rng.nextInt(3) == 0 -> EnemyKind.BAT
+                else -> EnemyKind.SLIME
+            }
+            val elite = arenaWave % 3 == 0 && i == 0
+            val baseHp = 30f * scaleHp * (if (elite) 2.2f else 1f)
+            val e = CombatEngine.Enemy(x, y, if (elite) 27f else 18f, baseHp, baseHp,
+                55f + min(floor, 12) * 4f, 6f * scaleDmg, kind, elite = elite, xpValue = if (elite) 3 else 1)
+            engine.spawnLater(i * 0.15f, e)
+        }
+        if (arenaWave % 3 == 0) {
+            drops.add(Drop(roomLeft(room) + room.w / 2, roomTop(room) + room.h / 2,
+                Equipment.generate(floor, rng, Equipment.Rarity.RARE)))
+        }
+        engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 60f, "第 $arenaWave 波来袭！", true, null, 0))
+    }
+
     /** 怪海第二波：战斗房首波清空后概率补 3-4 只（Room.secondWave 幂等，落地即待机、进房激活逻辑自动点亮） */
     private fun spawnSecondWave(room: Room) {
         val endlessK = if (floor > MAX_FLOOR) 1.15f.pow(floor - MAX_FLOOR) else 1f
@@ -424,7 +487,7 @@ class DungeonGame {
             val kind = listOf(EnemyKind.SKELETON, EnemyKind.BAT, EnemyKind.CASTER, EnemyKind.BOOM_SLIME, EnemyKind.BONE_ARCHER).random(rng)
             val x = roomLeft(room) + 120f + rng.nextFloat() * (room.w - 240f)
             val y = roomTop(room) + 100f + rng.nextFloat() * (room.h - 200f)
-            val e = CombatEngine.Enemy(x, y, 17f, 30f * scaleHp, 30f * scaleHp, 70f + floor * 4f,
+            val e = CombatEngine.Enemy(x, y, 17f, 30f * scaleHp, 30f * scaleHp, 70f + min(floor, 12) * 4f,
                 6f * scaleDmg, kind, xpValue = 1)
             e.dormant = true
             engine.spawnLater(i * 0.25f, e)
@@ -650,12 +713,17 @@ class DungeonGame {
             // 清房判定（本房延迟刷怪全落地且清空才开门；宝箱房必须开箱，chest 为空的异常房自动放行兜底）
             val room = currentRoom
             // 怪海第二波（批10）：第 2 层起战斗房首波清空 50% 概率补波，门保持锁住
-            if (room != null && locked && room.type == RoomType.BATTLE && floor >= 2 &&
+            if (runMode == "arena" && room != null && roomEnemiesLeft(room) == 0 && !engine.hasPendingSpawns()) {
+                // 角斗场波次状态机（批15）：清场即下一波，floor=波数（HUD 复用层数显示，endless 已置 true）
+                arenaWave++
+                floor = arenaWave
+                spawnArenaWave(room)
+            } else if (room != null && locked && room.type == RoomType.BATTLE && floor >= 2 &&
                 !room.secondWave && roomEnemiesLeft(room) == 0 && !engine.hasPendingSpawns() && rng.nextFloat() < 0.5f) {
                 room.secondWave = true
                 spawnSecondWave(room)
                 engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 70f, "第二波来袭！", true, null, 0))
-            } else if (room != null && locked && (room.type != RoomType.CHEST || chest == null) &&
+            } else if (runMode != "arena" && room != null && locked && (room.type != RoomType.CHEST || chest == null) &&
                 roomEnemiesLeft(room) == 0 && !engine.hasPendingSpawns()) {
                 room.cleared = true
                 android.util.Log.d("DGROOM", "clear-check clears ${room.type} ${room.gx},${room.gy}")
@@ -919,6 +987,7 @@ class DungeonGame {
         engine.buffCrit((newB.crit - oldB.crit) / 100f)
         engine.buffPickupMult(1f + (newB.pickup - oldB.pickup) / 100f)
         engine.buffElem((newB.elem - oldB.elem) / 100f)
+        engine.clampStats()   // 批15：装备路径同样收口
     }
 
     fun chooseUpgrade(id: String) {

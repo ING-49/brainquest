@@ -2,6 +2,7 @@ package com.brainquest.game.game.dungeon
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -31,6 +32,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -102,6 +104,7 @@ private data class Hud(
     val combo: Int,
     val lobbyCls: String,
     val endless: Boolean,
+    val mode: String,
     val portalNear: Boolean,
     val hasPortal: Boolean,
     val chestNear: Boolean,
@@ -127,7 +130,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         game.engine.autoAttack = game.autopilot   // 手动模式走攻击键；自动驾驶保持持续攻击
     }
     var hud by remember {
-        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0, 0f, 0, true, 0, 0, 0, "knight", false, false, false, false, false, false, false, 0f))
+        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0, 0f, 0, true, 0, 0, 0, "knight", false, "standard", false, false, false, false, false, false, 0f))
     }
     var apShopOpenT by remember { mutableFloatStateOf(0f) }   // 自动驾驶开店兜底计时
     // Boss 血条 Hades 化：白色残影缓落 / 阶段切换白闪
@@ -425,6 +428,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 e.hitCombo,
                 game.lobbyClassId,
                 game.endless,
+                game.runMode,
                 game.portalNear,
                 game.portal != null,
                 game.chestNear,
@@ -450,6 +454,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 else -> {}
             }
         if ((hud.phase == DungeonGame.Phase.GAMEOVER || hud.phase == DungeonGame.Phase.VICTORY) && !rewarded) {
+            if (game.runMode == "arena") vm.reportBest("arena_wave", hud.floor)   // 角斗场最佳波数（批15）
             rewarded = true
             vm.addDungeonResult(hud.floor, hud.kills, hud.timeSec, game.coins, hud.phase == DungeonGame.Phase.VICTORY)
         }
@@ -1151,144 +1156,159 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // ---------- 游戏大厅（批13 王者式横屏双栏：左立绘 / 右行动区） ----------
+        // ---------- 游戏大厅（批15 游戏化：场景背景 + 顶栏资源条 + 模式 2×2 大卡） ----------
         if (hud.phase == DungeonGame.Phase.READY) {
             val lobbyCls = ClassDef.byId(hud.lobbyCls)
-            Box(Modifier.fillMaxSize().background(Color(0xF20B0E14)), contentAlignment = Alignment.Center) {
+            // 场景化背景：暗渐变 + 网格 + 两侧火把光晕脉动
+            Canvas(Modifier.fillMaxSize()) {
+                drawRect(Color(0xFF0B0D14))
+                drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color(0x00161B29), Color(0x66161B29), Color(0x000B0D14))), size = size)
+                val t = animT.floatValue
+                drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color(0x14263242), Color(0x03263242))), size = Size(size.width, size.height * 0.12f))
+                for (col in 0..12) drawLine(Color(0x0AFFFFFF), Offset(col * size.width / 12f, 0f), Offset(col * size.width / 12f, size.height), 1f)
+                for (row in 0..6) drawLine(Color(0x0AFFFFFF), Offset(0f, row * size.height / 6f), Offset(size.width, row * size.height / 6f), 1f)
+                for (side in 0..1) {   // 火把光晕
+                    val cx = if (side == 0) size.width * 0.16f else size.width * 0.84f
+                    val flick = 0.75f + 0.25f * kotlin.math.sin(t * 7f + side * 2.1f)
+                    drawCircle(Color(0x1AFFB300).copy(alpha = 0.5f * flick), 90f, Offset(cx, size.height * 0.3f))
+                    drawCircle(Color(0x22FF9800), 34f, Offset(cx, size.height * 0.3f))
+                }
+            }
+            // 顶栏资源条：退出 + 标题 …… 金币 chip + 设置
             Row(
-                Modifier.widthIn(max = 1100.dp).fillMaxHeight().padding(horizontal = 22.dp, vertical = 8.dp),
+                Modifier.fillMaxWidth().align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                    .padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 竖排功能入口列（批14 王者大厅式占位：点击敬请期待）
+                Text("←", style = MaterialTheme.typography.titleLarge, color = Color.White,
+                    modifier = Modifier.clickable { nav.popBackStack() }.padding(horizontal = 6.dp))
+                Text("🏰 地牢幸存者", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD, modifier = Modifier.weight(1f))
+                com.brainquest.game.ui.CoinText(player.coins, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Spacer(Modifier.width(12.dp))
+                Text("⚙", style = MaterialTheme.typography.headlineSmall, color = Color(0xFFB0BEC5),
+                    modifier = Modifier.clickable { showSettings = true }.padding(6.dp))
+            }
+            // 中央内容：功能入口列 | 立绘 | 模式/行动
+            Row(
+                Modifier.align(Alignment.Center).widthIn(max = 1100.dp).fillMaxHeight()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                    .padding(horizontal = 22.dp, vertical = 40.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+            // 竖排功能入口列（批14 王者大厅式占位：点击敬请期待）
+            Column(
+                Modifier.fillMaxHeight().width(64.dp).padding(top = 8.dp, end = 6.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                listOf("🛒 商城", "👥 好友", "📖 图鉴", "📬 邮件").forEach { label ->
+                    Box(
+                        Modifier.fillMaxWidth().padding(vertical = 5.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x14FFFFFF))
+                            .clickable { vm.toast("🚧 $label 敬请期待，即将开放") }
+                            .padding(vertical = 9.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(label.substringBefore(" "), style = MaterialTheme.typography.titleMedium)
+                            Text(label.substringAfter(" "), style = MaterialTheme.typography.labelSmall, color = Color(0xFF90A4AE))
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            // 左栏 42%：职业立绘撑满 + 悬浮切换 + 名字/数值/战绩压底
+            Box(Modifier.weight(0.42f).fillMaxHeight()) {
+                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                    EntityRenderer.drawPortrait(this, lobbyCls, size.width / 2, size.height * 0.42f, 1.45f, animT.floatValue)
+                }
+                Box(
+                    Modifier.align(Alignment.CenterStart).padding(start = 4.dp).size(46.dp)
+                        .background(Color(0x33FFFFFF), androidx.compose.foundation.shape.CircleShape)
+                        .clickable { game.cycleClass(-1) },
+                    contentAlignment = Alignment.Center,
+                ) { Text("◀", style = MaterialTheme.typography.titleMedium, color = Color.White) }
+                Box(
+                    Modifier.align(Alignment.CenterEnd).padding(end = 4.dp).size(46.dp)
+                        .background(Color(0x33FFFFFF), androidx.compose.foundation.shape.CircleShape)
+                        .clickable { game.cycleClass(1) },
+                    contentAlignment = Alignment.Center,
+                ) { Text("▶", style = MaterialTheme.typography.titleMedium, color = Color.White) }
                 Column(
-                    Modifier.fillMaxHeight().width(64.dp).padding(top = 8.dp, end = 6.dp),
-                    verticalArrangement = Arrangement.Center,
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    listOf("🛒 商城", "👥 好友", "📖 图鉴", "📬 邮件").forEach { label ->
-                        Box(
-                            Modifier.fillMaxWidth().padding(vertical = 5.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0x14FFFFFF))
-                                .clickable { vm.toast("🚧 $label 敬请期待，即将开放") }
-                                .padding(vertical = 9.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(label.substringBefore(" "), style = MaterialTheme.typography.titleMedium)
-                                Text(label.substringAfter(" "), style = MaterialTheme.typography.labelSmall, color = Color(0xFF90A4AE))
+                    Text(lobbyCls.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(
+                        "❤️${lobbyCls.maxHp} · ⚔️${lobbyCls.attack} · ${lobbyCls.weaponName}",
+                        style = MaterialTheme.typography.labelSmall, color = Color(0xFFB0BEC5),
+                    )
+                    Text(
+                        "${lobbyCls.passiveName} · 技能：${lobbyCls.skillName}",
+                        style = MaterialTheme.typography.labelSmall, color = Color(0xFF78909C),
+                    )
+                    Text(
+                        "🏆 通关 ${player.dungeonWins} 次 · 累计击杀 ${player.totalDungeonKills} · 最高 ${player.bestScores["dungeon_floor"] ?: 0} 层 · 单局最高 ${player.bestScores["dungeon_kills"] ?: 0} 杀",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF546E7A),
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            // 右栏 58%：模式 2×2 大卡 + 天赋小卡 + 开始冒险压轴
+            Column(Modifier.weight(0.58f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+                val modes = listOf(
+                    Triple("🗡️", "标准 · 5 层", "经典闯关，层层深入") to "standard",
+                    Triple("♾️", "无尽 · 层数无限", "看你能撑到第几层") to "endless",
+                    Triple("👑", "魔王连战", "全程 Boss 车轮战") to "bossrush",
+                    Triple("⚔️", "角斗场", "无尽波次生存挑战") to "arena",
+                )
+                modes.chunked(2).forEach { rowModes ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowModes.forEach { (info, id) ->
+                            val (icon, name, desc) = info
+                            val sel = hud.mode == id
+                            Box(
+                                Modifier.weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (sel) Color(0x33263242) else Color(0x14163242))
+                                    .border(1.5.dp, if (sel) GamePalette.UI_GOLD else Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                                    .clickable { game.setRunMode(id) }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(icon, style = MaterialTheme.typography.headlineSmall)
+                                    Column(Modifier.padding(start = 10.dp)) {
+                                        Text(name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                                            color = if (sel) GamePalette.UI_GOLD else Color.White)
+                                        Text(desc, style = MaterialTheme.typography.labelSmall, color = Color(0xFF78909C))
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                Spacer(Modifier.width(10.dp))
-                // 左栏 45%：职业立绘撑满 + 悬浮切换 + 名字/数值压底
-                Box(Modifier.weight(0.42f).fillMaxHeight()) {
-                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                        EntityRenderer.drawPortrait(this, lobbyCls, size.width / 2, size.height * 0.44f, 1.45f, animT.floatValue)
-                    }
-                    Box(
-                        Modifier.align(Alignment.CenterStart).padding(start = 4.dp).size(46.dp)
-                            .background(Color(0x33FFFFFF), androidx.compose.foundation.shape.CircleShape)
-                            .clickable { game.cycleClass(-1) },
-                        contentAlignment = Alignment.Center,
-                    ) { Text("◀", style = MaterialTheme.typography.titleMedium, color = Color.White) }
-                    Box(
-                        Modifier.align(Alignment.CenterEnd).padding(end = 4.dp).size(46.dp)
-                            .background(Color(0x33FFFFFF), androidx.compose.foundation.shape.CircleShape)
-                            .clickable { game.cycleClass(1) },
-                        contentAlignment = Alignment.Center,
-                    ) { Text("▶", style = MaterialTheme.typography.titleMedium, color = Color.White) }
-                    Column(
-                        Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(lobbyCls.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text(
-                            "❤️${lobbyCls.maxHp} · ⚔️${lobbyCls.attack} · ${lobbyCls.weaponName}",
-                            style = MaterialTheme.typography.labelSmall, color = Color(0xFFB0BEC5),
-                        )
-                        Text(
-                            "${lobbyCls.passiveName} · 技能：${lobbyCls.skillName}",
-                            style = MaterialTheme.typography.labelSmall, color = Color(0xFF78909C),
-                        )
-                    }
-                }
-                Spacer(Modifier.width(14.dp))
-                // 右栏：标题/纪录 → 模式 → 行动按钮（次级三连排）→ 战绩
-                Column(Modifier.weight(0.58f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "🏰 地牢幸存者",
-                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                            color = GamePalette.UI_GOLD, modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            "🏆 ${player.bestScores["dungeon_floor"] ?: 0} 层 · ${player.bestScores["dungeon_kills"] ?: 0} 杀",
-                            style = MaterialTheme.typography.labelSmall, color = Color(0xFF78909C),
-                        )
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(
-                            Modifier
-                                .background(if (hud.endless) Color(0x55263242) else GamePalette.UI_PANEL, RoundedCornerShape(10.dp))
-                                .border(1.5.dp, if (hud.endless) Color.Transparent else GamePalette.UI_EXP, RoundedCornerShape(10.dp))
-                                .clickable { game.endless = false }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                        ) {
-                            Text(
-                                "🗡️ 标准 · 5 层",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (hud.endless) Color(0xFF78909C) else Color.White,
-                            )
-                        }
-                        Box(
-                            Modifier
-                                .background(if (hud.endless) GamePalette.UI_PANEL else Color(0x55263242), RoundedCornerShape(10.dp))
-                                .border(1.5.dp, if (hud.endless) GamePalette.UI_EXP else Color.Transparent, RoundedCornerShape(10.dp))
-                                .clickable { game.endless = true }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                        ) {
-                            Text(
-                                "♾️ 无尽 · 层数无限",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (hud.endless) Color.White else Color(0xFF78909C),
-                            )
-                        }
-                    }
-                    Button(
-                        onClick = { game.pendingPerks = player.dungeonPerks; game.startFromLobby() },
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
-                    ) { Text("▶ 开始冒险", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = { nav.navigate(com.brainquest.game.ui.Routes.TALENTS) },
-                            modifier = Modifier.weight(1f).height(42.dp),
-                        ) { Text("⭐ 天赋", color = GamePalette.UI_EXP) }
-                        OutlinedButton(
-                            onClick = { showSettings = true },
-                            modifier = Modifier.weight(1f).height(42.dp),
-                        ) { Text("⚙ 设置", color = Color(0xFFB0BEC5)) }
-                        OutlinedButton(
-                            onClick = { nav.popBackStack() },
-                            modifier = Modifier.weight(1f).height(42.dp),
-                        ) { Text("退出") }
-                    }
-                    Text(
-                        "🏆 通关 ${player.dungeonWins} 次 · 累计击杀 ${player.totalDungeonKills} · " +
-                            "最高 ${player.bestScores["dungeon_floor"] ?: 0} 层 · 单局最高 ${player.bestScores["dungeon_kills"] ?: 0} 杀",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF78909C),
-                        modifier = Modifier.padding(top = 10.dp),
-                    )
-                    Text(
-                        "独立游戏 · 持续更新中",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF546E7A),
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
+                OutlinedButton(
+                    onClick = { nav.navigate(com.brainquest.game.ui.Routes.TALENTS) },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(42.dp),
+                ) { Text("⭐ 天赋养成", color = GamePalette.UI_EXP) }
+                Button(
+                    onClick = { game.pendingPerks = player.dungeonPerks; game.startFromLobby() },
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF)),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFB388FF)),
+                ) { Text("▶ 开始冒险", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                Text(
+                    "独立游戏 · 持续更新中",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF546E7A),
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
             }
         }

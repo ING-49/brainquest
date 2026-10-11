@@ -694,7 +694,7 @@ class CombatEngine {
 
     /** 掉落一枚金币实体（飞散弹出；拾取才入账） */
     fun spawnCoin(x: Float, y: Float, value: Int) {
-        if (coinDrops.size >= 48) return
+        if (coinDrops.size >= 48) { onCoinPicked?.invoke(value); return }   // 批15：超限价值直接入账不再吞
         val a = Random.nextFloat() * 6.283f
         val sp = 90f + Random.nextFloat() * 130f
         val c = Coin(x, y, value)
@@ -895,9 +895,21 @@ class CombatEngine {
     fun addShake(v: Float) { shake = maxOf(shake, v) }
     fun buffAttack(delta: Int) { attack = (attack + delta).coerceAtLeast(1) }
     fun buffSpeed(delta: Float) { speed = (speed + delta).coerceAtLeast(60f) }
-    fun buffCrit(delta: Float) { critChance = (critChance + delta).coerceIn(0f, 0.8f) }
+    fun buffCrit(delta: Float) { critChance = (critChance + delta).coerceIn(0f, 0.6f) }
     fun buffPickupMult(mult: Float) { pickupRange = (pickupRange * mult).coerceIn(40f, 600f) }
     fun buffElem(delta: Float) { elemPower += delta }
+
+    /** 数值硬上限统一收口（批15 平衡）：所有属性变动路径（升级/装备/天赋）之后调用 */
+    fun clampStats() {
+        if (attackInterval < 0.28f) attackInterval = 0.28f   // 攻速封顶 ~3.6 次/秒
+        if (speed > 520f) speed = 520f
+        if (critChance > 0.6f) critChance = 0.6f             // 暴击从 0.8 收紧
+        if (pickupRange > 600f) pickupRange = 600f           // 补齐升级路径（原仅装备路径钳制）
+        if (elemPower > 4f) elemPower = 4f
+        if (leechHeal > 12) leechHeal = 12
+        if (attack > 400) attack = 400
+        if (maxHp > 1500) { maxHp = 1500; if (hp > maxHp) hp = maxHp }
+    }
 
     private fun gainXp(v: Int) {
         xp += v
@@ -912,18 +924,21 @@ class CombatEngine {
 
     var pendingUpgrades: List<Upgrade> = emptyList(); private set
 
-    private fun rollUpgrades(): List<Upgrade> = listOf(
-        Upgrade("atk", "⚔️ 攻击力", "伤害 +15%"),
-        Upgrade("aspd", "⚡ 攻速", "攻击间隔 −15%"),
-        Upgrade("spd", "👟 移速", "移动速度 +10%"),
-        Upgrade("hp", "❤️ 生命", "生命上限 +25 并回复 25"),
-        Upgrade("pickup", "🧲 拾取", "拾取范围 +30%"),
-        Upgrade("elem", "🔥 元素", "元素伤害 +25%"),
-        Upgrade("boom", "💥 爆裂", "敌人死亡 25% 概率爆炸（可叠 3 次）"),
-        Upgrade("leech", "💗 吸血", "击杀回复 2 点生命"),
-        Upgrade("gale", "🌪 风行", "移动速度 +8%，攻击间隔 −8%"),
-        Upgrade("bounce", "🎯 弹射", "远程子弹命中后弹向下一个敌人（可叠 3 次）"),
-    ).shuffled(Random).take(3)
+    private fun rollUpgrades(): List<Upgrade> {
+        val pool = buildList {
+            add(Upgrade("atk", "⚔️ 攻击力", "伤害 +15%"))
+            add(Upgrade("aspd", "⚡ 攻速", "攻击间隔 −15%"))
+            add(Upgrade("spd", "👟 移速", "移动速度 +10%"))
+            add(Upgrade("hp", "❤️ 生命", "生命上限 +25 并回复 25"))
+            if (pickupRange < 600f) add(Upgrade("pickup", "🧲 拾取", "拾取范围 +30%"))
+            if (elemPower < 4f) add(Upgrade("elem", "🔥 元素", "元素伤害 +25%"))
+            if (boomChance < 0.75f) add(Upgrade("boom", "💥 爆裂", "敌人死亡 25% 概率爆炸（可叠 3 次）"))
+            if (leechHeal < 12) add(Upgrade("leech", "💗 吸血", "击杀回复 2 点生命"))
+            add(Upgrade("gale", "🌪 风行", "移动速度 +8%，攻击间隔 −8%"))
+            if (bounceLevel < 3) add(Upgrade("bounce", "🎯 弹射", "远程子弹命中后弹向下一个敌人（可叠 3 次）"))
+        }
+        return pool.shuffled(Random).take(3).ifEmpty { listOf(Upgrade("hp", "❤️ 生命", "生命上限 +25 并回复 25")) }
+    }
 
     fun chooseUpgrade(id: String) {
         if (phase != Phase.LEVELUP) return
@@ -932,7 +947,7 @@ class CombatEngine {
             "aspd" -> attackInterval *= 0.90f
             "spd" -> speed *= 1.10f
             "hp" -> { maxHp += 25; hp = min(hp + 25, maxHp) }
-            "pickup" -> pickupRange *= 1.30f
+            "pickup" -> pickupRange = (pickupRange * 1.30f).coerceAtMost(600f)
             "elem" -> elemPower *= 1.18f
             "boom" -> boomChance = (boomChance + 0.25f).coerceAtMost(0.75f)
             "leech" -> leechHeal += 2
@@ -940,6 +955,7 @@ class CombatEngine {
             "bounce" -> bounceLevel = (bounceLevel + 1).coerceAtMost(3)
         }
         pendingUpgrades = emptyList()
+        clampStats()   // 批15：属性上限收口
         phase = Phase.PLAYING
     }
 

@@ -107,14 +107,18 @@ fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
                                     )
                                 }
                             }
+                            val maxed = level >= vm.dungeonPerkMax(t.id)
                             Button(
                                 onClick = { vm.buyDungeonPerk(t.id) },
-                                enabled = player.coins >= cost,
+                                enabled = !maxed && player.coins >= cost,
                                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    CoinIcon(size = 13.dp)
-                                    Text(" $cost", fontWeight = FontWeight.Bold)
+                                if (maxed) Text("MAX", fontWeight = FontWeight.Bold)
+                                else {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CoinIcon(size = 13.dp)
+                                        Text(" $cost", fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
