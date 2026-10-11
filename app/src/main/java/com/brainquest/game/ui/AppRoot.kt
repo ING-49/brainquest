@@ -90,6 +90,37 @@ fun AppRoot(vm: AppViewModel) {
     val currentRoute = backStack?.destination?.route
     val showBottomBar = currentRoute in tabs.map { it.route }
 
+    // 方向/沉浸按路由统一管理（批14：DungeonScreen 的 onDispose 会在新页组合后执行，
+    // 页面自管方向会被覆盖——天赋页竖屏 bug 的根因。横屏路由：地牢/迷你幸存者/天赋）
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    androidx.compose.runtime.DisposableEffect(currentRoute) {
+        val landscape = currentRoute in listOf(Routes.DUNGEON, Routes.SURVIVOR, Routes.TALENTS)
+        activity?.requestedOrientation = if (landscape)
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        activity?.window?.let { w ->
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, !landscape)
+            if (landscape) {
+                w.setStatusBarColor(android.graphics.Color.TRANSPARENT)
+                w.setNavigationBarColor(android.graphics.Color.TRANSPARENT)
+                @Suppress("DEPRECATION")
+                w.attributes = w.attributes.apply {
+                    layoutInDisplayCutoutMode =
+                        android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+                androidx.core.view.WindowInsetsControllerCompat(w, w.decorView).apply {
+                    hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                    systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat
+                        .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                androidx.core.view.WindowInsetsControllerCompat(w, w.decorView)
+                    .show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
+        }
+        onDispose { }   // 方向随 currentRoute 变化处理，无需在此恢复
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {

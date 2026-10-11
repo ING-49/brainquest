@@ -50,20 +50,6 @@ fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     val totalLevels = player.dungeonPerks.values.sum()
 
-    // 横屏 + 沉浸（批14 修复：原先进离开地牢被 onDispose 拉回竖屏，天赋页以竖屏渲染）
-    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-    androidx.compose.runtime.DisposableEffect(Unit) {
-        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        activity?.window?.let { w ->
-            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, false)
-            w.setStatusBarColor(android.graphics.Color.TRANSPARENT)
-            w.setNavigationBarColor(android.graphics.Color.TRANSPARENT)
-            androidx.core.view.WindowInsetsControllerCompat(w, w.decorView).hide(
-                androidx.core.view.WindowInsetsCompat.Type.systemBars())
-        }
-        onDispose { /* 方向由返回目标（地牢大厅）接管，这里不动 */ }
-    }
-
     Row(
         Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xF20B0E14)).padding(horizontal = 22.dp, vertical = 10.dp),
     ) {

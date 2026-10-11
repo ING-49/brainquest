@@ -152,32 +152,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val joyMaxPx = with(LocalDensity.current) { 54.dp.toPx() }   // 批13：48→54
     val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
 
-    // 地牢内锁横屏（manifest 已加 configChanges，旋转不重建、游戏局不丢）；退出恢复竖屏
-    // 真全屏：挖孔屏短边延伸 + 系统栏透明 + sticky 沉浸
-    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    // 方向/沉浸由 AppRoot 按路由统一管理（批14：页面自管方向会被新页组合后的 onDispose 覆盖——天赋页竖屏根因）
     DisposableEffect(Unit) {
-        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        val win = activity?.window
-        val ctrl = win?.let { w ->
-            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, false)
-            w.setStatusBarColor(android.graphics.Color.TRANSPARENT)
-            w.setNavigationBarColor(android.graphics.Color.TRANSPARENT)
-            @Suppress("DEPRECATION")
-            w.attributes = w.attributes.apply {
-                layoutInDisplayCutoutMode =
-                    android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-            androidx.core.view.WindowInsetsControllerCompat(w, w.decorView).apply {
-                hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-                systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            }
-        }
-        onDispose {
-            DungeonBgm.stop()   // BGM 必须随界面销毁停止（批11 体验层）
-            activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            ctrl?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            win?.let { androidx.core.view.WindowCompat.setDecorFitsSystemWindows(it, true) }
-        }
+        onDispose { DungeonBgm.stop() }   // BGM 必须随界面销毁停止（批11 体验层）
     }
 
     // 特效层：把引擎的帧事件转成有生命周期的持续特效（飘字/粒子/闪电；对象池复用 + 硬上限）
