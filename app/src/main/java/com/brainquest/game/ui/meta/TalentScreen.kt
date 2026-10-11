@@ -1,6 +1,7 @@
 package com.brainquest.game.ui.meta
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
@@ -57,7 +58,14 @@ fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
         Column(Modifier.weight(0.30f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
             Text("⭐ 天赋养成", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFFFFD54F))
             Text("局外永久强化 · 地牢专属", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "← 返回大厅",
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                color = androidx.compose.ui.graphics.Color(0xFF82B1FF),
+                modifier = Modifier.clickable { nav.popBackStack() }.padding(vertical = 6.dp),
+            )
+            Spacer(Modifier.height(8.dp))
             Text("天赋总等级", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
             Text("$totalLevels", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
             Spacer(Modifier.height(12.dp))
