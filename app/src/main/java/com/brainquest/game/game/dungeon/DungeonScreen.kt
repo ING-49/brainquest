@@ -11,12 +11,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -141,7 +149,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     var joyOn by remember { mutableStateOf(false) }
     val frame = remember { mutableIntStateOf(0) }
     val animT = remember { mutableFloatStateOf(0f) }   // 统一动画时间源（真实 dt 累计，秒）
-    val joyMaxPx = with(LocalDensity.current) { 48.dp.toPx() }
+    val joyMaxPx = with(LocalDensity.current) { 54.dp.toPx() }   // 批13：48→54
     val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
 
     // 地牢内锁横屏（manifest 已加 configChanges，旋转不重建、游戏局不丢）；退出恢复竖屏
@@ -494,7 +502,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         onDragStart = { off ->
                             // 触控范围 = 可视底座圈（白圈即可移动操作区）
                             val base = Offset(86.dp.toPx(), size.height - 86.dp.toPx())
-                            val r = 52.dp.toPx()
+                            val r = 96.dp.toPx()   // 批13：不可见大热区（可视底座仍 58dp），降误触
                             val ddx = off.x - base.x; val ddy = off.y - base.y
                             if (ddx * ddx + ddy * ddy <= r * r) {
                                 joyOn = true
@@ -795,11 +803,17 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 val bl = textMeasurer.measure(b.text, androidx.compose.ui.text.TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold))
                 drawText(bl, color = GamePalette.UI_GOLD.copy(alpha = a), topLeft = Offset((size.width - bl.size.width) / 2f, midY - bl.size.height / 2f))
             }
-            // 虚拟摇杆：底座圈 = 可移动操作范围（触控与可视同径 78dp）
+            // 虚拟摇杆（批13 王者式）：底座 58dp + 12 刻度外环；热区 96dp 不可见
             val jb = Offset(86.dp.toPx(), size.height - 86.dp.toPx())
-            val jr = 52.dp.toPx()
+            val jr = 58.dp.toPx()
             drawCircle(Color(0x2EFFFFFF), jr, jb)
             drawCircle(JOY_C, jr, jb, style = androidx.compose.ui.graphics.drawscope.Stroke(4f))
+            for (i in 0 until 12) {   // 外圈刻度环
+                val a = i * 0.5236f
+                val c1 = Offset(jb.x + kotlin.math.cos(a) * (jr + 7f), jb.y + kotlin.math.sin(a) * (jr + 7f))
+                val c2 = Offset(jb.x + kotlin.math.cos(a) * (jr + 13f), jb.y + kotlin.math.sin(a) * (jr + 13f))
+                drawLine(JOY_C.copy(alpha = 0.5f), c1, c2, 2.5f)
+            }
             drawCircle(
                 JOY_C, 32f,
                 if (joyOn) Offset(jb.x + game.engine.joyX * joyMaxPx, jb.y + game.engine.joyY * joyMaxPx) else jb,
@@ -811,6 +825,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         Row(
             Modifier
                 .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
                 .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -881,6 +896,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 // 觉醒爆发键：能量环进度，满时金光呼吸，点按全屏 AOE（批9 爽感主菜）
                 Box(
                     Modifier
+                        .offset(x = 118.dp, y = (-14).dp)   // 批13 弧形簇：攻击键正上方
                         .size(56.dp)
                         .pointerInput(Unit) {
                             detectTapGestures(onTap = {
@@ -912,6 +928,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 // 技能键：圆形 + 冷却环（就绪时绿环）
                 Box(
                     Modifier
+                        .offset(x = (-22).dp, y = 4.dp)   // 批13 弧形簇：攻击键左上 45°
                         .size(64.dp)
                         .pointerInput(Unit) {
                             detectTapGestures(onTap = {
@@ -954,6 +971,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 // 背包键：小圆
                 Box(
                     Modifier
+                        .offset(x = (-146).dp, y = (-30).dp)   // 批13 弧形簇：弧线末端
                         .size(48.dp)
                         .background(GamePalette.UI_PANEL, androidx.compose.foundation.shape.CircleShape)
                         .border(1.5.dp, GamePalette.UI_PANEL_EDGE, androidx.compose.foundation.shape.CircleShape)
@@ -965,7 +983,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             if (hud.hasChest && hud.chestNear) {
                 Box(
                     Modifier
-                        .size(84.dp)
+                        .size(88.dp)
                         .background(Color(0x665D4037), androidx.compose.foundation.shape.CircleShape)
                         .border(2.dp, GamePalette.UI_GOLD, androidx.compose.foundation.shape.CircleShape)
                         .pointerInput(Unit) {
@@ -984,7 +1002,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             } else if (hud.hasShop && hud.shopNear) {
                 Box(
                     Modifier
-                        .size(84.dp)
+                        .size(88.dp)
                         .background(Color(0x661B5E20), androidx.compose.foundation.shape.CircleShape)
                         .border(2.dp, Color(0xFF7EE38A), androidx.compose.foundation.shape.CircleShape)
                         .pointerInput(Unit) {
@@ -1003,7 +1021,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             } else if (hud.hasPortal && hud.portalNear) {
                 Box(
                     Modifier
-                        .size(84.dp)
+                        .size(88.dp)
                         .background(Color(0x66BA68C8), androidx.compose.foundation.shape.CircleShape)
                         .border(2.dp, GamePalette.UI_COIN, androidx.compose.foundation.shape.CircleShape)
                         .pointerInput(Unit) { detectTapGestures(onTap = { game.enterPortal() }) },
@@ -1017,7 +1035,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             } else {
             Box(
                 Modifier
-                    .size(84.dp)
+                    .size(88.dp)
                     .graphicsLayer {
                         val k = if (attackPressed) 0.93f else 1f; scaleX = k; scaleY = k
                     }
@@ -1083,7 +1101,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         // Boss 血条（顶部中央，横屏压窄）
         if (hud.bossHp > 0f) {
             Column(
-                Modifier.align(Alignment.TopCenter).padding(top = 44.dp).fillMaxWidth(0.5f),
+                Modifier.align(Alignment.TopCenter).padding(top = 36.dp).fillMaxWidth(0.5f),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -1117,25 +1135,18 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             Minimap(game, Modifier.align(Alignment.TopEnd).padding(top = 48.dp, end = 12.dp))
         }
 
-        // 连杀提示（顶部中央，Boss 血条下方；10+ 金色）
-        if (hud.streak >= 3 && hud.phase == DungeonGame.Phase.EXPLORING) {
+        // 连杀/连击合并一行（批13 顶区瘦身）：任一达标即显示，王者播报式
+        if (hud.phase == DungeonGame.Phase.EXPLORING && (hud.streak >= 3 || hud.combo >= 5)) {
             Text(
-                "🔥 ${hud.streak} 连杀",
-                Modifier.align(Alignment.TopCenter).padding(top = 76.dp),
+                buildString {
+                    if (hud.streak >= 3) append("🔥 ${hud.streak} 连杀")
+                    if (hud.streak >= 3 && hud.combo >= 5) append("  ")
+                    if (hud.combo >= 5) append("⚡ ${hud.combo} 连击")
+                },
+                Modifier.align(Alignment.TopCenter).padding(top = 62.dp),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (hud.streak >= 10) Color(0xFFFFD54F) else Color.White,
-            )
-        }
-
-        // 连击提示（连杀下方，位置错开；1.5 秒内持续命中才显示）
-        if (hud.combo >= 5 && hud.phase == DungeonGame.Phase.EXPLORING) {
-            Text(
-                "⚡ ${hud.combo} 连击",
-                Modifier.align(Alignment.TopCenter).padding(top = 104.dp),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = if (hud.combo >= 20) Color(0xFF82B1FF) else Color(0xFFB0BEC5),
             )
         }
 
@@ -1163,103 +1174,114 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // ---------- 游戏大厅（居中式：中央人物 + 底部行动区） ----------
+        // ---------- 游戏大厅（批13 王者式横屏双栏：左立绘 / 右行动区） ----------
         if (hud.phase == DungeonGame.Phase.READY) {
             val lobbyCls = ClassDef.byId(hud.lobbyCls)
-            Column(
-                Modifier.fillMaxSize().background(Color(0xF20B0E14)).padding(horizontal = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Row(
+                Modifier.fillMaxSize().background(Color(0xF20B0E14)).padding(horizontal = 22.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 顶栏：标题（左）/ 纪录（右）——角标化，不抢主体
-                Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "🏰 地牢幸存者",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = GamePalette.UI_GOLD,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        "🏆 ${player.bestScores["dungeon_floor"] ?: 0} 层 · ${player.bestScores["dungeon_kills"] ?: 0} 杀",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF78909C),
-                    )
-                }
-                // 中央：人物立绘 + 切换
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                // 左栏 45%：职业立绘撑满 + 悬浮切换 + 名字/数值压底
+                Box(Modifier.weight(0.45f).fillMaxHeight()) {
+                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                        EntityRenderer.drawPortrait(this, lobbyCls, size.width / 2, size.height * 0.44f, 1.45f, animT.floatValue)
+                    }
                     Box(
-                        Modifier.size(56.dp).background(Color(0x33FFFFFF), androidx.compose.foundation.shape.CircleShape)
+                        Modifier.align(Alignment.CenterStart).padding(start = 4.dp).size(46.dp)
+                            .background(Color(0x33FFFFFF), androidx.compose.foundation.shape.CircleShape)
                             .clickable { game.cycleClass(-1) },
                         contentAlignment = Alignment.Center,
-                    ) { Text("◀", style = MaterialTheme.typography.titleLarge, color = Color.White) }
-                    androidx.compose.foundation.Canvas(Modifier.width(210.dp).height(250.dp)) {
-                        EntityRenderer.drawPortrait(this, lobbyCls, size.width / 2, size.height * 0.56f, 1.25f, animT.floatValue)
-                    }
+                    ) { Text("◀", style = MaterialTheme.typography.titleMedium, color = Color.White) }
                     Box(
-                        Modifier.size(56.dp).background(Color(0x33FFFFFF), androidx.compose.foundation.shape.CircleShape)
+                        Modifier.align(Alignment.CenterEnd).padding(end = 4.dp).size(46.dp)
+                            .background(Color(0x33FFFFFF), androidx.compose.foundation.shape.CircleShape)
                             .clickable { game.cycleClass(1) },
                         contentAlignment = Alignment.Center,
-                    ) { Text("▶", style = MaterialTheme.typography.titleLarge, color = Color.White) }
-                }
-                Text(lobbyCls.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(
-                    "❤️${lobbyCls.maxHp} · ⚔️${lobbyCls.attack} · ${lobbyCls.weaponName} · ${lobbyCls.passiveName} · 技能：${lobbyCls.skillName}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFFB0BEC5),
-                )
-                // 底部行动区：模式选择（点选切换）+ 开始
-                Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(
-                        Modifier
-                            .background(if (hud.endless) Color(0x55263242) else GamePalette.UI_PANEL, RoundedCornerShape(10.dp))
-                            .border(1.5.dp, if (hud.endless) Color.Transparent else GamePalette.UI_EXP, RoundedCornerShape(10.dp))
-                            .clickable { game.endless = false }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) { Text("▶", style = MaterialTheme.typography.titleMedium, color = Color.White) }
+                    Column(
+                        Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                        Text(lobbyCls.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                         Text(
-                            "🗡️ 标准 · 5 层",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (hud.endless) Color(0xFF78909C) else Color.White,
+                            "❤️${lobbyCls.maxHp} · ⚔️${lobbyCls.attack} · ${lobbyCls.weaponName}",
+                            style = MaterialTheme.typography.labelSmall, color = Color(0xFFB0BEC5),
                         )
-                    }
-                    Box(
-                        Modifier
-                            .background(if (hud.endless) GamePalette.UI_PANEL else Color(0x55263242), RoundedCornerShape(10.dp))
-                            .border(1.5.dp, if (hud.endless) GamePalette.UI_EXP else Color.Transparent, RoundedCornerShape(10.dp))
-                            .clickable { game.endless = true }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
                         Text(
-                            "♾️ 无尽 · 层数无限",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (hud.endless) Color.White else Color(0xFF78909C),
+                            "${lobbyCls.passiveName} · 技能：${lobbyCls.skillName}",
+                            style = MaterialTheme.typography.labelSmall, color = Color(0xFF78909C),
                         )
                     }
                 }
-                Button(
-                    onClick = { game.pendingPerks = player.dungeonPerks; game.startFromLobby() },
-                    modifier = Modifier.width(300.dp).padding(top = 12.dp).height(52.dp),
-                ) { Text("▶ 开始冒险", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                OutlinedButton(
-                    onClick = { nav.navigate(com.brainquest.game.ui.Routes.TALENTS) },
-                    modifier = Modifier.width(300.dp).padding(top = 6.dp).height(40.dp),
-                ) { Text("⭐ 天赋养成", color = GamePalette.UI_EXP) }
-                OutlinedButton(
-                    onClick = { showSettings = true },
-                    modifier = Modifier.width(300.dp).padding(top = 6.dp).height(40.dp),
-                ) { Text("⚙ 地牢设置", color = Color(0xFFB0BEC5)) }
-                // 战绩一览（批12 局外拓展）：通关/累计击杀/最高层数/最高单局击杀
-                Text(
-                    "🏆 通关 ${player.dungeonWins} 次 · 累计击杀 ${player.totalDungeonKills} · " +
-                        "最高 ${player.bestScores["dungeon_floor"] ?: 0} 层 · 单局最高 ${player.bestScores["dungeon_kills"] ?: 0} 杀",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF78909C),
-                    modifier = Modifier.padding(top = 10.dp),
-                )
-                OutlinedButton(
-                    onClick = { nav.popBackStack() },
-                    modifier = Modifier.width(300.dp).padding(top = 6.dp, bottom = 14.dp).height(40.dp),
-                ) { Text("返回应用") }
+                Spacer(Modifier.width(16.dp))
+                // 右栏 55%：标题/纪录 → 模式 → 行动按钮（次级三连排）→ 战绩
+                Column(Modifier.weight(0.55f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "🏰 地牢幸存者",
+                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                            color = GamePalette.UI_GOLD, modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "🏆 ${player.bestScores["dungeon_floor"] ?: 0} 层 · ${player.bestScores["dungeon_kills"] ?: 0} 杀",
+                            style = MaterialTheme.typography.labelSmall, color = Color(0xFF78909C),
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            Modifier
+                                .background(if (hud.endless) Color(0x55263242) else GamePalette.UI_PANEL, RoundedCornerShape(10.dp))
+                                .border(1.5.dp, if (hud.endless) Color.Transparent else GamePalette.UI_EXP, RoundedCornerShape(10.dp))
+                                .clickable { game.endless = false }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                "🗡️ 标准 · 5 层",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (hud.endless) Color(0xFF78909C) else Color.White,
+                            )
+                        }
+                        Box(
+                            Modifier
+                                .background(if (hud.endless) GamePalette.UI_PANEL else Color(0x55263242), RoundedCornerShape(10.dp))
+                                .border(1.5.dp, if (hud.endless) GamePalette.UI_EXP else Color.Transparent, RoundedCornerShape(10.dp))
+                                .clickable { game.endless = true }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                "♾️ 无尽 · 层数无限",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (hud.endless) Color.White else Color(0xFF78909C),
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = { game.pendingPerks = player.dungeonPerks; game.startFromLobby() },
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
+                    ) { Text("▶ 开始冒险", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { nav.navigate(com.brainquest.game.ui.Routes.TALENTS) },
+                            modifier = Modifier.weight(1f).height(42.dp),
+                        ) { Text("⭐ 天赋", color = GamePalette.UI_EXP) }
+                        OutlinedButton(
+                            onClick = { showSettings = true },
+                            modifier = Modifier.weight(1f).height(42.dp),
+                        ) { Text("⚙ 设置", color = Color(0xFFB0BEC5)) }
+                        OutlinedButton(
+                            onClick = { nav.popBackStack() },
+                            modifier = Modifier.weight(1f).height(42.dp),
+                        ) { Text("退出") }
+                    }
+                    Text(
+                        "🏆 通关 ${player.dungeonWins} 次 · 累计击杀 ${player.totalDungeonKills} · " +
+                            "最高 ${player.bestScores["dungeon_floor"] ?: 0} 层 · 单局最高 ${player.bestScores["dungeon_kills"] ?: 0} 杀",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF78909C),
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                }
             }
         }
         // ---------- 职业选择 ----------
@@ -1314,7 +1336,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text("⬆️ 升级！选择一项强化", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
-                Row(Modifier.fillMaxWidth(0.94f).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(0.94f).widthIn(max = 760.dp).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     game.engine.pendingUpgrades.forEach { up ->
                         Card(
                             onClick = { game.chooseUpgrade(up.id) },
@@ -1429,52 +1451,61 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
 
         // ---------- Paused ----------
         if (hud.phase == DungeonGame.Phase.PAUSED) {
-            Column(
-                Modifier.fillMaxSize().background(Color(0x99000000)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text("⏸ 已暂停", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
-                Button(onClick = { game.resume() }, modifier = Modifier.padding(top = 16.dp).width(160.dp)) { Text("继续") }
-                OutlinedButton(onClick = { confirmExit = true }, modifier = Modifier.padding(top = 8.dp).width(160.dp)) { Text("退出") }
+            Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+                Card(Modifier.widthIn(max = 380.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF161B29))) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("⏸ 已暂停", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                        Button(onClick = { game.resume() }, modifier = Modifier.padding(top = 16.dp).fillMaxWidth()) { Text("继续") }
+                        OutlinedButton(onClick = { confirmExit = true }, modifier = Modifier.padding(top = 8.dp).fillMaxWidth()) { Text("退出") }
+                    }
+                }
             }
         }
 
         // ---------- GameOver ----------
         if (hud.phase == DungeonGame.Phase.GAMEOVER) {
-            Column(
-                Modifier.fillMaxSize().background(Color(0xCC0B0D14)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text("💀 你倒在了地牢里", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(
-                    "${if (hud.endless) "无尽" else ""}第${hud.floor}层 · 存活 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills} · 金币 ${hud.coins}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                Button(onClick = { rewarded = false; game.exitToLobby() }, modifier = Modifier.padding(top = 16.dp).width(160.dp)) { Text("返回大厅") }
-                OutlinedButton(onClick = { nav.popBackStack() }, modifier = Modifier.padding(top = 8.dp).width(160.dp)) { Text("返回应用") }
+            Box(Modifier.fillMaxSize().background(Color(0xCC0B0D14)), contentAlignment = Alignment.Center) {
+                Card(Modifier.widthIn(max = 400.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF161B29))) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("💀 你倒在了地牢里", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(
+                            "${if (hud.endless) "无尽" else ""}第${hud.floor}层 · 存活 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills} · 金币 ${hud.coins}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color(0xFFB0BEC5),
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        Button(onClick = { rewarded = false; game.exitToLobby() }, modifier = Modifier.padding(top = 16.dp).fillMaxWidth()) { Text("返回大厅") }
+                        OutlinedButton(onClick = { nav.popBackStack() }, modifier = Modifier.padding(top = 8.dp).fillMaxWidth()) { Text("返回应用") }
+                    }
+                }
             }
         }
 
         // ---------- Victory ----------
         if (hud.phase == DungeonGame.Phase.VICTORY) {
-            Column(
-                Modifier.fillMaxSize().background(Color(0xCC0B0D14)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text("🏆 地牢通关！", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F))
-                Text(
-                    "用时 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills} · 等级 ${hud.level} · 金币 ${hud.coins}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                Button(onClick = { rewarded = false; game.exitToLobby() }, modifier = Modifier.padding(top = 16.dp).width(160.dp)) { Text("返回大厅") }
-                OutlinedButton(onClick = { nav.popBackStack() }, modifier = Modifier.padding(top = 8.dp).width(160.dp)) { Text("返回应用") }
+            Box(Modifier.fillMaxSize().background(Color(0xCC0B0D14)), contentAlignment = Alignment.Center) {
+                Card(Modifier.widthIn(max = 400.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF161B29))) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("🏆 地牢通关！", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F))
+                        Text(
+                            "用时 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills} · 等级 ${hud.level} · 金币 ${hud.coins}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        Button(onClick = { rewarded = false; game.exitToLobby() }, modifier = Modifier.padding(top = 16.dp).fillMaxWidth()) { Text("返回大厅") }
+                        OutlinedButton(onClick = { nav.popBackStack() }, modifier = Modifier.padding(top = 8.dp).fillMaxWidth()) { Text("返回应用") }
+                    }
+                }
             }
         }
 
@@ -1499,10 +1530,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         if (showSettings) {
             val ctx = context
             Box(
-                Modifier.fillMaxSize().background(Color(0xF60B0D14))
-                    .verticalScroll(rememberScrollState()).padding(horizontal = 26.dp, vertical = 20.dp),
+                Modifier.fillMaxSize().background(Color(0xF60B0D14)).verticalScroll(rememberScrollState()),
+                contentAlignment = Alignment.Center,
             ) {
-                Column {
+                Column(Modifier.widthIn(max = 460.dp).padding(horizontal = 26.dp, vertical = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("⚙ 地牢设置", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.weight(1f))
                         Text("完成", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,

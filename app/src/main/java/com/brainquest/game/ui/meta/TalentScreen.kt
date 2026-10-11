@@ -1,7 +1,9 @@
 package com.brainquest.game.ui.meta
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -68,35 +70,44 @@ fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // 三张天赋卡：当前等级 / 已生效 / 下一级费用（金币不足置灰）
-        TALENTS.forEach { t ->
-            val level = player.dungeonPerks[t.id] ?: 0
-            val cost = vm.dungeonPerkCost(t.id)
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Row(Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(t.icon, style = MaterialTheme.typography.headlineSmall)
-                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                        Text("${t.name} · Lv.$level", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text(
-                            if (level == 0) "未升级 · 下一级 ${t.perLevel}"
-                            else "已生效 ${t.effect(level)} · 下一级 ${t.perLevel}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Button(
-                        onClick = { vm.buyDungeonPerk(t.id) },
-                        enabled = player.coins >= cost,
+        // 六张天赋卡 3×2（批13 横屏：两行三列铺满，不再纵向长列表）
+        TALENTS.chunked(3).forEach { rowCards ->
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowCards.forEach { t ->
+                    val level = player.dungeonPerks[t.id] ?: 0
+                    val cost = vm.dungeonPerkCost(t.id)
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CoinIcon(size = 13.dp)
-                            Text(" $cost", fontWeight = FontWeight.Bold)
+                        Column(Modifier.padding(12.dp).fillMaxWidth()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(t.icon, style = MaterialTheme.typography.titleLarge)
+                                Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                                    Text("${t.name} · Lv.$level", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        if (level == 0) t.perLevel
+                                        else "已生效 ${t.effect(level)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            Button(
+                                onClick = { vm.buyDungeonPerk(t.id) },
+                                enabled = player.coins >= cost,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CoinIcon(size = 13.dp)
+                                    Text(" $cost", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }
+                // 补位空槽（保持三列对齐）
+                repeat(3 - rowCards.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
