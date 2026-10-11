@@ -78,6 +78,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import com.brainquest.game.game.dungeon.model.Dir
 import com.brainquest.game.game.dungeon.model.RoomType
 import com.brainquest.game.game.dungeon.render.EntityRenderer
+import com.brainquest.game.game.dungeon.render.SpriteSheet
 import com.brainquest.game.game.dungeon.render.GamePalette
 import kotlin.math.hypot
 
@@ -158,6 +159,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
 
     // 方向/沉浸由 AppRoot 按路由统一管理（批14：页面自管方向会被新页组合后的 onDispose 覆盖——天赋页竖屏根因）
     DisposableEffect(Unit) {
+        SpriteSheet.load(context.assets)   // 精灵图懒加载（批16；失败自动 fallback 矢量）
         onDispose { DungeonBgm.stop() }   // BGM 必须随界面销毁停止（批11 体验层）
     }
 
@@ -557,7 +559,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             EntityRenderer.drawProjectiles(this, game)
             EntityRenderer.drawDrops(this, game, t)
             EntityRenderer.drawCoins(this, game, t)
-            for (e in game.engine.enemies) EntityRenderer.drawEnemy(this, game, e, t)
+            val spritesOn = DungeonSettings.useSprites(context)
+            for (e in game.engine.enemies) EntityRenderer.drawEnemy(this, game, e, t, spritesOn)
             EntityRenderer.drawPlayer(this, game, t)
             // 锁定目标金色标记（头顶）
             game.engine.aimTarget?.let { at ->

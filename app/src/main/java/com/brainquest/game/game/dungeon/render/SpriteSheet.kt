@@ -25,7 +25,9 @@ object SpriteSheet {
                 cache = BitmapFactory.decodeStream(ins).asImageBitmap()
             }
             ready = cache != null
-        } catch (_: Exception) {
+            android.util.Log.d("SPRITE", "loaded ok=" + ready)
+        } catch (e: Exception) {
+            android.util.Log.d("SPRITE", "load failed: " + e.message)
             ready = false
         }
     }
