@@ -292,33 +292,42 @@ object EntityRenderer {
         if (spawnK > 0.5f) {   // 出生落地白环（批16）
             scope.drawCircle(Color.White.copy(alpha = 0.5f * (spawnK - 0.5f) * 2f), e.r + 14f * (1.5f - spawnK), Offset(sx, sy), style = Stroke(3f))
         }
-        // 精灵图渲染（批16 样例：Slime/Skeleton；设置开关 + 素材就绪双条件，否则走矢量）
-        if (spritesOn && SpriteSheet.ready &&
-            (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME ||
-                e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SKELETON)) {
-            val (tcol, trow) = if (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME) 0 to 9 else 3 to 9
-            val frame = ((time * 3f + e.wobbleSeed).toInt()) % 2   // 两帧伪动画（缩放呼吸替代真帧动画）
-            val dsize = (e.r * 2.3f).toInt()
-            val bmp = SpriteSheet.bitmap()!!
-            val bob = if (frame == 0) 0 else -2
-            scope.drawImage(
-                bmp,
-                srcOffset = IntOffset(tcol * 16, trow * 16),
-                srcSize = IntSize(16, 16),
-                dstOffset = IntOffset((sx - dsize / 2).toInt(), (sy - dsize / 2 + bob).toInt()),
-                dstSize = IntSize(dsize, dsize),
-            )
-            if (e.atkState == 1 && !e.dying) {   // 前摇预警（精灵路径保留黄圈）
-                val pulse = sin(time * 22f) * 3f
-                scope.drawCircle(Color(0x88FFEB3B), e.r + 6f + pulse, Offset(sx, sy), style = Stroke(3f))
+        // 全种类精灵帧动画（批17：0x72 CC0；Boss 走大恶魔轮换；否则矢量）
+        if (spritesOn && SpriteAnims.ready) {
+            val spriteName = when {
+                e.bossFloor > 0 -> listOf("big_demon", "chort", "big_zombie", "ogre")[(e.bossFloor - 1).mod(4)]
+                else -> SpriteAnims.KIND_NAMES[e.kind.name]
             }
-            if (e.hitFlash > 0f) scope.drawCircle(Color(0xAAFFFFFF), e.r + 1f, Offset(sx, sy))
-            val hb = (e.hp / e.maxHp).coerceIn(0f, 1f)
-            if (hb < 1f && !e.dying) {   // 血条（精灵路径保留）
-                scope.drawRoundRect(Color(0x66000000), Offset(sx - e.r, sy - e.r - 8f), Size(e.r * 2f, 4f), CornerRadius(2f))
-                scope.drawRoundRect(if (hb > 0.4f) Color(0xFF7EE38A) else Color(0xFFE15A5A), Offset(sx - e.r, sy - e.r - 8f), Size(e.r * 2f * hb, 4f), CornerRadius(2f))
+            if (spriteName != null) {
+                val frames = SpriteAnims.frames(spriteName, run = e.hitSquash > 0f || e.kbT > 0f)
+                if (frames.isNotEmpty()) {
+                    val (fw, fh) = SpriteAnims.firstSize(frames)
+                    val fi = ((time * (if (e.atkState == 1) 12f else 6f) + e.wobbleSeed).toInt()).mod(frames.size)
+                    val frame = frames[fi]
+                    val dsize = (e.r * (if (e.bossFloor > 0) 2.4f else 2.3f)).toInt()
+                    val flip = game.engine.px < e.x
+                    scope.withTransform({ if (flip) scale(-1f, 1f, pivot = Offset(sx, sy)) }) {
+                        scope.drawImage(
+                            frame,
+                            srcOffset = IntOffset(0, 0), srcSize = IntSize(fw, fh),
+                            dstOffset = IntOffset((sx - dsize / 2).toInt(), (sy - dsize / 2).toInt()),
+                            dstSize = IntSize(dsize, dsize),
+                        )
+                    }
+                    if (e.atkState == 1 && !e.dying) {
+                        val pulse = sin(time * 22f) * 3f
+                        scope.drawCircle(Color(0x88FFEB3B), e.r + 6f + pulse, Offset(sx, sy), style = Stroke(3f))
+                    }
+                    if (e.hitFlash > 0f) scope.drawCircle(Color(0xAAFFFFFF), e.r + 1f, Offset(sx, sy))
+                    if (e.bossFloor > 0 && e.phase >= 2) scope.drawCircle(Color(0x33FF5252), e.r + 10f, Offset(sx, sy))
+                    val hb = (e.hp / e.maxHp).coerceIn(0f, 1f)
+                    if (hb < 1f && !e.dying) {
+                        scope.drawRoundRect(Color(0x66000000), Offset(sx - e.r, sy - e.r - 8f), Size(e.r * 2f, 4f), CornerRadius(2f))
+                        scope.drawRoundRect(if (hb > 0.4f) Color(0xFF7EE38A) else Color(0xFFE15A5A), Offset(sx - e.r, sy - e.r - 8f), Size(e.r * 2f * hb, 4f), CornerRadius(2f))
+                    }
+                    return
+                }
             }
-            return
         }
         scope.withTransform({ scale(popScale, popScale, pivot = Offset(sx, sy)) }) {
             val hop = if (e.kind == com.brainquest.game.game.dungeon.model.EnemyKind.SLIME) abs(sin(time * 5f + e.wobbleSeed)) * 6f else 0f
@@ -642,7 +651,7 @@ object EntityRenderer {
         }
     }
 
-    fun drawPlayer(scope: DrawScope, game: DungeonGame, time: Float) {
+    fun drawPlayer(scope: DrawScope, game: DungeonGame, time: Float, spritesOn: Boolean = false) {
         val cls = game.cls ?: return
         // 无敌帧闪烁：10Hz 跳过绘制（借鉴幸存者模式）
         if (game.engine.invincible > 0f && (time * 10f).toInt() % 2 == 0) return
@@ -658,6 +667,51 @@ object EntityRenderer {
         val accent = helmetC ?: accent0
         val swing = if (game.engine.moving) sin(game.engine.walkPhase) * 4f else 0f
         val breathe = if (!game.engine.moving) sin(time * 2.2f) * 1f else 0f
+
+        // 精灵玩家（批17：knight_m idle/run/hit 帧动画；early-return 跳过矢量身体）
+        if (spritesOn && SpriteAnims.ready) {
+            val facingRight = kotlin.math.cos(game.engine.facing) >= 0f
+            val clsSprite = SpriteAnims.classSprite(cls.id)
+            val framesP = when {
+                game.engine.playerFlash > 0f -> SpriteAnims.classHit(cls.id)
+                game.engine.moving -> SpriteAnims.frames(clsSprite, run = true)
+                else -> SpriteAnims.frames(clsSprite, run = false)
+            }
+            if (framesP.isNotEmpty()) {
+                val (fw, fh) = SpriteAnims.firstSize(framesP)
+                val fi = ((time * (if (game.engine.moving) 10f else 5f)).toInt()).mod(framesP.size)
+                val frame = framesP[fi]
+                val dsize = 46
+                val flip = !facingRight
+                scope.drawCircle(Color(0x06FFFFFF), 95f, Offset(sx, sy))
+                scope.drawCircle(Color(0x0AFFFFFF), 60f, Offset(sx, sy))
+                scope.drawOval(SHADOW, Offset(sx - 18f, sy + 14f), Size(36f, 10f))
+                // 出手前冲（批17）：刚出手瞬间向面向位移，攻击可见
+                val atkProgP = if (game.engine.attackInterval > 0f)
+                    (1f - game.engine.attackTimer / game.engine.attackInterval).coerceIn(0f, 1f) else 0f
+                val lunge = ((1f - atkProgP) * 5f).coerceIn(0f, 5f)
+                val lx = sx + kotlin.math.cos(game.engine.facing) * lunge
+                val ly = sy + kotlin.math.sin(game.engine.facing) * lunge * 0.5f
+                scope.withTransform({
+                    if (flip) scale(-1f, 1f, pivot = Offset(sx, sy))
+                    if (game.engine.moving) rotate(sin(game.engine.walkPhase) * 3f, pivot = Offset(sx, sy))
+                }) {
+                    scope.drawImage(
+                        frame,
+                        srcOffset = IntOffset(0, 0), srcSize = IntSize(fw, fh),
+                        dstOffset = IntOffset((lx - dsize / 2).toInt(), (ly - dsize / 2 - 4).toInt()),
+                        dstSize = IntSize(dsize, dsize),
+                    )
+                }
+                scope.drawCircle(accent, 3.5f, Offset(sx, sy - 32f))   // 职业色徽标
+                if (game.engine.playerFlash > 0f) scope.drawCircle(Color(0x66FF5252), 24f, Offset(sx, sy - 6f))
+                if (game.engine.shieldTime > 0f) {
+                    val pulse = 0.5f + 0.5f * sin(time * 5f)
+                    scope.drawCircle(GamePalette.ELEM_ICE.copy(alpha = 0.2f + 0.15f * pulse), 34f, Offset(sx, sy - 4f), style = Stroke(3f))
+                }
+                return
+            }
+        }
 
         // 朝向四象限：右/左（眼睛左右偏）、上（背面，不画眼）、下（正面）
         val fx = kotlin.math.cos(game.engine.facing)
@@ -744,7 +798,7 @@ object EntityRenderer {
         val deg = Math.toDegrees((game.engine.facing + sin(game.engine.walkPhase * 0.5f) * 0.2f).toDouble()).toFloat() + swingOff
         scope.rotate(deg, pivot = Offset(handX, handY)) {
             when (cls.id) {
-                "knight" -> {
+                "knight" -> if (spritesOn) Unit else {   // 精灵玩家自带剑（批17）
                     // 剑：护手 + 刃
                     drawRect(Color(0xFF8D6E63), Offset(handX - 2f, handY - 4f), Size(4f, 10f))
                     drawRect(weaponC, Offset(handX - 6f, handY - 8f), Size(12f, 3f))

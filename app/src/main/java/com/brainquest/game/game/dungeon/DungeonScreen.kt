@@ -561,7 +561,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             EntityRenderer.drawCoins(this, game, t)
             val spritesOn = DungeonSettings.useSprites(context)
             for (e in game.engine.enemies) EntityRenderer.drawEnemy(this, game, e, t, spritesOn)
-            EntityRenderer.drawPlayer(this, game, t)
+            EntityRenderer.drawPlayer(this, game, t, DungeonSettings.useSprites(context))
             // 锁定目标金色标记（头顶）
             game.engine.aimTarget?.let { at ->
                 if (at.alive) {

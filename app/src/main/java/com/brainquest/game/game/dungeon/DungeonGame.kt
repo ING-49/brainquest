@@ -331,7 +331,20 @@ class DungeonGame {
         val scaleHp = (1f + 0.40f * (floor - 1)) * endlessK
         val scaleDmg = (1f + 0.2f * (floor - 1)) * endlessK
 
-        fun spawn(kind: EnemyKind, elite: Boolean, x: Float, y: Float, big: Boolean = false) {
+        // 批17：门口出生位——取已访问邻房的门中点（敌人从门走入，不凭空出现）；无已访问邻房回 null
+        fun doorSpawnPos(): Pair<Float, Float>? {
+            val n = room.neighbors.values.firstOrNull { it.visited } ?: return null
+            return if (n.gy == room.gy) {
+                val l = minOf(roomLeft(room) + room.w, roomLeft(n) + n.w)
+                val r = maxOf(roomLeft(room), roomLeft(n))
+                ((l + r) / 2f) to (roomTop(room) + room.h / 2f)
+            } else {
+                val t = minOf(roomTop(room) + room.h, roomTop(n) + n.h)
+                val b = maxOf(roomTop(room), roomTop(n))
+                (roomLeft(room) + room.w / 2f) to ((t + b) / 2f)
+            }
+        }
+        fun spawn(kind: EnemyKind, elite: Boolean, x: Float, y: Float, big: Boolean = false, atDoor: Boolean = true) {
             // 新怪特化：盾卫高血高伤慢速；自爆史莱姆脆但痛；弓手略脆
             val kindHp = when (kind) {
                 EnemyKind.SHIELD_GUARD -> 1.9f
@@ -363,8 +376,14 @@ class DungeonGame {
                 kind == EnemyKind.SLIME -> 17f
                 else -> 18f
             }   // 整体加大 ~15%：更有怪物体积感
+            val ex: Float; val ey: Float
+            if (atDoor) {
+                val d = doorSpawnPos()
+                ex = (d?.first ?: x) + (rng.nextFloat() - 0.5f) * 70f
+                ey = (d?.second ?: y) + (rng.nextFloat() - 0.5f) * 70f
+            } else { ex = x; ey = y }
             val e = CombatEngine.Enemy(
-                x, y, r, baseHp, baseHp, speed,
+                ex, ey, r, baseHp, baseHp, speed,
                 (if (big) 12f else 6f) * scaleDmg * (if (elite) 1.4f else 1f) * kindDmg,
                 kind, elite, xpValue = if (elite) 3 else 1,
             )
