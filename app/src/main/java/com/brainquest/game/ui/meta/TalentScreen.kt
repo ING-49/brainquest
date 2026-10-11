@@ -61,7 +61,14 @@ fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
             Text("天赋总等级", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
             Text("$totalLevels", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
             Spacer(Modifier.height(12.dp))
-            com.brainquest.game.ui.CoinText(player.coins, style = MaterialTheme.typography.titleLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                com.brainquest.game.ui.CoinIcon(20.dp)
+                Text(
+                    " ${player.coins}",
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                    color = androidx.compose.ui.graphics.Color(0xFFFFD54F),
+                )
+            }
             Spacer(Modifier.height(10.dp))
             Text("金币升级 · 进地牢时自动生效", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
         }
