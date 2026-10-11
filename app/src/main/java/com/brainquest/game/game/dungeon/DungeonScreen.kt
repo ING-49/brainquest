@@ -1177,12 +1177,36 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         // ---------- 游戏大厅（批13 王者式横屏双栏：左立绘 / 右行动区） ----------
         if (hud.phase == DungeonGame.Phase.READY) {
             val lobbyCls = ClassDef.byId(hud.lobbyCls)
+            Box(Modifier.fillMaxSize().background(Color(0xF20B0E14)), contentAlignment = Alignment.Center) {
             Row(
-                Modifier.fillMaxSize().background(Color(0xF20B0E14)).padding(horizontal = 22.dp, vertical = 8.dp),
+                Modifier.widthIn(max = 1100.dp).fillMaxHeight().padding(horizontal = 22.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // 竖排功能入口列（批14 王者大厅式占位：点击敬请期待）
+                Column(
+                    Modifier.fillMaxHeight().width(64.dp).padding(top = 8.dp, end = 6.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    listOf("🛒 商城", "👥 好友", "📖 图鉴", "📬 邮件").forEach { label ->
+                        Box(
+                            Modifier.fillMaxWidth().padding(vertical = 5.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0x14FFFFFF))
+                                .clickable { vm.toast("🚧 $label 敬请期待，即将开放") }
+                                .padding(vertical = 9.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(label.substringBefore(" "), style = MaterialTheme.typography.titleMedium)
+                                Text(label.substringAfter(" "), style = MaterialTheme.typography.labelSmall, color = Color(0xFF90A4AE))
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.width(10.dp))
                 // 左栏 45%：职业立绘撑满 + 悬浮切换 + 名字/数值压底
-                Box(Modifier.weight(0.45f).fillMaxHeight()) {
+                Box(Modifier.weight(0.42f).fillMaxHeight()) {
                     androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
                         EntityRenderer.drawPortrait(this, lobbyCls, size.width / 2, size.height * 0.44f, 1.45f, animT.floatValue)
                     }
@@ -1213,9 +1237,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         )
                     }
                 }
-                Spacer(Modifier.width(16.dp))
-                // 右栏 55%：标题/纪录 → 模式 → 行动按钮（次级三连排）→ 战绩
-                Column(Modifier.weight(0.55f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+                Spacer(Modifier.width(14.dp))
+                // 右栏：标题/纪录 → 模式 → 行动按钮（次级三连排）→ 战绩
+                Column(Modifier.weight(0.58f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "🏰 地牢幸存者",
@@ -1281,7 +1305,14 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         color = Color(0xFF78909C),
                         modifier = Modifier.padding(top = 10.dp),
                     )
+                    Text(
+                        "独立游戏 · 持续更新中",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF546E7A),
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
+            }
             }
         }
         // ---------- 职业选择 ----------

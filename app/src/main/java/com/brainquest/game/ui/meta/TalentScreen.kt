@@ -1,12 +1,17 @@
 package com.brainquest.game.ui.meta
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -39,36 +44,44 @@ private val TALENTS = listOf(
     TalentDef("gold", "💰", "财富天赋", "开局金币 +30 / 级") { n -> "开局金币 +${30 * n}" },
 )
 
-/** 地牢局外养成：六系永久天赋（金币升级，进地牢自动生效） */
+/** 地牢局外养成：六系永久天赋（金币升级，进地牢自动生效）。横屏子页（批14：唯一入口是地牢大厅） */
 @Composable
 fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     val totalLevels = player.dungeonPerks.values.sum()
 
-    Column(
-        Modifier.fillMaxSize().padding(16.dp)
-            .verticalScroll(rememberScrollState()),   // 6 卡可能超出屏幕（批12 扩容）
-    ) {
-        PageHeader(
-            "⭐ 天赋养成",
-            onBack = { nav.popBackStack() },
-            subtitle = "局外永久强化 · 地牢专属",
-        )
-
-        // 汇总卡：总等级 + 金币余额
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        ) {
-            Row(Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("⭐", style = MaterialTheme.typography.headlineSmall)
-                Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                    Text("天赋总等级 $totalLevels", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text("金币升级 · 进地牢时自动生效", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                CoinText(player.coins)
-            }
+    // 横屏 + 沉浸（批14 修复：原先进离开地牢被 onDispose 拉回竖屏，天赋页以竖屏渲染）
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        activity?.window?.let { w ->
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, false)
+            w.setStatusBarColor(android.graphics.Color.TRANSPARENT)
+            w.setNavigationBarColor(android.graphics.Color.TRANSPARENT)
+            androidx.core.view.WindowInsetsControllerCompat(w, w.decorView).hide(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars())
         }
+        onDispose { /* 方向由返回目标（地牢大厅）接管，这里不动 */ }
+    }
+
+    Row(
+        Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xF20B0E14)).padding(horizontal = 22.dp, vertical = 10.dp),
+    ) {
+        // 左栏 30%：页头 + 汇总（总等级/金币/说明）
+        Column(Modifier.weight(0.30f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+            Text("⭐ 天赋养成", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFFFFD54F))
+            Text("局外永久强化 · 地牢专属", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
+            Spacer(Modifier.height(14.dp))
+            Text("天赋总等级", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
+            Text("$totalLevels", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
+            Spacer(Modifier.height(12.dp))
+            com.brainquest.game.ui.CoinText(player.coins, style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(10.dp))
+            Text("金币升级 · 进地牢时自动生效", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
+        }
+        Spacer(Modifier.width(18.dp))
+        // 右栏 70%：3×2 天赋卡网格
+        Column(Modifier.weight(0.70f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
 
         // 六张天赋卡 3×2（批13 横屏：两行三列铺满，不再纵向长列表）
         TALENTS.chunked(3).forEach { rowCards ->
@@ -110,5 +123,7 @@ fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
                 repeat(3 - rowCards.size) { Spacer(Modifier.weight(1f)) }
             }
         }
-    }
+        }   // 右栏（3×2 网格）
+    }   // 根 Row
 }
+
