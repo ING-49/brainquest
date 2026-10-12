@@ -1279,8 +1279,16 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
             Spacer(Modifier.width(14.dp))
-            // 右栏 58%：模式 2×2 大卡 + 天赋小卡 + 开始冒险压轴
-            Column(Modifier.weight(0.58f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+            // 右栏 58%：行动面板卡容器（批18 组件化：圆角面板包裹，内容限宽 420dp 居中）
+            Box(Modifier.weight(0.58f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+            Column(
+                Modifier.widthIn(max = 420.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xCC151B28))
+                    .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(18.dp))
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.Center,
+            ) {
                 val modes = listOf(
                     Triple("🗡️", "标准 · 5 层", "经典闯关，层层深入") to "standard",
                     Triple("♾️", "无尽 · 层数无限", "看你能撑到第几层") to "endless",
@@ -1328,6 +1336,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     color = Color(0xFF546E7A),
                     modifier = Modifier.padding(top = 8.dp),
                 )
+            }
             }
             }
         }
@@ -1837,17 +1846,22 @@ private val FLOOR_QUOTES = listOf(
 )
 
 
-/** 设置面板行：左标签右取值，点击整行切换（批12） */
+/** 设置面板行：独立圆角小组件卡（批18 组件化：卡底+描边+间隔，不再是通栏平铺行） */
 @Composable
 private fun SettingRow(label: String, value: String, onTap: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-            .background(Color(0x14FFFFFF))
+        Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF1A2030))
+            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(12.dp))
             .clickable { onTap() }
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, color = Color.White, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD)
+        Text(
+            value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold,
+            color = if (value == "开") GamePalette.UI_EXP else Color(0xFF90A4AE),
+        )
     }
 }

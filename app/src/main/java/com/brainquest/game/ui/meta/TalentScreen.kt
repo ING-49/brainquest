@@ -66,16 +66,32 @@ fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
                 modifier = Modifier.clickable { nav.popBackStack() }.padding(vertical = 6.dp),
             )
             Spacer(Modifier.height(8.dp))
-            Text("天赋总等级", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
-            Text("$totalLevels", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                com.brainquest.game.ui.CoinIcon(20.dp)
-                Text(
-                    " ${player.coins}",
-                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                    color = androidx.compose.ui.graphics.Color(0xFFFFD54F),
-                )
+            // 小组件卡（批18 组件化）：总等级 / 金币
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF1A2030)),
+            ) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    Text("天赋总等级", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
+                    Text("$totalLevels", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF1A2030)),
+            ) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    Text("金币余额", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                        com.brainquest.game.ui.CoinIcon(18.dp)
+                        Text(
+                            " ${player.coins}",
+                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                            color = androidx.compose.ui.graphics.Color(0xFFFFD54F),
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(10.dp))
             Text("金币升级 · 进地牢时自动生效", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))

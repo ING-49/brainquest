@@ -306,13 +306,28 @@ object EntityRenderer {
                     val frame = frames[fi]
                     val dsize = (e.r * (if (e.bossFloor > 0) 2.4f else 2.3f)).toInt()
                     val flip = game.engine.px < e.x
-                    scope.withTransform({ if (flip) scale(-1f, 1f, pivot = Offset(sx, sy)) }) {
+                    // 攻击姿态（批18）：前摇放大 1.06 + 向玩家倾 3px；爪击瞬间短促白弧
+                    val atkLean = if (e.atkState == 1) {
+                        val dx = game.engine.px - e.x; val dy = game.engine.py - e.y
+                        val dl = kotlin.math.hypot(dx, dy).coerceAtLeast(1f)
+                        Offset(dx / dl * 3f, dy / dl * 3f)
+                    } else Offset.Zero
+                    val atkGrow = if (e.atkState == 1) 1.06f else 1f
+                    scope.withTransform({
+                        if (flip) scale(-atkGrow, atkGrow, pivot = Offset(sx, sy)) else scale(atkGrow, atkGrow, pivot = Offset(sx, sy))
+                    }) {
                         scope.drawImage(
                             frame,
                             srcOffset = IntOffset(0, 0), srcSize = IntSize(fw, fh),
-                            dstOffset = IntOffset((sx - dsize / 2).toInt(), (sy - dsize / 2).toInt()),
+                            dstOffset = IntOffset((sx + atkLean.x - dsize / 2).toInt(), (sy + atkLean.y - dsize / 2).toInt()),
                             dstSize = IntSize(dsize, dsize),
                         )
+                    }
+                    if (e.atkState == 2 && e.atkTimer > 0f && e.bossFloor == 0) {   // 爪击弧
+                        val ka = (e.atkTimer / 0.5f).coerceIn(0f, 1f)
+                        val toP = Math.toDegrees(kotlin.math.atan2(game.engine.py - e.y, game.engine.px - e.x).toDouble()).toFloat()
+                        scope.drawArc(Color.White.copy(alpha = 0.7f * ka), toP - 50f, 100f, false,
+                            Offset(sx - e.r - 6f, sy - e.r - 6f), Size((e.r + 6f) * 2f, (e.r + 6f) * 2f), style = Stroke(3f * ka + 1f))
                     }
                     if (e.atkState == 1 && !e.dying) {
                         val pulse = sin(time * 22f) * 3f
@@ -704,6 +719,34 @@ object EntityRenderer {
                     )
                 }
                 scope.drawCircle(accent, 3.5f, Offset(sx, sy - 32f))   // 职业色徽标
+                // 攻击三段姿态叠加（批18：蓄力后仰 → 挥击武器 → 收招）
+                if (atkProgP > 0.78f) {   // 蓄力：后仰 + 微放大
+                    scope.withTransform({ rotate(-6f, pivot = Offset(sx, sy)) }) {
+                        scope.drawCircle(accent.copy(alpha = 0.25f), 20f, Offset(sx, sy - 8f), style = Stroke(2f))
+                    }
+                } else if (lunge > 0.5f) {   // 挥击：职业武器动作
+                    val fx = kotlin.math.cos(game.engine.facing)
+                    val fy = kotlin.math.sin(game.engine.facing)
+                    val k = (lunge / 5f).coerceIn(0f, 1f)
+                    when (cls.id) {
+                        "knight" -> {   // 白色挥砍弧（沿面向扫过）
+                            scope.drawArc(
+                                Color.White.copy(alpha = 0.75f * k),
+                                Math.toDegrees(game.engine.facing.toDouble()).toFloat() - 55f, 110f, false,
+                                Offset(lx - 30f, ly - 30f), Size(60f, 60f), style = Stroke(5f * k + 1f),
+                            )
+                        }
+                        "mage" -> {   // 法杖前戳 + 宝珠闪光
+                            scope.drawCircle(Color(0x99FFD54F).copy(alpha = 0.8f * k), 7f + 5f * k, Offset(lx + fx * 16f, ly + fy * 16f - 6f))
+                            scope.drawCircle(Color.White.copy(alpha = 0.9f * k), 3.5f, Offset(lx + fx * 16f, ly + fy * 16f - 6f))
+                        }
+                        else -> {   // 游侠：弓弦释放 + 箭影
+                            scope.drawLine(Color(0xCCFFFFFF).copy(alpha = 0.8f * k),
+                                Offset(lx, ly - 4f), Offset(lx + fx * 34f, ly + fy * 34f - 4f), 2.5f)
+                            scope.drawCircle(Color.White.copy(alpha = 0.7f * k), 3f, Offset(lx + fx * 20f, ly + fy * 20f - 4f))
+                        }
+                    }
+                }
                 if (game.engine.playerFlash > 0f) scope.drawCircle(Color(0x66FF5252), 24f, Offset(sx, sy - 6f))
                 if (game.engine.shieldTime > 0f) {
                     val pulse = 0.5f + 0.5f * sin(time * 5f)

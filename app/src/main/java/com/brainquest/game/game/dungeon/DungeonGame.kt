@@ -376,11 +376,18 @@ class DungeonGame {
                 kind == EnemyKind.SLIME -> 17f
                 else -> 18f
             }   // 整体加大 ~15%：更有怪物体积感
+            // 批18 修复：门中点在走廊边界会把怪卡住 → 回退房内散布；有已访问门时仅向门内侧偏 120px（保留入场方向感）
             val ex: Float; val ey: Float
             if (atDoor) {
                 val d = doorSpawnPos()
-                ex = (d?.first ?: x) + (rng.nextFloat() - 0.5f) * 70f
-                ey = (d?.second ?: y) + (rng.nextFloat() - 0.5f) * 70f
+                if (d != null) {
+                    val cx = roomLeft(room) + room.w / 2f
+                    val cy = roomTop(room) + room.h / 2f
+                    val dx = cx - d.first; val dy = cy - d.second
+                    val dl = kotlin.math.hypot(dx, dy).coerceAtLeast(1f)
+                    ex = d.first + dx / dl * 120f + (rng.nextFloat() - 0.5f) * 80f
+                    ey = d.second + dy / dl * 120f + (rng.nextFloat() - 0.5f) * 80f
+                } else { ex = x; ey = y }
             } else { ex = x; ey = y }
             val e = CombatEngine.Enemy(
                 ex, ey, r, baseHp, baseHp, speed,

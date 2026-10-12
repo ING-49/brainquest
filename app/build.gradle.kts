@@ -20,8 +20,8 @@ android {
         applicationId = "com.brainquest.game"
         minSdk = 26
         targetSdk = 34
-        versionCode = 71
-        versionName = "1.6.46"
+        versionCode = 72
+        versionName = "1.6.47"
     }
 
     signingConfigs {
