@@ -93,35 +93,43 @@ object EntityRenderer {
         // 门后房间类型徽章（Hades 门奖励预览）：锁门时预告门后是什么房，进门前做路线决策
         val next = if (game.currentRoom === a) b else if (game.currentRoom === b) a else null
         if (!open && next != null) {
-            val horizontal = a.gy == b.gy
+            // 批19：徽章挂在「远门」（朝邻房那侧的门）上方，与门位一致
+            val farIsB = next === b
             val bx: Float; val by: Float
-            if (horizontal) {
+            if (a.gy == b.gy) {
                 val l = minOf(game.roomLeft(a) + a.w, game.roomLeft(b) + b.w) - DungeonGame.DOOR_PROBE
                 val r = maxOf(game.roomLeft(a), game.roomLeft(b)) + DungeonGame.DOOR_PROBE
                 val cy = a.gy * DungeonGame.GRID_Y
-                bx = (l + r) / 2f - game.camX; by = cy - DungeonGame.DOOR_H / 2 - 26f - game.camY
+                bx = (if (farIsB) r else l) - game.camX
+                by = cy - DungeonGame.DOOR_H / 2 - 30f - game.camY
             } else {
                 val t = minOf(game.roomTop(a) + a.h, game.roomTop(b) + b.h) - DungeonGame.DOOR_PROBE
                 val bb = maxOf(game.roomTop(a), game.roomTop(b)) + DungeonGame.DOOR_PROBE
                 val cx = a.gx * DungeonGame.GRID_X
-                bx = cx - DungeonGame.DOOR_H / 2 - 26f - game.camX; by = (t + bb) / 2f - game.camY
+                bx = cx - DungeonGame.DOOR_H / 2 - 30f - game.camX
+                by = (if (farIsB) bb else t) - game.camY
             }
             drawDoorBadge(scope, next.type, bx, by)
         }
         // 门框绘制（批19）：门在走廊两端（即各房间的入口边上），锁门时门内能量屏障
+        val DOOR_WOOD = Color(0xFF8D6E63)   // 门框木色（批19：高对比可辨认）
         fun doorFrameH(ex: Float, sy: Float, h: Float) {   // 横向走廊的门（门柱竖直、门楣水平）
-            scope.drawRect(pal.wall, Offset(ex - 4f, sy - 10f), Size(8f, 12f))          // 上门柱
-            scope.drawRect(pal.wall, Offset(ex - 4f, sy + h - 2f), Size(8f, 12f))       // 下门柱
-            scope.drawRect(pal.line, Offset(ex - 6f, sy - 12f), Size(12f, 4f))          // 门楣装饰
-            if (!open) scope.drawRect(Color(0x88E15A5A), Offset(ex - 3f, sy), Size(6f, h))   // 锁门能量屏障
-            else scope.drawRect(DOOR_GLOW, Offset(ex - 5f, sy), Size(10f, h))           // 开门暖光
+            scope.drawRect(DOOR_WOOD, Offset(ex - 5f, sy - 14f), Size(10f, 16f))         // 上门柱
+            scope.drawRect(DOOR_WOOD, Offset(ex - 5f, sy + h - 2f), Size(10f, 16f))     // 下门柱
+            scope.drawRect(Color(0xFFBCAAA4), Offset(ex - 7f, sy - 16f), Size(14f, 4f))  // 门楣
+            if (!open) {
+                scope.drawRect(Color(0xCCE15A5A), Offset(ex - 3f, sy), Size(6f, h))     // 锁门屏障（亮红）
+                scope.drawRect(Color(0x99FFFFFF), Offset(ex - 0.5f, sy), Size(1.5f, h)) // 屏障高光
+            } else scope.drawRect(DOOR_GLOW, Offset(ex - 5f, sy), Size(10f, h))
         }
         fun doorFrameV(ex: Float, sy: Float, w: Float) {   // 纵向走廊的门
-            scope.drawRect(pal.wall, Offset(ex - 10f, sy - 4f), Size(12f, 8f))
-            scope.drawRect(pal.wall, Offset(ex + w - 2f, sy - 4f), Size(12f, 8f))
-            scope.drawRect(pal.line, Offset(ex - 12f, sy - 6f), Size(w + 24f, 4f))
-            if (!open) scope.drawRect(Color(0x88E15A5A), Offset(ex, sy - 3f), Size(w, 6f))
-            else scope.drawRect(DOOR_GLOW, Offset(ex, sy - 5f), Size(w, 10f))
+            scope.drawRect(DOOR_WOOD, Offset(ex - 5f, sy - 5f), Size(16f, 10f))
+            scope.drawRect(DOOR_WOOD, Offset(ex + w - 11f, sy - 5f), Size(16f, 10f))
+            scope.drawRect(Color(0xFFBCAAA4), Offset(ex - 7f, sy - 7f), Size(w + 14f, 4f))
+            if (!open) {
+                scope.drawRect(Color(0xCCE15A5A), Offset(ex, sy - 3f), Size(w, 6f))
+                scope.drawRect(Color(0x99FFFFFF), Offset(ex, sy - 0.5f), Size(w, 1.5f))
+            } else scope.drawRect(DOOR_GLOW, Offset(ex, sy - 5f), Size(w, 10f))
         }
         if (a.gy == b.gy) {
             val l = minOf(game.roomLeft(a) + a.w, game.roomLeft(b) + b.w) - DungeonGame.DOOR_PROBE
