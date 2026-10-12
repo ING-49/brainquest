@@ -331,20 +331,7 @@ class DungeonGame {
         val scaleHp = (1f + 0.40f * (floor - 1)) * endlessK
         val scaleDmg = (1f + 0.2f * (floor - 1)) * endlessK
 
-        // 批17：门口出生位——取已访问邻房的门中点（敌人从门走入，不凭空出现）；无已访问邻房回 null
-        fun doorSpawnPos(): Pair<Float, Float>? {
-            val n = room.neighbors.values.firstOrNull { it.visited } ?: return null
-            return if (n.gy == room.gy) {
-                val l = minOf(roomLeft(room) + room.w, roomLeft(n) + n.w)
-                val r = maxOf(roomLeft(room), roomLeft(n))
-                ((l + r) / 2f) to (roomTop(room) + room.h / 2f)
-            } else {
-                val t = minOf(roomTop(room) + room.h, roomTop(n) + n.h)
-                val b = maxOf(roomTop(room), roomTop(n))
-                (roomLeft(room) + room.w / 2f) to ((t + b) / 2f)
-            }
-        }
-        fun spawn(kind: EnemyKind, elite: Boolean, x: Float, y: Float, big: Boolean = false, atDoor: Boolean = true) {
+        fun spawn(kind: EnemyKind, elite: Boolean, x: Float, y: Float, big: Boolean = false) {
             // 新怪特化：盾卫高血高伤慢速；自爆史莱姆脆但痛；弓手略脆
             val kindHp = when (kind) {
                 EnemyKind.SHIELD_GUARD -> 1.9f
@@ -376,19 +363,9 @@ class DungeonGame {
                 kind == EnemyKind.SLIME -> 17f
                 else -> 18f
             }   // 整体加大 ~15%：更有怪物体积感
-            // 批18 修复：门中点在走廊边界会把怪卡住 → 回退房内散布；有已访问门时仅向门内侧偏 120px（保留入场方向感）
-            val ex: Float; val ey: Float
-            if (atDoor) {
-                val d = doorSpawnPos()
-                if (d != null) {
-                    val cx = roomLeft(room) + room.w / 2f
-                    val cy = roomTop(room) + room.h / 2f
-                    val dx = cx - d.first; val dy = cy - d.second
-                    val dl = kotlin.math.hypot(dx, dy).coerceAtLeast(1f)
-                    ex = d.first + dx / dl * 120f + (rng.nextFloat() - 0.5f) * 80f
-                    ey = d.second + dy / dl * 120f + (rng.nextFloat() - 0.5f) * 80f
-                } else { ex = x; ey = y }
-            } else { ex = x; ey = y }
+            // 批19：回到房内散布（与最初一致）——敌人待机静止显示，玩家进房才开战（dormant 机制）
+            val ex: Float = x
+            val ey: Float = y
             val e = CombatEngine.Enemy(
                 ex, ey, r, baseHp, baseHp, speed,
                 (if (big) 12f else 6f) * scaleDmg * (if (elite) 1.4f else 1f) * kindDmg,

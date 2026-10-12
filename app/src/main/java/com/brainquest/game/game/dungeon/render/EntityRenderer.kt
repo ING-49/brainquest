@@ -108,6 +108,21 @@ object EntityRenderer {
             }
             drawDoorBadge(scope, next.type, bx, by)
         }
+        // 门框绘制（批19）：门在走廊两端（即各房间的入口边上），锁门时门内能量屏障
+        fun doorFrameH(ex: Float, sy: Float, h: Float) {   // 横向走廊的门（门柱竖直、门楣水平）
+            scope.drawRect(pal.wall, Offset(ex - 4f, sy - 10f), Size(8f, 12f))          // 上门柱
+            scope.drawRect(pal.wall, Offset(ex - 4f, sy + h - 2f), Size(8f, 12f))       // 下门柱
+            scope.drawRect(pal.line, Offset(ex - 6f, sy - 12f), Size(12f, 4f))          // 门楣装饰
+            if (!open) scope.drawRect(Color(0x88E15A5A), Offset(ex - 3f, sy), Size(6f, h))   // 锁门能量屏障
+            else scope.drawRect(DOOR_GLOW, Offset(ex - 5f, sy), Size(10f, h))           // 开门暖光
+        }
+        fun doorFrameV(ex: Float, sy: Float, w: Float) {   // 纵向走廊的门
+            scope.drawRect(pal.wall, Offset(ex - 10f, sy - 4f), Size(12f, 8f))
+            scope.drawRect(pal.wall, Offset(ex + w - 2f, sy - 4f), Size(12f, 8f))
+            scope.drawRect(pal.line, Offset(ex - 12f, sy - 6f), Size(w + 24f, 4f))
+            if (!open) scope.drawRect(Color(0x88E15A5A), Offset(ex, sy - 3f), Size(w, 6f))
+            else scope.drawRect(DOOR_GLOW, Offset(ex, sy - 5f), Size(w, 10f))
+        }
         if (a.gy == b.gy) {
             val l = minOf(game.roomLeft(a) + a.w, game.roomLeft(b) + b.w) - DungeonGame.DOOR_PROBE
             val r = maxOf(game.roomLeft(a), game.roomLeft(b)) + DungeonGame.DOOR_PROBE
@@ -116,16 +131,9 @@ object EntityRenderer {
             val sy = cy - DungeonGame.DOOR_H / 2 - game.camY
             val w = r - l
             val h = DungeonGame.DOOR_H
-            // 走廊地板
-            scope.drawRect(pal.floor, Offset(sx, sy), Size(w, h))
-            if (!open) {
-                // 封门墙：走廊中段一道厚墙
-                val wl = sx + w / 2 - 30f
-                scope.drawRect(pal.wall, Offset(wl, sy - 6f), Size(60f, h + 12f))
-                scope.drawRect(pal.line, Offset(wl, sy - 6f), Size(60f, 6f))
-            } else {
-                scope.drawRect(DOOR_GLOW, Offset(sx + w / 2 - 14f, sy), Size(28f, h))
-            }
+            scope.drawRect(pal.floor, Offset(sx, sy), Size(w, h))   // 走廊地板
+            doorFrameH(sx, sy, h)          // 左端门（房间 A 边上）
+            doorFrameH(sx + w, sy, h)      // 右端门（房间 B 边上）
         } else {
             // 纵向走廊：上房底边 → 下房顶边
             val t = minOf(game.roomTop(a) + a.h, game.roomTop(b) + b.h) - DungeonGame.DOOR_PROBE
@@ -136,13 +144,8 @@ object EntityRenderer {
             val w = DungeonGame.DOOR_H
             val h = bb - t
             scope.drawRect(pal.floor, Offset(sx, sy), Size(w, h))
-            if (!open) {
-                val wt = sy + h / 2 - 30f
-                scope.drawRect(pal.wall, Offset(sx - 6f, wt), Size(w + 12f, 60f))
-                scope.drawRect(pal.line, Offset(sx - 6f, wt), Size(w + 12f, 6f))
-            } else {
-                scope.drawRect(DOOR_GLOW, Offset(sx, sy + h / 2 - 14f), Size(w, 28f))
-            }
+            doorFrameV(sx, sy, w)          // 上端门
+            doorFrameV(sx, sy + h, w)      // 下端门
         }
     }
 
