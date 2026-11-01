@@ -814,7 +814,8 @@ class CombatEngine {
         }.toInt()
         events.add(FxEvent(e.x, e.y, "", false, null, 1, tint = tint))
         killStreak++; killStreakTimer = 3f
-        if (orbs.size >= MAX_ORBS) { gainXp(e.xpValue); return   // 批21：球满直接入账不再丢经验
+        if (orbs.size >= MAX_ORBS) gainXp(e.xpValue)   // 批21：球满直接入账不再丢经验（不 return，后续逻辑照走）
+        else {
             val a = Random.nextFloat() * 6.283f
             val sp = 100f + Random.nextFloat() * 160f
             val o = Orb(e.x, e.y, e.xpValue)
