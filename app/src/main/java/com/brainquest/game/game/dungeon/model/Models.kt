@@ -10,7 +10,7 @@ enum class Dir(val dx: Int, val dy: Int) {
 }
 
 enum class RoomType {
-    START, BATTLE, ELITE, CHEST, SHOP, BOSS;
+    START, BATTLE, ELITE, CHEST, SHOP, EVENT, BOSS;
 
     /** 小地图与大房间中央的标识字 */
     val label: String get() = when (this) {
@@ -19,6 +19,7 @@ enum class RoomType {
         ELITE -> "英"
         CHEST -> "箱"
         SHOP -> "店"
+        EVENT -> "事"
         BOSS -> "王"
     }
 }

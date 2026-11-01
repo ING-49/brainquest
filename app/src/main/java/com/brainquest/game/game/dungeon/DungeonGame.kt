@@ -94,6 +94,12 @@ class DungeonGame {
     var pendingPerks: Map<String, Int> = emptyMap()
     private var skillCdPerkMult = 1f   // 🌀 技能强化天赋倍率（进局算好，选职业时乘上）
     var runMode: String = "standard"; private set   // standard/endless/bossrush/arena（批15 玩法模式）
+    val seenMonsters = mutableSetOf<String>()   // 📖 本局遭遇的怪物（图鉴，批20-D；结算合并进 PlayerState）
+    // 事件房（批20-C）：神秘赌桌
+    private val eventSpots = HashMap<Room, Pair<Float, Float>>()
+    private val eventDone = mutableSetOf<Room>()
+    var eventSpot: Pair<Float, Float>? = null; private set
+    var eventNear = false; private set
     private var arenaWave = 0   // 角斗场当前波数
     fun setRunMode(m: String) { runMode = m; endless = m == "endless" || m == "arena" }
 
@@ -202,6 +208,8 @@ class DungeonGame {
         engine.canPass = canPass
         engine.onCoinPicked = { v -> coins += v }
         engine.onEnemyKilled = { e ->
+            seenMonsters.add(e.kind.name)
+            if (e.bossFloor > 0) seenMonsters.add("BOSS_" + listOf("big_demon", "chort", "big_zombie", "ogre")[(e.bossFloor - 1).mod(4)])
             totalKills++
             if (c.id == "mage") engine.heal(1)   // 法师被动：击杀回 1 血
             // 金币掉落：精英 +8 / Boss +25（改金币实体：飞散落地→磁吸→拾取才入账）
@@ -229,6 +237,7 @@ class DungeonGame {
         chest = null; chestNear = false
         shop = null; shopNear = false; shopGoods = emptyList()
         chestSpots.clear(); openedChests.clear(); shopSpots.clear(); apShopDone.clear()
+        eventSpots.clear(); eventDone.clear(); eventSpot = null; eventNear = false
         engine.enemies.clear(); engine.bullets.clear()
         val result = DungeonGenerator.generate(floor, rng)
         rooms = result.rooms
@@ -292,6 +301,8 @@ class DungeonGame {
         chestNear = false
         shop = shopSpots[room]
         shopNear = false
+        eventSpot = eventSpots[room]?.takeIf { room !in eventDone }
+        eventNear = false
         // 激活本房待机敌人（进房即战）
         for (e in engine.enemies) {
             if (e.dormant && roomContains(room, e.x, e.y)) { e.dormant = false; entranceFxIfPending(e) }
@@ -415,6 +426,11 @@ class DungeonGame {
                 boss.entrancePending = true   // 出场特效（震屏+冲击环）推迟到激活瞬间——populate 发生在邻房预刷新，提前放会误震邻房
                 engine.spawnLater(0.4f, boss)
             }
+            RoomType.EVENT -> {
+                // 房心放神秘赌桌：免战可穿过，走近交互三选一（批20-C）
+                eventSpots[room] = roomLeft(room) + room.w / 2 to roomTop(room) + room.h / 2
+                room.cleared = true
+            }
             RoomType.CHEST -> {
                 // 房心放宝箱：开启前锁门，开启掉装备+金币（见 openChest）
                 chestSpots[room] = roomLeft(room) + room.w / 2 to roomTop(room) + room.h / 2
@@ -498,6 +514,57 @@ class DungeonGame {
     }
 
     // ---------- 主循环 ----------
+
+    /** 开门碎裂反馈（批20-A）：清房解锁瞬间，在本房各门口喷能量碎片（FxEvent kind 19，渲染层消费） */
+    fun doorBreakFx(room: Room) {
+        for ((_, n) in room.neighbors) {
+            val pos = if (n.gy == room.gy) {
+                val l = minOf(roomLeft(room) + room.w, roomLeft(n) + n.w)
+                val r = maxOf(roomLeft(room), roomLeft(n))
+                ((l + r) / 2f) to (roomTop(room) + room.h / 2f)
+            } else {
+                val t = minOf(roomTop(room) + room.h, roomTop(n) + n.h)
+                val b = maxOf(roomTop(room), roomTop(n))
+                (roomLeft(room) + room.w / 2f) to ((t + b) / 2f)
+            }
+            engine.events.add(CombatEngine.FxEvent(pos.first, pos.second, "", false, null, 19))
+        }
+    }
+
+    /** 事件房三选一（批20-C）：0=掷骰 1=血祭 2=淬火；执行成功后消费事件点，返回结果文案 */
+    fun eventChoose(option: Int): String {
+        if (eventSpot == null) return "赌桌已经收起来了"
+        val room = currentRoom
+        var msg = ""
+        when (option) {
+            0 -> {   // 掷骰：50% 金币翻倍 / 50% 减半
+                if (coins <= 0) { msg = "身无分文，赌徒摆了摆手"; return msg }
+                if (rng.nextBoolean()) { coins *= 2; msg = "🎲 手气爆棚！金币翻倍 → $coins" }
+                else { coins /= 2; msg = "🎲 赌输了…金币减半 → $coins" }
+            }
+            1 -> {   // 血祭：失去 30% 当前生命 → 掉落史诗装备
+                val cost = maxOf(1, (engine.hp * 0.3f).toInt())
+                if (!engine.sacrificeHp(cost)) { msg = "生命太少了，血祭被强行打断"; return msg }
+                val item = Equipment.generate(floor, rng, Equipment.Rarity.EPIC)
+                drops.add(Drop(engine.px + 40f, engine.py + 10f, item))
+                msg = "🩸 血祭完成！失去 $cost 生命，史诗装备已掉落"
+            }
+            2 -> {   // 淬火：花金币 → 本局攻击提升
+                val cost = 25 + 5 * floor
+                if (coins < cost) { msg = "金币不足（需要 $cost），铁匠摆了摆手"; return msg }
+                coins -= cost
+                val gain = maxOf(2, (engine.attack * 0.12f).toInt())
+                engine.buffAttack(gain)
+                msg = "⚒ 武器淬火！攻击 +$gain（消耗 $cost 金币）"
+            }
+            else -> return "???"
+        }
+        if (room != null) eventDone.add(room)
+        eventSpot = null
+        eventNear = false
+        engine.events.add(CombatEngine.FxEvent(engine.px, engine.py - 60f, msg, true, null, 16))
+        return msg
+    }
 
     /** 传送门交互：靠近 + 确认。标准模式最终层=进入即结算；其余进下层（无尽一直往下） */
     fun enterPortal() {
@@ -653,6 +720,7 @@ class DungeonGame {
         }
         // 宝箱/货摊接近检测
         chest?.let { c -> chestNear = kotlin.math.hypot(engine.px - c.first, engine.py - c.second) < 80f }
+        eventSpot?.let { ev -> eventNear = kotlin.math.hypot(engine.px - ev.first, engine.py - ev.second) < 80f }
         shop?.let { s -> shopNear = kotlin.math.hypot(engine.px - s.first, engine.py - s.second) < 95f }
         engine.tick(dt)
         tickCamera(dt)
@@ -669,6 +737,7 @@ class DungeonGame {
                     roomNow.cleared = true
                     android.util.Log.d("DGROOM", "WATCHDOG clears ${roomNow.type} ${roomNow.gx},${roomNow.gy}")
                     locked = false
+                    doorBreakFx(roomNow)
                     clearedRooms++
                     floorCleared++
                     if (roomNow.type == RoomType.BOSS) {
@@ -731,6 +800,7 @@ class DungeonGame {
                 room.cleared = true
                 android.util.Log.d("DGROOM", "clear-check clears ${room.type} ${room.gx},${room.gy}")
                 locked = false
+                doorBreakFx(room)   // 批20-A：门口能量屏障碎裂
                 clearedRooms++
                 floorCleared++
                 // 清房反馈（Hades 式段落感）：金环+金字+音效由渲染层消费 kind 16
@@ -1059,6 +1129,7 @@ class DungeonGame {
         chest = null; chestNear = false
         shop = null; shopNear = false
         chestSpots.clear(); openedChests.clear(); shopSpots.clear(); apShopDone.clear()
+        eventSpots.clear(); eventDone.clear(); eventSpot = null; eventNear = false
         runTimeSec = 0
         timeAcc = 0f
         cls = null

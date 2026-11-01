@@ -274,6 +274,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** 记录小游戏最佳成绩，返回是否破纪录 */
+    /** 图鉴：合并本局遭遇的怪物（批20-D） */
+    fun mergeDungeonSeen(kinds: List<String>) {
+        if (kinds.isEmpty()) return
+        commit { it.copy(seenMonsters = (it.seenMonsters + kinds).distinct()) }
+    }
+
     fun reportBest(key: String, score: Int): Boolean {
         val old = _player.value.bestScores[key] ?: 0
         if (score > old) {

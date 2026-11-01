@@ -59,6 +59,7 @@ data class PlayerState(
     val survivorTotalKills: Int = 0, // 🧟 迷你幸存者累计击杀（跨局累加）
     val dungeonPerks: Map<String, Int> = emptyMap(), // 🏰 地牢永久升级（hp/atk/spd → 等级）
     val dungeonWins: Int = 0, // 🏰 地牢通关场次（仅通关 5 层算胜，跨局累加）
+    val seenMonsters: List<String> = emptyList(), // 📖 已遭遇的怪物（图鉴，批20-D）
     val totalDungeonKills: Int = 0, // 🏰 地牢累计击杀（跨局累加，胜败局都算）
 ) {
     val totalAnswered: Int get() = totalCorrect + totalWrong

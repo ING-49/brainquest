@@ -882,6 +882,16 @@ class CombatEngine {
 
     fun heal(n: Int) { if (phase != Phase.GAMEOVER) hp = min(hp + n, maxHp) }
 
+    /** 血祭扣血（批20-C 事件房）：绕过无敌/格挡，不允许致死；成功返回 true */
+    fun sacrificeHp(cost: Int): Boolean {
+        if (phase != Phase.PLAYING) return false
+        val c = cost.coerceAtLeast(1)
+        if (hp <= c) return false
+        hp -= c
+        playerFlash = 0.15f
+        return true
+    }
+
     // ---------- 装备增量（换装差量应用） ----------
     private var lastEnemyLog = -1
     fun setMaxHp(n: Int) { maxHp = n.coerceAtLeast(1); if (hp > maxHp) hp = maxHp }

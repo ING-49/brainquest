@@ -163,6 +163,7 @@ object EntityRenderer {
             RoomType.BATTLE -> 0xFFE57373 to 13f
             RoomType.ELITE -> 0xFFFFD54F to 14f
             RoomType.CHEST -> 0xFFA1887F to 13f
+            RoomType.EVENT -> 0xFFBA68C8 to 13f
             RoomType.SHOP -> 0xFF81C784 to 13f
             RoomType.BOSS -> 0xFFE53935 to 16f
             else -> return
@@ -177,6 +178,11 @@ object EntityRenderer {
             }
             RoomType.ELITE -> scope.drawDiamond(bx, by, Color.White)
             RoomType.CHEST -> scope.drawRect(Color.White, Offset(bx - 6f, by - 5f), Size(12f, 10f))
+            RoomType.EVENT -> {   // 骰子：白方块 + 黑点
+                scope.drawRoundRect(Color.White, Offset(bx - 6f, by - 6f), Size(12f, 12f), CornerRadius(2f))
+                scope.drawCircle(Color(0xFF263238), 1.4f, Offset(bx - 3f, by - 3f))
+                scope.drawCircle(Color(0xFF263238), 1.4f, Offset(bx + 3f, by + 3f))
+            }
             RoomType.SHOP -> scope.drawCircle(Color.White, 5f, Offset(bx, by))
             RoomType.BOSS -> {   // 骷髅双眼
                 scope.drawCircle(Color.White, 3f, Offset(bx - 5f, by - 3f))
@@ -317,13 +323,21 @@ object EntityRenderer {
                     val frame = frames[fi]
                     val dsize = (e.r * (if (e.bossFloor > 0) 2.4f else 2.3f)).toInt()
                     val flip = game.engine.px < e.x
-                    // 攻击姿态（批18）：前摇放大 1.06 + 向玩家倾 3px；爪击瞬间短促白弧
-                    val atkLean = if (e.atkState == 1) {
-                        val dx = game.engine.px - e.x; val dy = game.engine.py - e.y
-                        val dl = kotlin.math.hypot(dx, dy).coerceAtLeast(1f)
-                        Offset(dx / dl * 3f, dy / dl * 3f)
-                    } else Offset.Zero
-                    val atkGrow = if (e.atkState == 1) 1.06f else 1f
+                    // 攻击姿态（批18/批20）：前摇放大+倾身；Boss 冲刺预警（dashWarn）同样倾身+更大放大
+                    val atkLean = when {
+                        e.bossFloor > 0 && e.dashWarn > 0f -> Offset(e.atkDirX * 6f, e.atkDirY * 6f)
+                        e.atkState == 1 -> {
+                            val dx = game.engine.px - e.x; val dy = game.engine.py - e.y
+                            val dl = kotlin.math.hypot(dx, dy).coerceAtLeast(1f)
+                            Offset(dx / dl * 3f, dy / dl * 3f)
+                        }
+                        else -> Offset.Zero
+                    }
+                    val atkGrow = when {
+                        e.bossFloor > 0 && e.dashWarn > 0f -> 1.12f
+                        e.atkState == 1 -> 1.06f
+                        else -> 1f
+                    }
                     scope.withTransform({
                         if (flip) scale(-atkGrow, atkGrow, pivot = Offset(sx, sy)) else scale(atkGrow, atkGrow, pivot = Offset(sx, sy))
                     }) {
@@ -346,6 +360,12 @@ object EntityRenderer {
                     }
                     if (e.hitFlash > 0f) scope.drawCircle(Color(0xAAFFFFFF), e.r + 1f, Offset(sx, sy))
                     if (e.bossFloor > 0 && e.phase >= 2) scope.drawCircle(Color(0x33FF5252), e.r + 10f, Offset(sx, sy))
+                    if (e.bossFloor > 0 && e.dashWarn > 0f) {   // 冲刺蓄能弧（批20-B）：沿冲刺方向渐亮
+                        val ka = 1f - e.dashWarn / 0.45f
+                        val toP = Math.toDegrees(kotlin.math.atan2(e.atkDirY.toDouble(), e.atkDirX.toDouble())).toFloat()
+                        scope.drawArc(Color(0xFFE15A5A).copy(alpha = 0.3f + 0.6f * ka), toP - 70f, 140f, false,
+                            Offset(sx - e.r - 12f, sy - e.r - 12f), Size((e.r + 12f) * 2f, (e.r + 12f) * 2f), style = Stroke(5f * ka + 1f))
+                    }
                     val hb = (e.hp / e.maxHp).coerceIn(0f, 1f)
                     if (hb < 1f && !e.dying) {
                         scope.drawRoundRect(Color(0x66000000), Offset(sx - e.r, sy - e.r - 8f), Size(e.r * 2f, 4f), CornerRadius(2f))
@@ -622,6 +642,29 @@ object EntityRenderer {
                 // 金币招牌
                 drawCircle(GamePalette.UI_GOLD, 9f, Offset(sx, sy - 48f))
                 drawCircle(Color(0xFFFFF59D), 4f, Offset(sx, sy - 48f), style = Stroke(2f))
+            }
+        }
+        game.eventSpot?.let { ev ->
+            val sx = ev.first - game.camX
+            val sy = ev.second - game.camY
+            if (sx < -100f || sy < -100f || sx > scope.size.width + 100f || sy > scope.size.height + 100f) return@let
+            scope.run {
+                // 紫色神秘光晕脉动
+                drawCircle(Color(0x33BA68C8), 55f + sin(time * 3f) * 6f, Offset(sx, sy))
+                drawOval(SHADOW, Offset(sx - 34f, sy + 20f), Size(68f, 14f))
+                // 圆桌
+                drawCircle(Color(0xFF5D4037), 30f, Offset(sx, sy))
+                drawCircle(Color(0xFF795548), 25f, Offset(sx, sy))
+                drawCircle(Color(0xFF3E2723), 30f, Offset(sx, sy), style = Stroke(3f))
+                // 桌上骰子两枚（红白）
+                drawRoundRect(Color(0xFFE15A5A), Offset(sx - 14f, sy - 8f), Size(12f, 12f), CornerRadius(3f))
+                drawCircle(Color.White, 1.5f, Offset(sx - 10f, sy - 4f))
+                drawRoundRect(Color(0xFFF5F5F5), Offset(sx + 2f, sy - 4f), Size(12f, 12f), CornerRadius(3f))
+                drawCircle(Color(0xFF263238), 1.5f, Offset(sx + 5f, sy))
+                drawCircle(Color(0xFF263238), 1.5f, Offset(sx + 9f, sy + 3f))
+                // 顶部紫水晶
+                drawCircle(Color(0xFFBA68C8), 8f, Offset(sx, sy - 44f))
+                drawCircle(Color(0xFFE1BEE7), 3.5f, Offset(sx, sy - 44f))
             }
         }
     }

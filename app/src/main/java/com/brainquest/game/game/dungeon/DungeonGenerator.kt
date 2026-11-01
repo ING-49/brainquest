@@ -70,8 +70,9 @@ object DungeonGenerator {
         val boss = cur
         boss.type = RoomType.BOSS
 
-        // 支房：挂在主线中段房间的空闲邻格
-        val branchTypes = listOf(RoomType.CHEST, RoomType.SHOP, RoomType.ELITE)
+        // 支房：挂在主线中段房间的空闲邻格（事件房第 2 层起加入池）
+        val branchTypes = if (floor >= 2) listOf(RoomType.CHEST, RoomType.SHOP, RoomType.ELITE, RoomType.EVENT)
+                          else listOf(RoomType.CHEST, RoomType.SHOP, RoomType.ELITE)
         val anchors = rooms.filter { it !== start && it !== boss }.shuffled(rng)
         var branches = 0
         for (base in anchors) {
@@ -92,7 +93,7 @@ object DungeonGenerator {
             when (r.type) {
                 RoomType.BOSS -> { r.w = 2100f; r.h = 1350f }
                 RoomType.ELITE -> { r.w = 1600f; r.h = 1050f }
-                RoomType.CHEST, RoomType.SHOP -> { r.w = 1300f; r.h = 850f }
+                RoomType.CHEST, RoomType.SHOP, RoomType.EVENT -> { r.w = 1300f; r.h = 850f }
                 RoomType.START -> { r.w = 1400f; r.h = 900f }
                 else -> { r.w = 1850f; r.h = 1200f }
             }
