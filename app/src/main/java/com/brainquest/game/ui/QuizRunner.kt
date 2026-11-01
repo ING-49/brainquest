@@ -52,10 +52,11 @@ fun QuizRunner(
     var index by remember { mutableIntStateOf(0) }
     var chosen by remember { mutableStateOf<Int?>(null) }
     var correctCount by remember { mutableIntStateOf(0) }
+    var done by remember { mutableStateOf(false) }   // 批21 修复：onFinish 防重（组合期+按钮双调用曾致每日奖励双倍）
 
     val q = questions.getOrNull(index)
     if (q == null) {
-        onFinish(correctCount, questions.size)
+        if (!done) { done = true; onFinish(correctCount, questions.size) }
         return
     }
 
@@ -119,7 +120,7 @@ fun QuizRunner(
                         onClick = {
                             index++
                             chosen = null
-                            if (index >= questions.size) onFinish(correctCount, questions.size)
+                            if (index >= questions.size && !done) { done = true; onFinish(correctCount, questions.size) }
                         },
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                     ) {

@@ -142,8 +142,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  身份码永不随导入改变（v1.6.12 修复：旧实现会把本机身份码覆盖成存档里的或空，
      *  导致之后上传归属校验失败——身份码只属于本机，与存档内容无关）。 */
     fun importSaveJson(text: String): Boolean = runCatching {
-        val state = saveJson.decodeFromString(PlayerState.serializer(), text)
-            .copy(identity = _player.value.identity)
+        val local = _player.value
+        val state = saveJson.decodeFromString(PlayerState.serializer(), text).copy(
+            identity = local.identity,
+            // 批21 修复：基础设施字段保留本地（旧备份会带空 cloudCode/旧更新源，整份覆盖会让云端档案孤儿化且无法删除）
+            cloudCode = local.cloudCode,
+            updateServerUrl = local.updateServerUrl,
+            pkServerUrl = local.pkServerUrl,
+            lastGoodSource = local.lastGoodSource,
+        )
         _player.value = state
         viewModelScope.launch { store.save(state) }
     }.isSuccess
@@ -357,6 +364,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 每日挑战结算：连续天数 + 奖励 */
     fun finishDaily(correct: Int, total: Int): Int {
+        if (isDailyDone()) return 0   // 批21 修复：当日已结算守卫（杜绝奖励双发；返回 0 不入账）
         val coins = 30 + correct * 8
         val today = today()
         val streak = if (_player.value.dailyResults.containsKey(yesterday())) _player.value.dailyStreak + 1 else 1

@@ -168,7 +168,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
 
     // 方向/沉浸由 AppRoot 按路由统一管理（批14：页面自管方向会被新页组合后的 onDispose 覆盖——天赋页竖屏根因）
     DisposableEffect(Unit) {
-        SpriteSheet.load(context.assets)   // 精灵图懒加载（批16；失败自动 fallback 矢量）
+        SpriteSheet.load(context.assets)     // 静态精灵（批16）
+        SpriteAnims.load(context.assets)     // 帧动画（批17：⚡此钩子曾遗漏——帧动画/图鉴精灵整体静默失效）
         onDispose { DungeonBgm.stop() }   // BGM 必须随界面销毁停止（批11 体验层）
     }
 
@@ -1002,7 +1003,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         .size(48.dp)
                         .background(GamePalette.UI_PANEL, androidx.compose.foundation.shape.CircleShape)
                         .border(1.5.dp, GamePalette.UI_PANEL_EDGE, androidx.compose.foundation.shape.CircleShape)
-                        .pointerInput(Unit) { detectTapGestures(onTap = { showBag = !showBag }) },
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                showBag = !showBag
+                                if (showBag && hud.phase == DungeonGame.Phase.EXPLORING) game.pause()   // 批21 修复：背包打开时冻结世界（原来会被打死）
+                                else if (hud.phase == DungeonGame.Phase.PAUSED && !showEvent) game.resume()
+                            })
+                        },
                     contentAlignment = Alignment.Center,
                 ) { Text("🎒", style = MaterialTheme.typography.titleMedium) }
             }

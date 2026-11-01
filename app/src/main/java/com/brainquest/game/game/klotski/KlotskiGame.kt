@@ -175,7 +175,8 @@ class KlotskiGame(val level: KlotskiLevel) {
     /** 已走步数 */
     var moves by mutableIntStateOf(0)
         private set
-    val startMs: Long = System.currentTimeMillis()
+    var startMs: Long = System.currentTimeMillis()
+        private set
     var elapsedSec by mutableIntStateOf(0)
         private set
 
@@ -222,6 +223,7 @@ class KlotskiGame(val level: KlotskiLevel) {
     }
 
     fun canMove(id: Int, dr: Int, dc: Int): Boolean {
+        if (solved) return false   // 批21 修复：通关后锁棋盘（原动画窗口内可拖动吞奖励+卡棋盘外）
         val b = blocks.firstOrNull { it.id == id } ?: return false
         return !occupied(id, b.row + dr, b.col + dc, b.w, b.h)
     }
@@ -245,6 +247,7 @@ class KlotskiGame(val level: KlotskiLevel) {
         blocks.addAll(fresh)
         moves = 0
         selectedId = -1
+        startMs = System.currentTimeMillis()   // 批21 修复：重开不重置计时曾污染"最快用时"纪录
         version++
     }
 }

@@ -303,27 +303,49 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // 最佳成绩
+        // 最佳成绩（批21 修复：hrd 用时/步数区分、地牢/角斗场键名补全、按量纲分两榜）
         if (player.bestScores.isNotEmpty()) {
+            val hrdTime = player.bestScores.entries.filter { it.key.startsWith("hrd_") && it.key.endsWith("_t") }
+            val hrdSteps = player.bestScores.entries.filter { it.key.startsWith("hrd_") && !it.key.endsWith("_t") }
+            val normal = player.bestScores.entries.filter { !it.key.startsWith("hrd_") }
             SectionCard("🏆 最佳成绩") {
-                player.bestScores.entries.sortedByDescending { it.value }.take(5).forEach { (k, v) ->
-                    val name = when {
-                        k.startsWith("hrd_") -> "华容道·${k.removePrefix("hrd_")}（最少步数）"
-                        k == "gomoku_wins" -> "五子棋·总胜场"
-                        k == "gomoku_best_streak" -> "五子棋·最佳连胜"
-                        k == "snake_best" -> "贪吃蛇·最高分"
-                        k == "survivor_best" -> "迷你幸存者·最长生存（秒）"
-                        k == "survivor_kills" -> "迷你幸存者·单局击杀"
-                        k == "dungeon_floor" -> "地牢幸存者·最高层数"
-                        else -> k
-                    }
-                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(name, style = MaterialTheme.typography.bodyMedium)
-                        Text("$v", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                    }
+                // 华容道（越小越好）
+                hrdSteps.sortedBy { it.value }.take(2).forEach { (k, v) ->
+                    val lvl = k.removePrefix("hrd_")
+                    BestRow("华容道·$lvl（最少步数）", v)
+                }
+                hrdTime.sortedBy { it.value }.take(2).forEach { (k, v) ->
+                    val lvl = k.removePrefix("hrd_").removeSuffix("_t")
+                    BestRow("华容道·$lvl（最快用时 s）", v)
+                }
+                // 高分榜（越大越好）
+                normal.sortedByDescending { it.value }.take(5).forEach { (k, v) ->
+                    BestRow(bestName(k), v)
                 }
             }
         }
         Spacer(Modifier.height(8.dp))
     }
+}
+
+/** 最佳成绩单行（批21 组件化） */
+@Composable
+private fun BestRow(name: String, value: Int) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(name, style = MaterialTheme.typography.bodyMedium)
+        Text("$value", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** bestScores 键 → 中文名（批21 补全地牢/角斗场） */
+private fun bestName(k: String): String = when (k) {
+    "gomoku_wins" -> "五子棋·总胜场"
+    "gomoku_best_streak" -> "五子棋·最佳连胜"
+    "snake_best" -> "贪吃蛇·最高分"
+    "survivor_best" -> "迷你幸存者·最长生存（秒）"
+    "survivor_kills" -> "迷你幸存者·单局击杀"
+    "dungeon_floor" -> "地牢幸存者·最高层数"
+    "dungeon_kills" -> "地牢幸存者·单局击杀"
+    "arena_wave" -> "地牢角斗场·最高波数"
+    else -> k
 }

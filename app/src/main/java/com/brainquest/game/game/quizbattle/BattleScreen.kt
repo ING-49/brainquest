@@ -327,11 +327,11 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
         ) {
             OutlinedButton(
                 onClick = {
-                    if (vm.useItem(Items.ITEM_HINT) && battle.useHint()) {
+                    if (battle.useHint() && vm.useItem(Items.ITEM_HINT)) {   // 批21 修复：先判定成功再扣道具（原白扣）
                         Sfx.play(context, sfxOn, hapticOn, SfxType.CLICK)
                     }
                 },
-                enabled = !answered && resultState == 0 && (player.items[Items.ITEM_HINT] ?: 0) > 0,
+                enabled = !answered && resultState == 0 && (player.items[Items.ITEM_HINT] ?: 0) > 0 && battle.canUseHint(),
             ) { Text("💡提示 ${player.items[Items.ITEM_HINT] ?: 0}") }
             OutlinedButton(
                 onClick = {

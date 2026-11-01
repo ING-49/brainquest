@@ -93,7 +93,7 @@ class SurvivorGame {
     fun timeSec(): Int = elapsed.toInt()
 
     fun start() {
-        if (phase == Phase.READY || phase == Phase.GAMEOVER) {
+        if (phase == Phase.READY || phase == Phase.GAMEOVER || phase == Phase.PAUSED) {   // 批21 修复：暂停菜单"重新开始"原本 no-op
             reset()
             phase = Phase.PLAYING
         }

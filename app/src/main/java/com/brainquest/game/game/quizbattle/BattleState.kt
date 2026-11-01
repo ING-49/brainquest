@@ -183,6 +183,11 @@ class BattleState(
         return if (isBoss) (base * 1.6).toInt() else base
     }
 
+    fun canUseHint(): Boolean {   // 批21：无可排除项（填空/判断/排除完）时按钮禁用，杜绝白扣
+        val q = question ?: return false
+        return q.options.indices.any { it != q.answer && it !in eliminated }
+    }
+
     fun useHint(): Boolean {
         val q = question ?: return false
         val remaining = q.options.indices.filter { it != q.answer && it !in eliminated }

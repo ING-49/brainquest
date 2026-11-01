@@ -555,6 +555,7 @@ class DungeonGame {
                 coins -= cost
                 val gain = maxOf(2, (engine.attack * 0.12f).toInt())
                 engine.buffAttack(gain)
+                engine.clampStats()   // 批21：淬火路径补收口（原为唯一未封顶的 attack 路径）
                 msg = "⚒ 武器淬火！攻击 +$gain（消耗 $cost 金币）"
             }
             else -> return "???"
@@ -598,6 +599,7 @@ class DungeonGame {
         locked = false
         clearedRooms++
         floorCleared++
+        doorBreakFx(room)   // 批21：宝箱房开门同样有碎裂反馈
     }
 
     /** 商店交互：靠近打开货架（世界暂停） */
@@ -1137,5 +1139,6 @@ class DungeonGame {
         apNext = null
         apPhase = 0
         engine.reset()
+        arenaWave = 0   // 批21 修复：跨局波数残留
     }
 }

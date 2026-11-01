@@ -139,6 +139,7 @@ class CombatEngine {
     var hitStop = 0f; private set
     var playerFlash = 0f; private set
     var punchZoom = 0f; private set
+    private var kbImpX = 0f; private var kbImpY = 0f   // 受击击退冲量（批21：独立通道）
     // 觉醒爆发：击杀攒能量，满 100 放全屏 AOE（爽感主菜，Vampire Survivors 宝箱/Hades 神力槽）
     var burst = 0f; private set
     val burstReady: Boolean get() = burst >= 100f
@@ -280,7 +281,7 @@ class CombatEngine {
     }
 
     fun reset() {
-        enemies.clear(); bullets.clear(); orbs.clear(); coinDrops.clear(); events.clear(); pendingSpawns.clear()
+        enemies.clear(); bullets.clear(); orbs.clear(); coinDrops.clear(); events.clear(); pendingSpawns.clear(); spawnNow.clear()
         hp = maxHp
         level = 1; xp = 0; xpNext = 6
         invincible = 0f; attackTimer = 0f; timeAcc = 0f; elapsed = 0f
@@ -290,6 +291,7 @@ class CombatEngine {
         chill = 0f
         timeScale = 1f; timeScaleTimer = 0f; shake = 0f
         hitStop = 0f; playerFlash = 0f; punchZoom = 0f; velX = 0f; velY = 0f; activeSlash = null
+        kbImpX = 0f; kbImpY = 0f
         burst = 0f; boomChance = 0f; leechHeal = 0; bounceLevel = 0
         killStreak = 0; killStreakTimer = 0f
         hitCombo = 0; hitComboTimer = 0f
@@ -331,6 +333,13 @@ class CombatEngine {
         val chillK = if (chill > 0f) 0.72f else 1f   // 精英「霜环」：靠近被冻慢
         velX = jx * speed * slowK * chillK
         velY = jy * speed * slowK * chillK
+        if (kbImpX != 0f || kbImpY != 0f) {   // 批21：击退冲量叠加并指数衰减
+            velX += kbImpX; velY += kbImpY
+            val decay = kotlin.math.exp(-8f * dt)
+            kbImpX *= decay; kbImpY *= decay
+            if (kotlin.math.abs(kbImpX) < 2f) kbImpX = 0f
+            if (kotlin.math.abs(kbImpY) < 2f) kbImpY = 0f
+        }
         val vx = hypot(velX, velY)
         moving = vx > 20f
         if (inLen > 0.01f) facing = atan2(velY, velX)   // facing 只跟随真实输入；惯性滑行不抢朝向（faceTo 锁敌不被覆盖）
@@ -396,6 +405,7 @@ class CombatEngine {
     }
 
     private fun tickEnemies(dt: Float) {
+        if (spawnNow.isNotEmpty()) { enemies.addAll(spawnNow); spawnNow.clear() }   // 批21 修复：精英「分裂」 offspring 从未出生（spawnNow 永不消费）
         if ((elapsed * 5).toInt() != lastEnemyLog) {
             lastEnemyLog = (elapsed * 5).toInt()
             enemies.firstOrNull()?.let {
@@ -804,7 +814,7 @@ class CombatEngine {
         }.toInt()
         events.add(FxEvent(e.x, e.y, "", false, null, 1, tint = tint))
         killStreak++; killStreakTimer = 3f
-        if (orbs.size < MAX_ORBS) {
+        if (orbs.size >= MAX_ORBS) { gainXp(e.xpValue); return   // 批21：球满直接入账不再丢经验
             val a = Random.nextFloat() * 6.283f
             val sp = 100f + Random.nextFloat() * 160f
             val o = Orb(e.x, e.y, e.xpValue)
@@ -869,11 +879,11 @@ class CombatEngine {
         playerFlash = 0.15f
         killStreak = 0   // 受伤断连杀
         hitCombo = 0     // 受伤断连击
-        // 受击方向击退（元气骑士式）：沿「玩家-来源」方向给惯性速度加冲量 + 微顿帧
+        // 受击方向击退（元气骑士式）：独立冲量通道（批21 修复：原写入 velX/velY 会被每帧摇杆重算覆盖=死代码）
         if (sx != 0f || sy != 0f) {
             val dx = px - sx; val dy = py - sy
             val dl = hypot(dx, dy).coerceAtLeast(1f)
-            velX += dx / dl * 170f; velY += dy / dl * 170f
+            kbImpX += dx / dl * 170f; kbImpY += dy / dl * 170f
             hitStop = maxOf(hitStop, 0.02f)
         }
         events.add(FxEvent(px, py - 30f, "-${dmg.toInt()}", false, null, 0))
@@ -1081,7 +1091,7 @@ class CombatEngine {
         val out = ArrayList<Enemy>(4)
         val r2 = radius * radius
         for (e in enemies) {
-            if (!e.alive || e in exclude) continue
+            if (!e.alive || e.dormant || e in exclude) continue   // 批21 修复：不排 dormant 会隔房击杀待机怪
             val dx = e.x - from.x; val dy = e.y - from.y
             if (dx * dx + dy * dy <= r2) out.add(e)
         }
