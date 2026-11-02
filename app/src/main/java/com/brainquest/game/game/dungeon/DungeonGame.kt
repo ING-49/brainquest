@@ -100,6 +100,7 @@ class DungeonGame {
     private val eventDone = mutableSetOf<Room>()
     var eventSpot: Pair<Float, Float>? = null; private set
     var eventNear = false; private set
+    var eventKind = 0; private set   // 0=赌桌 1=智慧试炼（批22-4，populate 时随机）
     private var arenaWave = 0   // 角斗场当前波数
     fun setRunMode(m: String) { runMode = m; endless = m == "endless" || m == "arena" }
 
@@ -237,7 +238,7 @@ class DungeonGame {
         chest = null; chestNear = false
         shop = null; shopNear = false; shopGoods = emptyList()
         chestSpots.clear(); openedChests.clear(); shopSpots.clear(); apShopDone.clear()
-        eventSpots.clear(); eventDone.clear(); eventSpot = null; eventNear = false
+        eventSpots.clear(); eventDone.clear(); eventSpot = null; eventNear = false; eventKind = 0
         engine.enemies.clear(); engine.bullets.clear()
         val result = DungeonGenerator.generate(floor, rng)
         rooms = result.rooms
@@ -427,8 +428,9 @@ class DungeonGame {
                 engine.spawnLater(0.4f, boss)
             }
             RoomType.EVENT -> {
-                // 房心放神秘赌桌：免战可穿过，走近交互三选一（批20-C）
+                // 房心放事件桌：免战可穿过，走近交互（批22-4：赌桌/智慧试炼 随机）
                 eventSpots[room] = roomLeft(room) + room.w / 2 to roomTop(room) + room.h / 2
+                eventKind = rng.nextInt(2)
                 room.cleared = true
             }
             RoomType.CHEST -> {
@@ -529,6 +531,36 @@ class DungeonGame {
             }
             engine.events.add(CombatEngine.FxEvent(pos.first, pos.second, "", false, null, 19))
         }
+    }
+
+    /** 智慧试炼结算（批22-4）：correct=true 三选一大奖，false 刷一波怪；均消费事件点 */
+    fun quizOutcome(correct: Boolean): String {
+        val room = currentRoom ?: return "试炼已经结束了"
+        if (eventSpot == null) return "试炼已经结束了"
+        var msg = ""
+        if (correct) {
+            when (rng.nextInt(3)) {
+                0 -> { val g = maxOf(2, (engine.attack * 0.15f).toInt()); engine.buffAttack(g); engine.clampStats(); msg = "🧠 智慧加持！攻击 +$g" }
+                1 -> { engine.setMaxHp(engine.maxHp + 40); engine.heal(40); msg = "🧠 智慧加持！生命上限 +40" }
+                else -> { val c = 60 + 10 * floor; coins += c; msg = "🧠 智慧加持！金币 +$c" }
+            }
+        } else {
+            val scaleHp = 1f + 0.40f * (floor - 1)
+            repeat(4) { i ->
+                val ang = 6.283f * i / 4 + rng.nextFloat()
+                val x = roomLeft(room) + room.w / 2 + kotlin.math.cos(ang) * 260f
+                val y = roomTop(room) + room.h / 2 + kotlin.math.sin(ang) * 260f
+                val e = CombatEngine.Enemy(x, y, 18f, 30f * scaleHp, 30f * scaleHp, 70f + min(floor, 12) * 4f,
+                    6f * (1f + 0.2f * (floor - 1)), EnemyKind.entries.filter { it != EnemyKind.DUMMY }.random(rng), xpValue = 1)
+                e.dormant = true
+                engine.spawnLater(i * 0.2f, e)
+            }
+            msg = "答错了…法阵失效，怪物被召唤了出来！"
+        }
+        eventDone.add(room)
+        eventSpot = null
+        eventNear = false
+        return msg
     }
 
     /** 事件房三选一（批20-C）：0=掷骰 1=血祭 2=淬火；执行成功后消费事件点，返回结果文案 */
@@ -1131,7 +1163,7 @@ class DungeonGame {
         chest = null; chestNear = false
         shop = null; shopNear = false
         chestSpots.clear(); openedChests.clear(); shopSpots.clear(); apShopDone.clear()
-        eventSpots.clear(); eventDone.clear(); eventSpot = null; eventNear = false
+        eventSpots.clear(); eventDone.clear(); eventSpot = null; eventNear = false; eventKind = 0
         runTimeSec = 0
         timeAcc = 0f
         cls = null

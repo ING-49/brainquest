@@ -144,6 +144,9 @@ class CombatEngine {
     var burst = 0f; private set
     val burstReady: Boolean get() = burst >= 100f
     var boomChance = 0f   // 爆裂连锁升级：敌人死亡爆炸概率（0.25/0.5/0.75）
+    var thornsLvl = 0     // 荆棘升级：受击反弹（批22）
+    var giantLvl = 0      // 巨人杀手升级：对精英/Boss 增伤（批22）
+    var luckLvl = 0       // 幸运升级：暴击伤害增强（批22）
     var leechHeal = 0     // 吸血升级：击杀回血
     var bounceLevel = 0   // 弹射升级：玩家子弹命中后弹向下一敌人（0-3）
     private var velX = 0f; private var velY = 0f
@@ -293,6 +296,7 @@ class CombatEngine {
         hitStop = 0f; playerFlash = 0f; punchZoom = 0f; velX = 0f; velY = 0f; activeSlash = null
         kbImpX = 0f; kbImpY = 0f
         burst = 0f; boomChance = 0f; leechHeal = 0; bounceLevel = 0
+        thornsLvl = 0; giantLvl = 0; luckLvl = 0
         killStreak = 0; killStreakTimer = 0f
         hitCombo = 0; hitComboTimer = 0f
         phase = Phase.IDLE
@@ -753,8 +757,9 @@ class CombatEngine {
     fun hitEnemy(e: Enemy, baseDmg: Float, element: Element?, kx: Float = 0f, ky: Float = 0f) {
         var dmg = baseDmg
         val crit = Random.nextFloat() < critChance
-        if (crit) dmg *= 2f
+        if (crit) dmg *= 2f + 0.2f * luckLvl   // 幸运升级：暴伤增强（批22）
         if (element != null) dmg *= elemPower
+        if (giantLvl > 0 && (e.bossFloor > 0 || e.elite)) dmg *= 1f + 0.15f * giantLvl   // 巨人杀手（批22）
         // 盾卫正面格挡：攻击来向与「盾卫→玩家」相反（即从玩家侧打来）→ 伤害 ×0.25，绕后全额
         if (e.kind == EnemyKind.SHIELD_GUARD && e.bossFloor == 0 && e.alive) {
             val fx = px - e.x; val fy = py - e.y
@@ -814,6 +819,14 @@ class CombatEngine {
         }.toInt()
         events.add(FxEvent(e.x, e.y, "", false, null, 1, tint = tint))
         killStreak++; killStreakTimer = 3f
+        // 连杀里程碑奖励（批22）：5 回血 / 10 金币雨 / 15 大回血 / 20 技能瞬发
+        when (killStreak) {
+            5 -> { heal(10); events.add(FxEvent(e.x, e.y - e.r - 14f, "💪 5连杀 回复", true, null, 0)) }
+            10 -> { repeat(3) { spawnCoin(e.x + (it - 1) * 24f, e.y, 5) }
+                   events.add(FxEvent(e.x, e.y - e.r - 14f, "💰 10连杀 金币雨", true, null, 0)) }
+            15 -> { heal(20); events.add(FxEvent(e.x, e.y - e.r - 14f, "💪 15连杀 大回复", true, null, 0)) }
+            20 -> { skillCd = 0f; events.add(FxEvent(e.x, e.y - e.r - 14f, "⚡ 20连杀 技能就绪", true, null, 0)) }
+        }
         if (orbs.size >= MAX_ORBS) gainXp(e.xpValue)   // 批21：球满直接入账不再丢经验（不 return，后续逻辑照走）
         else {
             val a = Random.nextFloat() * 6.283f
@@ -880,6 +893,12 @@ class CombatEngine {
         playerFlash = 0.15f
         killStreak = 0   // 受伤断连杀
         hitCombo = 0     // 受伤断连击
+        // 荆棘（批22）：受击反弹给最近敌人
+        if (thornsLvl > 0) {
+            nearestEnemy(400f)?.let { t ->
+                hitEnemy(t, raw * 0.25f * thornsLvl, null)
+            }
+        }
         // 受击方向击退（元气骑士式）：独立冲量通道（批21 修复：原写入 velX/velY 会被每帧摇杆重算覆盖=死代码）
         if (sx != 0f || sy != 0f) {
             val dx = px - sx; val dy = py - sy
@@ -961,6 +980,9 @@ class CombatEngine {
             if (leechHeal < 12) add(Upgrade("leech", "💗 吸血", "击杀回复 2 点生命"))
             add(Upgrade("gale", "🌪 风行", "移动速度 +8%，攻击间隔 −8%"))
             if (bounceLevel < 3) add(Upgrade("bounce", "🎯 弹射", "远程子弹命中后弹向下一个敌人（可叠 3 次）"))
+            if (thornsLvl < 3) add(Upgrade("thorns", "🛡 荆棘", "受击反弹 25% 伤害给最近敌人（可叠 3 次）"))
+            if (giantLvl < 3) add(Upgrade("giant", "💥 巨人杀手", "对精英与 Boss 伤害 +15%（可叠 3 次）"))
+            if (luckLvl < 3) add(Upgrade("luck", "🍀 幸运", "暴击伤害 +10%（可叠 3 次）"))
         }
         return pool.shuffled(Random).take(3).ifEmpty { listOf(Upgrade("hp", "❤️ 生命", "生命上限 +25 并回复 25")) }
     }
@@ -978,6 +1000,9 @@ class CombatEngine {
             "leech" -> leechHeal += 2
             "gale" -> { speed *= 1.08f; attackInterval *= 0.92f }
             "bounce" -> bounceLevel = (bounceLevel + 1).coerceAtMost(3)
+            "thorns" -> thornsLvl = (thornsLvl + 1).coerceAtMost(3)
+            "giant" -> giantLvl = (giantLvl + 1).coerceAtMost(3)
+            "luck" -> luckLvl = (luckLvl + 1).coerceAtMost(3)
         }
         pendingUpgrades = emptyList()
         clampStats()   // 批15：属性上限收口

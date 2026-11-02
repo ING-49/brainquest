@@ -68,10 +68,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private var saveJob: kotlinx.coroutines.Job? = null   // 批22-3：防抖合并（300ms 内连续 commit 只落盘一次）
     private fun commit(transform: (PlayerState) -> PlayerState) {
         val next = transform(_player.value)
         _player.value = next
-        viewModelScope.launch { store.save(next) }
+        saveJob?.cancel()
+        saveJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(300)
+            store.save(_player.value)
+        }
         checkAchievements(next)
     }
 

@@ -111,6 +111,7 @@ private data class Hud(
     val mode: String,
     val hasEvent: Boolean,
     val eventNear: Boolean,
+    val eventKind: Int,
     val portalNear: Boolean,
     val hasPortal: Boolean,
     val chestNear: Boolean,
@@ -136,7 +137,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         game.engine.autoAttack = game.autopilot   // 手动模式走攻击键；自动驾驶保持持续攻击
     }
     var hud by remember {
-        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0, 0f, 0, true, 0, 0, 0, "knight", false, "standard", false, false, false, false, false, false, false, false, 0f))
+        mutableStateOf(Hud(DungeonGame.Phase.READY, 1, 1, 0, 100, 100, 1, 0, 0, 0, 0f, 0, true, 0, 0, 0, "knight", false, "standard", false, false, 0, false, false, false, false, false, false, 0f))
     }
     var apShopOpenT by remember { mutableFloatStateOf(0f) }   // 自动驾驶开店兜底计时
     // Boss 血条 Hades 化：白色残影缓落 / 阶段切换白闪
@@ -473,6 +474,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 game.runMode,
                 game.eventSpot != null,
                 game.eventNear,
+                game.eventKind,
                 game.portalNear,
                 game.portal != null,
                 game.chestNear,
@@ -1718,47 +1720,98 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // ---------- 🎲 事件房：神秘赌桌三选一（批20-C） ----------
+        // ---------- 🎲/🧠 事件房：神秘赌桌（批20-C） / 智慧试炼答题（批22-4） ----------
         if (showEvent) {
+            val isQuiz = hud.eventKind == 1
+            val quizQ = remember(showEvent, isQuiz) {
+                if (isQuiz) vm.bank.pick(
+                    com.brainquest.game.data.question.Subjects.curated.random(),
+                    (hud.floor + 1).coerceIn(1, 5),
+                ) else null
+            }
+            var quizChosen by remember(showEvent, isQuiz) { mutableStateOf<Int?>(null) }
             Box(
                 Modifier.fillMaxSize().background(Color(0xB30B0D14)),
                 contentAlignment = Alignment.Center,
             ) {
                 Card(
-                    Modifier.widthIn(max = 430.dp),
+                    Modifier.widthIn(max = 460.dp),
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1226)),
+                    colors = CardDefaults.cardColors(containerColor = if (isQuiz) Color(0xFF141B2E) else Color(0xFF1A1226)),
                 ) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("🎲 神秘赌桌", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFFE1BEE7))
-                        Text("一位兜帽商人朝你招了招手…", style = MaterialTheme.typography.bodySmall, color = Color(0xFF90A4AE), modifier = Modifier.padding(top = 4.dp))
+                        Text(
+                            if (isQuiz) "🧠 智慧试炼" else "🎲 神秘赌桌",
+                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                            color = if (isQuiz) Color(0xFF82B1FF) else Color(0xFFE1BEE7),
+                        )
+                        Text(
+                            if (isQuiz) "古老的法阵考验你的智慧…" else "一位兜帽商人朝你招了招手…",
+                            style = MaterialTheme.typography.bodySmall, color = Color(0xFF90A4AE), modifier = Modifier.padding(top = 4.dp),
+                        )
                         Spacer(Modifier.height(14.dp))
                         val res = eventResult
-                        if (res != null) {
-                            Text(res, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                            Spacer(Modifier.height(14.dp))
-                            Button(onClick = { showEvent = false; eventResult = null }, modifier = Modifier.fillMaxWidth()) { Text("离开赌桌") }
-                        } else {
-                            listOf(
-                                Triple("🎲 掷骰", "50% 金币翻倍 / 50% 减半", 0),
-                                Triple("🩸 血祭", "失去 30% 当前生命 → 史诗装备", 1),
-                                Triple("⚒ 淬火", "花 1 笔金币 → 本局攻击提升", 2),
-                            ).forEach { (title, desc, opt) ->
+                        if (isQuiz && quizQ != null && quizChosen == null) {
+                            Text(
+                                quizQ.question, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            quizQ.options.forEachIndexed { i, opt ->
                                 Card(
-                                    onClick = {
-                                        eventResult = game.eventChoose(opt)
-                                    },
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF241B36)),
+                                    onClick = { quizChosen = i },
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF242E44)),
                                 ) {
-                                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                                        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White)
-                                        Text(desc, style = MaterialTheme.typography.bodySmall, color = Color(0xFFB0AEC5))
-                                    }
+                                    Text(
+                                        "${'A' + i}. $opt",
+                                        style = MaterialTheme.typography.bodyMedium, color = Color.White,
+                                        modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                    )
                                 }
                             }
-                            Text("✋ 离开（赌桌不会收）", style = MaterialTheme.typography.labelMedium, color = Color(0xFF90A4AE),
-                                modifier = Modifier.clickable { showEvent = false }.padding(top = 10.dp))
+                            Text("答对有赏 · 答错招怪", style = MaterialTheme.typography.labelSmall, color = Color(0xFF90A4AE),
+                                modifier = Modifier.padding(top = 8.dp))
+                        } else if (isQuiz && quizQ != null) {
+                            val correct = quizChosen == quizQ.answer
+                            val msg = remember(quizChosen) {
+                                if (quizChosen != null) game.quizOutcome(correct) else ""
+                            }
+                            LaunchedEffect(quizChosen) { if (quizChosen != null) vm.mergeDungeonSeen(listOf("QUIZ_${if (correct) "win" else "lose"}")) }
+                            Text(
+                                if (correct) "✅ 答对了！" else "❌ 答错了（正确：${'A' + quizQ.answer}）",
+                                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                                color = if (correct) Color(0xFF7EE38A) else Color(0xFFFF6E6E),
+                            )
+                            Text(msg, style = MaterialTheme.typography.titleSmall, color = GamePalette.UI_GOLD,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
+                            Spacer(Modifier.height(12.dp))
+                            Button(onClick = { showEvent = false; eventResult = null }, modifier = Modifier.fillMaxWidth()) { Text("离开") }
+                        } else {
+                            if (res != null) {
+                                Text(res, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = GamePalette.UI_GOLD, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Spacer(Modifier.height(14.dp))
+                                Button(onClick = { showEvent = false; eventResult = null }, modifier = Modifier.fillMaxWidth()) { Text("离开赌桌") }
+                            } else {
+                                listOf(
+                                    Triple("🎲 掷骰", "50% 金币翻倍 / 50% 减半", 0),
+                                    Triple("🩸 血祭", "失去 30% 当前生命 → 史诗装备", 1),
+                                    Triple("⚒ 淬火", "花 1 笔金币 → 本局攻击提升", 2),
+                                ).forEach { (title, desc, opt) ->
+                                    Card(
+                                        onClick = { eventResult = game.eventChoose(opt) },
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF241B36)),
+                                    ) {
+                                        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Text(desc, style = MaterialTheme.typography.bodySmall, color = Color(0xFFB0AEC5))
+                                        }
+                                    }
+                                }
+                                Text("✋ 离开（赌桌不会收）", style = MaterialTheme.typography.labelMedium, color = Color(0xFF90A4AE),
+                                    modifier = Modifier.clickable { showEvent = false }.padding(top = 10.dp))
+                            }
                         }
                     }
                 }
