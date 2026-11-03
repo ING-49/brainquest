@@ -111,7 +111,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                     )
                 }
                 Button(
-                    onClick = { checkInReward = vm.checkIn() },
+                    onClick = { checkInReward = vm.checkIn(); vm.toast("✅ 签到成功，奖励已到账") },
                     enabled = !checkedIn,
                 ) { Text(if (checkedIn) "已签到" else "签到") }
             }

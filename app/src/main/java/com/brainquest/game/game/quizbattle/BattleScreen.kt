@@ -84,7 +84,8 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
     var feedback by remember { mutableStateOf<String?>(null) }
     var lastDamage by remember { mutableIntStateOf(0) }
     var timeLeft by remember { mutableIntStateOf(battle.timeLimitSec) }
-    var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
+    var confirmExit by remember { mutableStateOf(false) }   // 批23-A 返回确认
+var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
     var revivedOnce by remember { mutableStateOf(false) }
     var shake by remember { mutableFloatStateOf(0f) }
     val enemyShake = remember { Animatable(0f) }
@@ -167,9 +168,22 @@ fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, leve
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         PageHeader(
             "${Subjects.emoji(subject)} ${subject} · ${if (battle.isBoss) "BOSS战" else "第${level}关"}${if (player.hardMode) " · 🎓考研" else ""}",
-            onBack = { nav.popBackStack() },
+            onBack = { if (resultState != 0) nav.popBackStack() else confirmExit = true },   // 批23-A：对局中返回需确认
             subtitle = "限时 ${battle.timeLimitSec}s / 题 · 答对出招 答错挨打",
         )
+        if (confirmExit) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { confirmExit = false },
+                title = { Text("退出本局？") },
+                text = { Text("当前答题进度与当局收益将丢失") },
+                confirmButton = {
+                    Button(onClick = { confirmExit = false; nav.popBackStack() }) { Text("退出") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmExit = false }) { Text("继续答题") }
+                },
+            )
+        }
 
         // 敌人面板
         Card(

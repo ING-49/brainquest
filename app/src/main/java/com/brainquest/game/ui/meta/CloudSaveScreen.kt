@@ -346,7 +346,7 @@ fun CloudSaveScreen(vm: AppViewModel, nav: NavHostController) {
             AlertDialog(
                 onDismissRequest = { pendingDelete = false },
                 title = { Text("删除云端存档？") },
-                text = { Text("将删除服务器上存档码 ${player.cloudCode} 对应的云端存档，本机进度不受影响。此操作不可恢复。") },
+                text = { Text("将删除服务器上存档码 ${(if (dlCodeInput.isNotBlank()) dlCodeInput else player.cloudCode).ifBlank { player.cloudCode }} 对应的云端存档，本机进度不受影响。此操作不可恢复。") },
                 confirmButton = {
                     Button(onClick = {
                         pendingDelete = false

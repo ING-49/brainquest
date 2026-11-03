@@ -130,7 +130,7 @@ class SurvivorGame {
         camX = px - viewW / 2
         camY = py - viewH / 2
 
-        // 敌人刷新：频率随时间提高（1.1s → 0.3s @5min）
+        // 敌人刷新：频率随时间提高（1.3s → 0.45s @5min，批23 注释对齐实现）
         spawnTimer -= dt
         if (spawnTimer <= 0f && enemies.size < MAX_ENEMIES) {
             spawnEnemy()

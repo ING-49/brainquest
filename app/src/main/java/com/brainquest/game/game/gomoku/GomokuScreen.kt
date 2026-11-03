@@ -187,7 +187,7 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     ModeCard(
                         emoji = "🤖", title = "人机对战",
-                        desc = "挑战本地 AI：简单 / 普通 / 困难三档，胜负有金币与成就奖励",
+                        desc = "挑战本地 AI：简单 / 普通 / 困难 / 大师四档，胜负有金币与成就奖励",
                         onClick = {
                             Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
                             startGame("ai")

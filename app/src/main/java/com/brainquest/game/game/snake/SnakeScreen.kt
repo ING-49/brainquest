@@ -186,8 +186,8 @@ fun SnakeScreen(vm: AppViewModel, nav: NavHostController) {
                                     val horizontal = abs(acc.x) > abs(acc.y) * 1.2f
                                     val vertical = abs(acc.y) > abs(acc.x) * 1.2f
                                     when {
-                                        horizontal -> game.turn(0, if (acc.x > 0) 1 else -1)
-                                        vertical -> game.turn(if (acc.y > 0) 1 else -1, 0)
+                                        horizontal -> if (!paused) game.turn(0, if (acc.x > 0) 1 else -1)
+                                        vertical -> if (!paused) game.turn(if (acc.y > 0) 1 else -1, 0)   // 批23-B：暂停不改方向
                                     }
                                     acc = Offset.Zero
                                 }
