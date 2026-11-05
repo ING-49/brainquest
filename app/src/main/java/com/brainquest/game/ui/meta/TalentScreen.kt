@@ -1,23 +1,28 @@
 package com.brainquest.game.ui.meta
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,126 +30,226 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
+import com.brainquest.game.game.dungeon.render.GameActionButton
+import com.brainquest.game.game.dungeon.render.GameBackdrop
+import com.brainquest.game.game.dungeon.render.GamePanel
+import com.brainquest.game.game.dungeon.render.GameUi
+import com.brainquest.game.game.dungeon.render.GameVignette
+import com.brainquest.game.game.dungeon.render.PanelTitle
+import com.brainquest.game.game.dungeon.render.RoundIconButton
 import com.brainquest.game.ui.CoinIcon
-import com.brainquest.game.ui.CoinText
-import com.brainquest.game.ui.PageHeader
 
 /** 天赋卡定义（id 对应 PlayerState.dungeonPerks / AppViewModel.dungeonPerkCost 的键） */
-private data class TalentDef(val id: String, val icon: String, val name: String, val perLevel: String, val effect: (Int) -> String)
-
-private val TALENTS = listOf(
-    TalentDef("hp", "❤️", "生命强化", "+8 生命上限 / 级") { n -> "生命上限 +${8 * n}" },
-    TalentDef("atk", "⚔️", "攻击强化", "+1 攻击 / 级") { n -> "攻击 +${1 * n}" },
-    TalentDef("spd", "👟", "敏捷强化", "+4 移速 / 级") { n -> "移速 +${4 * n}" },
-    TalentDef("crit", "🎯", "暴击强化", "+3% 暴击率 / 级") { n -> "暴击率 +${3 * n}%" },
-    TalentDef("skillcd", "🌀", "技能强化", "技能冷却 −6% / 级") { n -> "技能冷却 −${6 * n}%" },
-    TalentDef("gold", "💰", "财富天赋", "开局金币 +30 / 级") { n -> "开局金币 +${30 * n}" },
+private data class TalentDef(
+    val id: String,
+    val icon: String,
+    val name: String,
+    val perLevel: String,
+    val accent: Color,
+    val effect: (Int) -> String,
 )
 
-/** 地牢局外养成：六系永久天赋（金币升级，进地牢自动生效）。横屏子页（批14：唯一入口是地牢大厅） */
+private val TALENTS = listOf(
+    TalentDef("hp", "❤️", "生命强化", "+8 生命上限 / 级", Color(0xFFEF5350)) { n -> "生命上限 +${8 * n}" },
+    TalentDef("atk", "⚔️", "攻击强化", "+1 攻击 / 级", Color(0xFFFFB74D)) { n -> "攻击 +${1 * n}" },
+    TalentDef("spd", "👟", "敏捷强化", "+4 移速 / 级", Color(0xFF4FC3F7)) { n -> "移速 +${4 * n}" },
+    TalentDef("crit", "🎯", "暴击强化", "+3% 暴击率 / 级", Color(0xFFBA68C8)) { n -> "暴击率 +${3 * n}%" },
+    TalentDef("skillcd", "🌀", "技能强化", "技能冷却 −6% / 级", Color(0xFF4DB6AC)) { n -> "技能冷却 −${6 * n}%" },
+    TalentDef("gold", "💰", "财富天赋", "开局金币 +30 / 级", Color(0xFFFFD54F)) { n -> "开局金币 +${30 * n}" },
+)
+
+/** 地牢局外养成：六系永久天赋（金币升级，进地牢自动生效）。横屏子页（批24 统一游戏 UI） */
 @Composable
 fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     val totalLevels = player.dungeonPerks.values.sum()
+    val maxedCount = TALENTS.count { (player.dungeonPerks[it.id] ?: 0) >= vm.dungeonPerkMax(it.id) }
 
-    Row(
-        Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xF20B0E14)).padding(horizontal = 22.dp, vertical = 10.dp),
-    ) {
-        // 左栏 30%：页头 + 汇总（总等级/金币/说明）
-        Column(Modifier.weight(0.30f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-            Text("⭐ 天赋养成", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFFFFD54F))
-            Text("局外永久强化 · 地牢专属", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "← 返回大厅",
-                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                color = androidx.compose.ui.graphics.Color(0xFF82B1FF),
-                modifier = Modifier.clickable { nav.popBackStack() }.padding(vertical = 6.dp),
-            )
-            Spacer(Modifier.height(8.dp))
-            // 小组件卡（批18 组件化）：总等级 / 金币
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF1A2030)),
-            ) {
-                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                    Text("天赋总等级", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
-                    Text("$totalLevels", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
+    Box(Modifier.fillMaxSize()) {
+        GameBackdrop(accent = Color(0xFFBA68C8))
+        Column(
+            Modifier.fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                .padding(horizontal = 18.dp, vertical = 8.dp),
+        ) {
+            // 顶栏
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                RoundIconButton("←", onClick = { nav.popBackStack() }, size = 38.dp)
+                Column(Modifier.padding(start = 10.dp).weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("⭐", fontSize = 18.sp)
+                        Text(
+                            "天赋养成",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = GameUi.Gold,
+                            modifier = Modifier.padding(start = 5.dp),
+                        )
+                    }
+                    Text("局外永久强化 · 进入地牢时自动生效", fontSize = 10.sp, color = GameUi.TextDim)
+                }
+                Row(
+                    Modifier.clip(RoundedCornerShape(11.dp)).background(Color(0xB30B1018))
+                        .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(11.dp))
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CoinIcon(15.dp)
+                    Text(
+                        " ${player.coins}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = GameUi.Gold,
+                    )
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF1A2030)),
-            ) {
-                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                    Text("金币余额", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
-                        com.brainquest.game.ui.CoinIcon(18.dp)
+            Spacer(Modifier.height(10.dp))
+            // 左：汇总面板；右：3×2 天赋卡
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(
+                    Modifier.width(200.dp).fillMaxHeight(),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    GamePanel(Modifier.fillMaxWidth(), accent = GameUi.Gold, contentPadding = 14.dp) {
+                        PanelTitle("养成总览", "六系天赋 · 金币升级")
+                        Spacer(Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                "$totalLevels",
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = GameUi.Gold,
+                            )
+                            Text(
+                                " 级",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = GameUi.TextDim,
+                                modifier = Modifier.padding(bottom = 6.dp),
+                            )
+                        }
+                        Text("天赋总等级", fontSize = 10.sp, color = GameUi.TextDim)
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                                .background(Color(0x33000000)).padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CoinIcon(14.dp)
+                            Text(
+                                " ${player.coins}",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = GameUi.Gold,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text("金币余额", fontSize = 9.sp, color = GameUi.TextFaint)
+                        }
+                        Spacer(Modifier.height(8.dp))
                         Text(
-                            " ${player.coins}",
-                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                            color = androidx.compose.ui.graphics.Color(0xFFFFD54F),
+                            "已满级 $maxedCount / ${TALENTS.size}",
+                            fontSize = 10.sp,
+                            color = if (maxedCount == TALENTS.size) GameUi.Xp else GameUi.TextDim,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Canvas(Modifier.fillMaxWidth().height(3.dp)) {
+                            val frac = totalLevels.toFloat() / (TALENTS.size * 10)
+                            drawRoundRect(Color(0x33FFFFFF), size = size, cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f))
+                            drawRoundRect(
+                                Brush.horizontalGradient(listOf(GameUi.GoldDeep, GameUi.Gold)),
+                                size = androidx.compose.ui.geometry.Size(size.width * frac.coerceIn(0f, 1f), size.height),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f),
+                            )
+                        }
+                        Text(
+                            "金币来自地牢与答题，升级后立即对所有新局生效。",
+                            fontSize = 9.sp,
+                            color = GameUi.TextFaint,
+                            modifier = Modifier.padding(top = 8.dp),
                         )
                     }
                 }
-            }
-            Spacer(Modifier.height(10.dp))
-            Text("金币升级 · 进地牢时自动生效", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF78909C))
-        }
-        Spacer(Modifier.width(18.dp))
-        // 右栏 70%：3×2 天赋卡网格
-        Column(Modifier.weight(0.70f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-
-        // 六张天赋卡 3×2（批13 横屏：两行三列铺满，不再纵向长列表）
-        TALENTS.chunked(3).forEach { rowCards ->
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                rowCards.forEach { t ->
-                    val level = player.dungeonPerks[t.id] ?: 0
-                    val cost = vm.dungeonPerkCost(t.id)
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    ) {
-                        Column(Modifier.padding(12.dp).fillMaxWidth()) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(t.icon, style = MaterialTheme.typography.titleLarge)
-                                Column(Modifier.weight(1f).padding(start = 8.dp)) {
-                                    Text("${t.name} · Lv.$level", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+                    TALENTS.chunked(3).forEach { rowCards ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            rowCards.forEach { t ->
+                                val level = player.dungeonPerks[t.id] ?: 0
+                                val cost = vm.dungeonPerkCost(t.id)
+                                val maxLevel = vm.dungeonPerkMax(t.id)
+                                val maxed = level >= maxLevel
+                                GamePanel(Modifier.weight(1f), accent = t.accent, contentPadding = 12.dp) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
+                                                .background(t.accent.copy(alpha = 0.16f))
+                                                .border(1.dp, t.accent.copy(alpha = 0.45f), RoundedCornerShape(10.dp)),
+                                            contentAlignment = Alignment.Center,
+                                        ) { Text(t.icon, fontSize = 18.sp) }
+                                        Column(Modifier.padding(start = 8.dp).weight(1f)) {
+                                            Text(
+                                                t.name,
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White,
+                                                maxLines = 1,
+                                            )
+                                            Text(
+                                                "Lv.$level / $maxLevel",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = t.accent,
+                                            )
+                                        }
+                                    }
+                                    // 等级刻度：一眼看清成长进度
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(top = 8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    ) {
+                                        repeat(maxLevel) { i ->
+                                            Box(
+                                                Modifier.weight(1f).height(4.dp)
+                                                    .clip(RoundedCornerShape(2.dp))
+                                                    .background(if (i < level) t.accent else Color(0x26FFFFFF)),
+                                            )
+                                        }
+                                    }
                                     Text(
-                                        if (level == 0) t.perLevel
-                                        else "已生效 ${t.effect(level)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        if (level == 0) t.perLevel else "已生效 ${t.effect(level)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = GameUi.TextDim,
+                                        modifier = Modifier.padding(top = 6.dp),
+                                        maxLines = 1,
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    GameActionButton(
+                                        if (maxed) "MAX" else "升级 · $cost",
+                                        onClick = { vm.buyDungeonPerk(t.id) },
+                                        enabled = !maxed && player.coins >= cost,
+                                        accent = t.accent,
+                                        textColor = Color(0xFF120F00),
+                                        height = 34.dp,
+                                        modifier = Modifier.fillMaxWidth(),
                                     )
                                 }
                             }
-                            val maxed = level >= vm.dungeonPerkMax(t.id)
-                            Button(
-                                onClick = { vm.buyDungeonPerk(t.id) },
-                                enabled = !maxed && player.coins >= cost,
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            ) {
-                                if (maxed) Text("MAX", fontWeight = FontWeight.Bold)
-                                else {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        CoinIcon(size = 13.dp)
-                                        Text(" $cost", fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
+                            repeat(3 - rowCards.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }
-                // 补位空槽（保持三列对齐）
-                repeat(3 - rowCards.size) { Spacer(Modifier.weight(1f)) }
             }
         }
-        }   // 右栏（3×2 网格）
-    }   // 根 Row
+        GameVignette()
+    }
 }
-

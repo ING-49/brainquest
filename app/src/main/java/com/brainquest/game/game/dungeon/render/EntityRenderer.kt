@@ -346,6 +346,7 @@ object EntityRenderer {
                             srcOffset = IntOffset(0, 0), srcSize = IntSize(fw, fh),
                             dstOffset = IntOffset((sx + atkLean.x - dsize / 2).toInt(), (sy + atkLean.y - dsize / 2).toInt()),
                             dstSize = IntSize(dsize, dsize),
+                            filterQuality = androidx.compose.ui.graphics.FilterQuality.None,
                         )
                     }
                     if (e.atkState == 2 && e.atkTimer > 0f && e.bossFloor == 0) {   // 爪击弧
@@ -770,6 +771,7 @@ object EntityRenderer {
                         srcOffset = IntOffset(0, 0), srcSize = IntSize(fw, fh),
                         dstOffset = IntOffset((lx - dsize / 2).toInt(), (ly - dsize / 2 - 4).toInt()),
                         dstSize = IntSize(dsize, dsize),
+                        filterQuality = androidx.compose.ui.graphics.FilterQuality.None,
                     )
                 }
                 scope.drawCircle(accent, 3.5f, Offset(sx, sy - 32f))   // 职业色徽标

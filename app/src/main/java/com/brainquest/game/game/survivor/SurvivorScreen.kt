@@ -42,6 +42,27 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.ui.unit.sp
+import com.brainquest.game.game.dungeon.render.GameActionButton
+import com.brainquest.game.game.dungeon.render.GameBackdrop
+import com.brainquest.game.game.dungeon.render.GameDialog
+import com.brainquest.game.game.dungeon.render.GamePanel
+import com.brainquest.game.game.dungeon.render.GameUi
+import com.brainquest.game.game.dungeon.render.HudHpBar
+import com.brainquest.game.game.dungeon.render.HudStatChip
+import com.brainquest.game.game.dungeon.render.HudXpBar
+import com.brainquest.game.game.dungeon.render.ResultStat
+import com.brainquest.game.game.dungeon.render.RoundIconButton
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.util.Sfx
@@ -67,6 +88,8 @@ private data class Hud(
     val timeSec: Int,
     val kills: Int,
     val level: Int,
+    val hpFrac: Float,
+    val xpFrac: Float,
 )
 
 /** 迷你幸存者：左半屏摇杆移动，自动攻击最近敌人，杀敌拾取经验，升级三选一，活得越久越难 */
@@ -77,7 +100,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
 
     // 游戏实例全局唯一：重开用 game.start()（内部 reset），防止 pointerInput(Unit) 闭包绑到旧实例
     val game = remember { SurvivorGame() }
-    var hud by remember { mutableStateOf(Hud(SurvivorGame.Phase.READY, 0, 0, 1)) }
+    var hud by remember { mutableStateOf(Hud(SurvivorGame.Phase.READY, 0, 0, 1, 1f, 0f)) }
     var rewarded by remember { mutableStateOf(false) }
     var newRecord by remember { mutableStateOf(false) }
     var confirmExit by remember { mutableStateOf(false) }
@@ -93,7 +116,11 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 last = t
             }
             frame.intValue++
-            val h = Hud(game.phase, game.timeSec(), game.kills, game.level)
+            val h = Hud(
+                game.phase, game.timeSec(), game.kills, game.level,
+                game.hp / game.maxHp.coerceAtLeast(1f),
+                game.xp.toFloat() / game.xpNext.coerceAtLeast(1),
+            )
             if (h != hud) hud = h
         }
     }
@@ -218,167 +245,279 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 drawCircle(JOY_C, 26f, Offset(game.joyBaseX + game.joyX * joyMaxPx, game.joyBaseY + game.joyY * joyMaxPx))
             }
 
-            // HUD 数值条（左上：血条 + 经验条）
-            val barW = (size.width * 0.34f).coerceAtMost(340f)
-            drawRoundRect(BAR_BG, Offset(20f, 34f), Size(barW, 16f), CornerRadius(8f))
-            drawRoundRect(HP_C, Offset(20f, 34f), Size(barW * (game.hp / game.maxHp).coerceIn(0f, 1f), 16f), CornerRadius(8f))
-            drawRoundRect(BAR_BG, Offset(20f, 56f), Size(barW, 10f), CornerRadius(5f))
-            drawRoundRect(XP_C, Offset(20f, 56f), Size(barW * (game.xp.toFloat() / game.xpNext).coerceIn(0f, 1f), 10f), CornerRadius(5f))
         }
 
-        // ---------- HUD 文本与暂停 ----------
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "Lv.${hud.level}",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.weight(1f).padding(top = 10.dp),
-            )
-            Text(
-                "⏱ ${formatTime(hud.timeSec)}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "💀 ${hud.kills}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
-            OutlinedButton(
-                onClick = { game.pause() },
-                enabled = hud.phase == SurvivorGame.Phase.PLAYING,
-                modifier = Modifier.padding(start = 8.dp).height(40.dp),
-            ) { Text("⏸") }
-        }
-
-        // ---------- Ready ----------
-        if (hud.phase == SurvivorGame.Phase.READY) {
-            Column(
-                Modifier.fillMaxSize().background(Color(0xCC101826)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+        // ---------- HUD（批24：左上玩家面板 + 中央目标芯片 + 右上暂停） ----------
+        if (hud.phase == SurvivorGame.Phase.PLAYING) {
+            Row(
+                Modifier.fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.Top,
             ) {
-                Text("🧟 迷你幸存者", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(
-                    "左半屏摇杆移动 · 自动攻击 · 杀敌升级三选一",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFB0BEC5),
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                val best = player.bestScores["survivor_best"] ?: 0
-                Text(
-                    if (best > 0) "🏆 最高生存 $best 秒" else "还没有纪录，来活久一点！",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFFD54F),
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                Button(onClick = { game.start() }, modifier = Modifier.padding(top = 18.dp)) { Text("开始游戏") }
-                OutlinedButton(onClick = { nav.popBackStack() }, modifier = Modifier.padding(top = 8.dp)) { Text("返回") }
+                GamePanel(Modifier.width(220.dp), contentPadding = 9.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(36.dp)
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xFF2C3A56), Color(0xFF121826))),
+                                    CircleShape,
+                                )
+                                .border(1.5.dp, GameUi.Gold.copy(alpha = 0.8f), CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("Lv.${hud.level}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GameUi.Gold)
+                        }
+                        Column(Modifier.padding(start = 8.dp).weight(1f)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("生命", fontSize = 10.sp, color = GameUi.TextDim)
+                                Text("${(hud.hpFrac * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                            HudHpBar(hud.hpFrac, "", Modifier.fillMaxWidth().padding(top = 3.dp), height = 13.dp)
+                        }
+                    }
+                    HudXpBar(hud.xpFrac, Modifier.fillMaxWidth().padding(top = 5.dp), height = 4.dp)
+                }
+                Spacer(Modifier.width(10.dp))
+                Row(
+                    Modifier.padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    HudStatChip("⏱", formatTime(hud.timeSec), tint = GameUi.Cyan)
+                    HudStatChip("💀", "${hud.kills}", tint = GameUi.Hp)
+                }
+                Spacer(Modifier.weight(1f))
+                RoundIconButton("Ⅱ", onClick = { game.pause() }, size = 42.dp)
             }
         }
 
-        // ---------- LevelUp 三选一 ----------
+        // ---------- Ready（批24：场景背景 + 说明面板） ----------
+        if (hud.phase == SurvivorGame.Phase.READY) {
+            Box(Modifier.fillMaxSize()) {
+                GameBackdrop(accent = Color(0xFF4FC3F7))
+                Column(
+                    Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    GamePanel(Modifier.widthIn(max = 560.dp), accent = Color(0xFF4FC3F7), contentPadding = 20.dp) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🧟", fontSize = 30.sp)
+                            Column(Modifier.padding(start = 10.dp)) {
+                                Text(
+                                    "迷你幸存者",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                )
+                                Text("弹幕求生 · 杀敌升级 · 三选一", fontSize = 11.sp, color = GameUi.TextDim)
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        listOf(
+                            "🕹 左半屏拖动 = 移动，角色自动攻击最近敌人",
+                            "💀 击杀怪物拾取经验球，升级后三选一强化",
+                            "⏱ 活得越久，怪物越多越强",
+                        ).forEach {
+                            Text(it, style = MaterialTheme.typography.bodyMedium, color = GameUi.Text, modifier = Modifier.padding(vertical = 3.dp))
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            if ((player.bestScores["survivor_best"] ?: 0) > 0)
+                                "🏆 最高生存 ${player.bestScores["survivor_best"]} 秒 · 累计击杀 ${player.survivorTotalKills}"
+                            else "还没有纪录，来活久一点！",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = GameUi.Gold,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        GameActionButton(
+                            "开始游戏",
+                            onClick = { game.start() },
+                            accent = Color(0xFF4FC3F7),
+                            textColor = Color(0xFF06121A),
+                            height = 48.dp,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        GameActionButton(
+                            "返回",
+                            onClick = { nav.popBackStack() },
+                            primary = false,
+                            height = 40.dp,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+
+        // ---------- LevelUp 三选一（批24 卡牌化） ----------
         if (hud.phase == SurvivorGame.Phase.LEVELUP) {
-            Column(
-                Modifier.fillMaxSize().background(Color(0x99000000)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text("⬆️ 升级！选择一项强化", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
-                game.pendingUpgrades.forEach { up ->
-                    Card(
-                        onClick = { game.chooseUpgrade(up.id) },
-                        modifier = Modifier.fillMaxWidth(0.8f).padding(top = 10.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            Box(Modifier.fillMaxSize().background(Color(0xB305070C)), contentAlignment = Alignment.Center) {
+                Column(
+                    Modifier.padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("⬆️", fontSize = 26.sp)
+                        Column(Modifier.padding(start = 8.dp)) {
+                            Text(
+                                "升级！选择一项强化",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                            )
+                            Text("Lv.${hud.level} · 强化持续到本局结束", fontSize = 10.sp, color = GameUi.TextDim)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        Modifier.fillMaxWidth().widthIn(max = 780.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(up.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(up.desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        game.pendingUpgrades.forEachIndexed { idx, up ->
+                            GamePanel(Modifier.weight(1f), accent = GameUi.Xp, contentPadding = 16.dp) {
+                                Text("强化 0${idx + 1}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GameUi.Gold)
+                                Text(
+                                    up.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                                Text(up.desc, style = MaterialTheme.typography.bodySmall, color = GameUi.TextDim)
+                                Spacer(Modifier.height(12.dp))
+                                GameActionButton(
+                                    "选择",
+                                    onClick = { game.chooseUpgrade(up.id) },
+                                    accent = Color(0xFF4FC3F7),
+                                    textColor = Color(0xFF06121A),
+                                    height = 38.dp,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // ---------- Paused ----------
+        // ---------- Paused（批24 统一弹窗） ----------
         if (hud.phase == SurvivorGame.Phase.PAUSED) {
-            Column(
-                Modifier.fillMaxSize().background(Color(0x99000000)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text("⏸ 已暂停", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
-                Button(onClick = { game.resume() }, modifier = Modifier.padding(top = 16.dp).width(160.dp)) { Text("继续") }
-                OutlinedButton(
-                    onClick = { game.start() ; rewarded = false },
-                    modifier = Modifier.padding(top = 8.dp).width(160.dp),
-                ) { Text("重新开始") }
-                OutlinedButton(onClick = { confirmExit = true }, modifier = Modifier.padding(top = 8.dp).width(160.dp)) { Text("退出") }
+            GameDialog(title = "已暂停", accent = Color(0xFF4FC3F7), width = 380.dp) {
+                Text(
+                    "休息一下，怪物也停住了。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = GameUi.TextDim,
+                )
+                Spacer(Modifier.height(14.dp))
+                GameActionButton(
+                    "继续",
+                    onClick = { game.resume() },
+                    accent = Color(0xFF4FC3F7),
+                    textColor = Color(0xFF06121A),
+                    height = 44.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                GameActionButton(
+                    "重新开始",
+                    onClick = { game.start(); rewarded = false },
+                    primary = false,
+                    height = 40.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                GameActionButton(
+                    "退出",
+                    onClick = { confirmExit = true },
+                    primary = false,
+                    height = 40.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
 
-        // ---------- GameOver ----------
+        // ---------- GameOver（批24：结算统计格） ----------
         if (hud.phase == SurvivorGame.Phase.GAMEOVER) {
-            Column(
-                Modifier.fillMaxSize().background(Color(0xCC101826)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text("💀 游戏结束", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(
-                    "生存 ${formatTime(hud.timeSec)} · 击杀 ${hud.kills}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                if (newRecord) {
-                    Text("🎉 新纪录！", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F))
+            GameDialog(title = "💀 游戏结束", accent = GameUi.Hp, width = 480.dp) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (newRecord) {
+                        Text(
+                            "🎉 新纪录！",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = GameUi.Gold,
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ResultStat("⏱", formatTime(hud.timeSec), "生存时间", Modifier.weight(1f), GameUi.Cyan)
+                        ResultStat("💀", "${hud.kills}", "击杀", Modifier.weight(1f), GameUi.Hp)
+                        ResultStat("🏆", "${player.bestScores["survivor_best"] ?: 0}s", "最高纪录", Modifier.weight(1f), GameUi.Gold)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "累计击杀 ${player.survivorTotalKills}",
+                        fontSize = 10.sp,
+                        color = GameUi.TextDim,
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    GameActionButton(
+                        "重新开始",
+                        onClick = { rewarded = false; game.start() },
+                        accent = Color(0xFF4FC3F7),
+                        textColor = Color(0xFF06121A),
+                        height = 44.dp,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    GameActionButton(
+                        "返回应用",
+                        onClick = { nav.popBackStack() },
+                        primary = false,
+                        height = 40.dp,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-                Text(
-                    "🏆 最高生存 ${player.bestScores["survivor_best"] ?: 0} 秒 · 累计击杀 ${player.survivorTotalKills}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFB0BEC5),
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                Button(
-                    onClick = { rewarded = false; game.start() },
-                    modifier = Modifier.padding(top = 16.dp).width(160.dp),
-                ) { Text("重新开始") }
-                OutlinedButton(onClick = { nav.popBackStack() }, modifier = Modifier.padding(top = 8.dp).width(160.dp)) { Text("返回应用") }
             }
         }
 
-        // ---------- 返回确认 ----------
+        // ---------- 返回确认（批24 统一弹窗） ----------
         if (confirmExit) {
-            AlertDialog(
-                onDismissRequest = { confirmExit = false },
-                title = { Text("退出本局？") },
-                text = { Text("当前进度会正常结算（计最高纪录与奖励），是否返回大厅？") },
-                confirmButton = {
-                    Button(onClick = {
+            GameDialog(title = "退出本局？", accent = GameUi.Hp, width = 400.dp) {
+                Text(
+                    "当前进度会正常结算（计最高纪录与奖励），是否返回大厅？",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = GameUi.TextDim,
+                )
+                Spacer(Modifier.height(14.dp))
+                GameActionButton(
+                    "返回大厅",
+                    onClick = {
                         confirmExit = false
                         if (hud.phase == SurvivorGame.Phase.PLAYING || hud.phase == SurvivorGame.Phase.PAUSED) {
                             vm.addSurvivorResult(hud.timeSec, hud.kills)
                         }
                         nav.popBackStack()
-                    }) { Text("返回大厅") }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = {
+                    },
+                    accent = GameUi.Hp,
+                    height = 44.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                GameActionButton(
+                    "继续",
+                    onClick = {
                         confirmExit = false
                         if (hud.phase == SurvivorGame.Phase.PAUSED) game.resume()
-                    }) { Text("继续下") }
-                },
-            )
+                    },
+                    primary = false,
+                    height = 40.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
