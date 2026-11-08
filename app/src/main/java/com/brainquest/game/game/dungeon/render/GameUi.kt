@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -255,10 +257,24 @@ fun GameActionButton(
     textColor: Color = Color.White,
     enabled: Boolean = true,
     height: Dp = 52.dp,
+    pulse: Boolean = false,
 ) {
     val shape = RoundedCornerShape(14.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    // 批28：主 CTA 可选呼吸描边（唯一主按钮用；transition 无条件 hoist，坑21）
+    val pulseTr = rememberInfiniteTransition(label = "ctaPulse")
+    val pulseA by pulseTr.animateFloat(
+        0f, 1f,
+        infiniteRepeatable(tween(850, easing = androidx.compose.animation.core.EaseInOutSine)),
+        label = "ctaPulseA",
+    )
     Box(
         modifier
+            .graphicsLayer {
+                val s = if (pressed) 0.96f else 1f
+                scaleX = s; scaleY = s
+            }
             .height(height)
             .clip(shape)
             .background(
@@ -267,12 +283,15 @@ fun GameActionButton(
             )
             .border(
                 if (primary) 1.5.dp else 1.dp,
-                if (primary) Color.White.copy(alpha = 0.38f) else GameUi.BorderStrong,
+                if (primary) {
+                    // pulse=true 时白描边呼吸（0.15~0.55），仅主按钮读 pulseA，不触发逐帧重组
+                    Color.White.copy(alpha = if (pulse) 0.15f + 0.4f * pulseA else 0.38f)
+                } else GameUi.BorderStrong,
                 shape,
             )
             .clickable(
                 enabled = enabled,
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interaction,
                 indication = null,
                 onClick = onClick,
             )
@@ -656,13 +675,21 @@ fun GameBackdrop(modifier: Modifier = Modifier, accent: Color = GameUi.Gold) {
         for (row in 0..8) {
             drawLine(Color(0x0AFFFFFF), Offset(0f, row * size.height / 8f), Offset(size.width, row * size.height / 8f), 1f)
         }
-        // 两侧火把/法阵光晕
+        // 两侧火把/法阵光晕（批28：外移贴边+径向渐变柔化，不再压职业/模式卡，只做氛围）
         for (side in 0..1) {
-            val cx = if (side == 0) size.width * 0.14f else size.width * 0.86f
+            val cx = if (side == 0) size.width * 0.075f else size.width * 0.925f
+            val cy = size.height * 0.34f
             val flick = 0.7f + 0.3f * kotlin.math.sin(t * 1.7f + side * 2.1f)
-            drawCircle(accent.copy(alpha = 0.055f * flick), size.height * 0.30f, Offset(cx, size.height * 0.34f))
-            drawCircle(accent.copy(alpha = 0.10f * flick), size.height * 0.09f, Offset(cx, size.height * 0.34f))
-            drawCircle(accent.copy(alpha = 0.16f * flick), size.height * 0.035f, Offset(cx, size.height * 0.34f))
+            drawCircle(
+                Brush.radialGradient(
+                    listOf(accent.copy(alpha = 0.06f * flick), Color.Transparent),
+                    center = Offset(cx, cy),
+                    radius = size.height * 0.26f,
+                ),
+                size.height * 0.26f, Offset(cx, cy),
+            )
+            drawCircle(accent.copy(alpha = 0.08f * flick), size.height * 0.075f, Offset(cx, cy))
+            drawCircle(accent.copy(alpha = 0.13f * flick), size.height * 0.028f, Offset(cx, cy))
         }
         // 地面反光
         drawRect(

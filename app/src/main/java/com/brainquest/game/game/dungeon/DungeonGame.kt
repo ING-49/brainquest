@@ -154,6 +154,11 @@ class DungeonGame {
         lobbyClassId = ids[(i + dir + ids.size) % ids.size]
     }
 
+    /** 批28：王者式职业列表直选（点列表卡直接切换预览职业） */
+    fun setLobbyClass(id: String) {
+        if (ClassDef.ALL.any { it.id == id }) lobbyClassId = id
+    }
+
     fun startFromLobby() {
         if (phase != Phase.READY) return
         cls = ClassDef.byId(lobbyClassId)
