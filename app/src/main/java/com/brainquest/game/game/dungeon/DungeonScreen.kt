@@ -1325,7 +1325,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // ---------- 游戏大厅（批24 王者式：场景背景 + 顶部资源条 + 左导航 + 立绘展台 + 行动面板） ----------
+        // ---------- 游戏大厅（批27 游戏化重排：立绘大舞台 + 底部操控台[模式胶囊+大开始键]；开始键锚底，矮屏不再被裁） ----------
         if (hud.phase == DungeonGame.Phase.READY) {
             val lobbyCls = ClassDef.byId(hud.lobbyCls)
             // 图鉴只统计真实怪物键（答题事件会写入 QUIZ_* 标记，不能算进收藏）
@@ -1353,7 +1353,6 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     Text("ROGUELIKE · 每一次冒险，都是新的地牢", fontSize = 10.sp, color = GameUi.TextDim)
                 }
-                // 金币
                 Row(
                     Modifier.clip(RoundedCornerShape(11.dp)).background(Color(0xB30B1018))
                         .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(11.dp))
@@ -1369,7 +1368,6 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                // 图鉴进度（可点直达图鉴页；批26 左导航移除后这里是唯一入口）
                 Row(
                     Modifier.clip(RoundedCornerShape(11.dp)).background(Color(0xB30B1018))
                         .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(11.dp))
@@ -1388,164 +1386,173 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 Spacer(Modifier.width(8.dp))
                 RoundIconButton("⚙", onClick = { showSettings = true })
             }
-            // 主体三栏：左功能导航 | 角色展台 | 模式行动面板
-            Row(
-                Modifier.fillMaxSize().align(Alignment.Center)
+            // 主区：立绘舞台（弹性）→ 职业名牌 → 模式胶囊 → 天赋+大开始键 → 战绩，全部锚底不裁切
+            Column(
+                Modifier.fillMaxSize().align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                    .padding(start = 20.dp, end = 20.dp, top = 66.dp, bottom = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(start = 20.dp, end = 20.dp, top = 58.dp, bottom = 9.dp),
             ) {
-                // 角色展台：光环 + 立绘 + 悬浮切换 + 底部信息卡
-                Box(Modifier.weight(0.44f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Canvas(Modifier.fillMaxSize()) {
                         val cx = size.width / 2f
-                        val cy = size.height * 0.42f
+                        val cy = size.height * 0.66f
                         val t = animT.floatValue
                         val breath = 0.5f + 0.5f * kotlin.math.sin(t * 1.6f)
-                        // 地面光环（落在立绘脚下、信息卡上方的空档）
                         drawOval(
                             androidx.compose.ui.graphics.Brush.radialGradient(
-                                listOf(Color(lobbyCls.accentColor).copy(alpha = 0.22f + 0.10f * breath), Color.Transparent),
-                                center = Offset(cx, cy + size.height * 0.18f),
-                                radius = size.width * 0.36f,
+                                listOf(Color(lobbyCls.accentColor).copy(alpha = 0.24f + 0.10f * breath), Color.Transparent),
+                                center = Offset(cx, cy),
+                                radius = size.width * 0.30f,
                             ),
-                            topLeft = Offset(cx - size.width * 0.36f, cy + size.height * 0.10f),
-                            size = Size(size.width * 0.72f, size.height * 0.16f),
+                            topLeft = Offset(cx - size.width * 0.30f, cy - size.height * 0.10f),
+                            size = Size(size.width * 0.60f, size.height * 0.20f),
                         )
-                        // 上下两道职业色环，构成立绘展台
                         drawOval(
-                            Color(lobbyCls.accentColor).copy(alpha = 0.30f),
-                            topLeft = Offset(cx - size.width * 0.26f, cy + size.height * 0.13f),
-                            size = Size(size.width * 0.52f, size.height * 0.12f),
+                            Color(lobbyCls.accentColor).copy(alpha = 0.32f),
+                            topLeft = Offset(cx - size.width * 0.20f, cy - size.height * 0.055f),
+                            size = Size(size.width * 0.40f, size.height * 0.11f),
                             style = Stroke(2f),
                         )
                         drawOval(
-                            Color(lobbyCls.accentColor).copy(alpha = 0.14f),
-                            topLeft = Offset(cx - size.width * 0.32f, cy + size.height * 0.10f),
-                            size = Size(size.width * 0.64f, size.height * 0.17f),
+                            Color(lobbyCls.accentColor).copy(alpha = 0.15f),
+                            topLeft = Offset(cx - size.width * 0.26f, cy - size.height * 0.075f),
+                            size = Size(size.width * 0.52f, size.height * 0.15f),
                             style = Stroke(4f),
                         )
                     }
                     Canvas(Modifier.fillMaxSize()) {
+                        // 立绘按舞台高度自适应缩放（矮屏自动缩小，永不溢出）
+                        val k = ((size.height * 0.60f) / 170f).coerceIn(0.9f, 1.9f)
                         EntityRenderer.drawPortrait(
                             this, lobbyCls,
-                            size.width / 2f, size.height * 0.40f, 1.5f, animT.floatValue,
+                            size.width / 2f, size.height * 0.42f, k, animT.floatValue,
                         )
                     }
                     RoundIconButton(
                         "◀",
                         onClick = { game.cycleClass(-1) },
-                        size = 42.dp,
+                        size = 44.dp,
                         modifier = Modifier.align(Alignment.CenterStart).padding(start = 2.dp),
                     )
                     RoundIconButton(
                         "▶",
                         onClick = { game.cycleClass(1) },
-                        size = 42.dp,
+                        size = 44.dp,
                         modifier = Modifier.align(Alignment.CenterEnd).padding(end = 2.dp),
                     )
-                    GamePanel(
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(0.96f),
-                        contentPadding = 12.dp,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                lobbyCls.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                            )
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                "基础职业",
-                                fontSize = 9.sp,
-                                color = GameUi.TextDim,
-                                modifier = Modifier.clip(RoundedCornerShape(6.dp))
-                                    .background(Color(0x1FFFFFFF)).padding(horizontal = 7.dp, vertical = 2.dp),
-                            )
-                        }
+                }
+                // 职业名牌（不再压住立绘，舞台下方独立一行）
+                GamePanel(
+                    Modifier.fillMaxWidth(0.82f).align(Alignment.CenterHorizontally),
+                    accent = Color(lobbyCls.accentColor),
+                    contentPadding = 10.dp,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            lobbyCls.desc,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = GameUi.TextDim,
-                            modifier = Modifier.padding(top = 2.dp),
-                        )
-                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            MiniStat("❤", "${lobbyCls.maxHp}", GameUi.Hp)
-                            MiniStat("⚔", "${lobbyCls.attack}", GamePalette.UI_GOLD)
-                            MiniStat("👟", "${lobbyCls.speed.toInt()}", GameUi.Cyan)
-                            MiniStat("⚡", "${lobbyCls.attackInterval}s", GameUi.Xp)
-                        }
-                        Text(
-                            "${lobbyCls.passiveName} · 技能：${lobbyCls.skillName}",
-                            fontSize = 10.sp,
-                            color = Color(0xFF78909C),
-                            modifier = Modifier.padding(top = 6.dp),
+                            lobbyCls.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
                             maxLines = 1,
                         )
+                        Text(
+                            "  ${lobbyCls.desc}",
+                            fontSize = 9.sp,
+                            color = GameUi.TextDim,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        MiniStat("❤", "${lobbyCls.maxHp}", GameUi.Hp)
+                        MiniStat("⚔", "${lobbyCls.attack}", GamePalette.UI_GOLD)
+                        MiniStat("👟", "${lobbyCls.speed.toInt()}", GameUi.Cyan)
+                        MiniStat("⚡", "${lobbyCls.attackInterval}s", GameUi.Xp)
+                        Text(
+                            "${lobbyCls.passiveName} · 技能:${lobbyCls.skillName}",
+                            fontSize = 9.sp,
+                            color = Color(0xFF78909C),
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
-                Spacer(Modifier.width(16.dp))
-                // 右栏行动面板
-                Column(Modifier.weight(0.56f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                    GamePanel(Modifier.fillMaxWidth(), accent = GamePalette.UI_GOLD, contentPadding = 14.dp) {
-                        PanelTitle("选择模式", "四种玩法 · 随时切换")
-                        Spacer(Modifier.height(9.dp))
-                        val modes = listOf(
-                            Triple("🗡️", "标准 · 5 层", "经典闯关，层层深入") to "standard",
-                            Triple("♾️", "无尽 · 无限", "看你能撑到第几层") to "endless",
-                            Triple("👑", "魔王连战", "全程 Boss 车轮战") to "bossrush",
-                            Triple("⚔️", "角斗场", "无尽波次生存挑战") to "arena",
-                        )
-                        modes.chunked(2).forEach { rowModes ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                rowModes.forEach { (info, id) ->
-                                    val (icon, name, desc) = info
-                                    ModeCard(
-                                        icon = icon,
-                                        title = name,
-                                        desc = desc,
-                                        selected = hud.mode == id,
-                                        onClick = { game.setRunMode(id) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                }
-                                if (rowModes.size < 2) Spacer(Modifier.weight(1f))
-                            }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        GameActionButton(
-                            "⭐ 天赋养成",
-                            onClick = { nav.navigate(com.brainquest.game.ui.Routes.TALENTS) },
-                            primary = false,
-                            height = 42.dp,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        GameActionButton(
-                            "▶  开始冒险",
-                            onClick = {
-                                game.pendingPerks = player.dungeonPerks
-                                game.startFromLobby()
-                            },
-                            accent = Color(0xFF7C4DFF),
-                            height = 56.dp,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(Modifier.height(9.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("🏆 通关 ${player.dungeonWins} 次", fontSize = 10.sp, color = GameUi.TextDim)
-                            Text("最高 ${player.bestScores["dungeon_floor"] ?: 0} 层", fontSize = 10.sp, color = GameUi.TextDim)
-                            Text("击杀 ${player.totalDungeonKills}", fontSize = 10.sp, color = GameUi.TextDim)
+                Spacer(Modifier.height(9.dp))
+                // 模式选择：四枚胶囊（横排，选中金亮）
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    val modes = listOf(
+                        Triple("🗡️", "标准", "standard"),
+                        Triple("♾️", "无尽", "endless"),
+                        Triple("👑", "魔王连战", "bossrush"),
+                        Triple("⚔️", "角斗场", "arena"),
+                    )
+                    modes.forEach { (icon, name, id) ->
+                        val sel = hud.mode == id
+                        Row(
+                            Modifier.weight(1f)
+                                .clip(RoundedCornerShape(11.dp))
+                                .background(if (sel) Color(0x2EFFD54F) else Color(0x14FFFFFF))
+                                .border(1.2.dp, if (sel) GamePalette.UI_GOLD else Color(0x1FFFFFFF), RoundedCornerShape(11.dp))
+                                .clickable(
+                                    interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
+                                    indication = null,
+                                    onClick = { game.setRunMode(id) },
+                                )
+                                .padding(vertical = 9.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(icon, fontSize = 13.sp)
+                            Text(
+                                name,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (sel) GamePalette.UI_GOLD else GameUi.Text,
+                                maxLines = 1,
+                                modifier = Modifier.padding(start = 4.dp),
+                            )
                         }
                     }
                 }
+                Spacer(Modifier.height(9.dp))
+                // 行动行：天赋 + 大开始键（主操作最大最亮，锚底永不消失）
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    GameActionButton(
+                        "⭐ 天赋",
+                        onClick = { nav.navigate(com.brainquest.game.ui.Routes.TALENTS) },
+                        primary = false,
+                        height = 54.dp,
+                        modifier = Modifier.width(118.dp),
+                    )
+                    GameActionButton(
+                        "▶  开始冒险",
+                        onClick = {
+                            game.pendingPerks = player.dungeonPerks
+                            game.startFromLobby()
+                        },
+                        accent = Color(0xFF7C4DFF),
+                        height = 58.dp,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Text(
+                    "🏆 通关 ${player.dungeonWins} 次 · 最高 ${player.bestScores["dungeon_floor"] ?: 0} 层 · 累计击杀 ${player.totalDungeonKills}",
+                    fontSize = 9.sp,
+                    color = GameUi.TextFaint,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
+                )
             }
             GameVignette()
         }
+
         // ---------- 职业选择（批24：三张职业卡 + 场景背景，替换默认 M3 卡片） ----------
         if (hud.phase == DungeonGame.Phase.CLASS_SELECT) {
             Box(Modifier.fillMaxSize()) {
