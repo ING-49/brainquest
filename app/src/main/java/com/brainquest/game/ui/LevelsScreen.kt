@@ -1,11 +1,13 @@
 package com.brainquest.game.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -70,53 +73,82 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // 批25：2 列网格（10 科一屏半看完，替代旧版单列长列表）；预计算解锁状态不变
         LazyColumn(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(subjectRows.size) { idx ->
-                val (subject, unlocked, cleared) = subjectRows[idx]
-                val key = subjectKey(subject)
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = unlocked) { nav.navigate(Routes.levels(key)) },
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (unlocked) MaterialTheme.colorScheme.surfaceContainerLow
-                        else MaterialTheme.colorScheme.surfaceContainerLowest,
-                    ),
-                ) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
+            items(subjectRows.chunked(2).size) { rowIdx ->
+                val rowSubjects = subjectRows.chunked(2)[rowIdx]
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    rowSubjects.forEach { (subject, unlocked, cleared) ->
+                        val key = subjectKey(subject)
+                        val shape = RoundedCornerShape(14.dp)
+                        Column(
                             Modifier
-                                .size(46.dp)
+                                .weight(1f)
+                                .clip(shape)
                                 .background(
-                                    if (unlocked) subjectColor(subject).copy(alpha = 0.16f)
-                                    else MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(12.dp),
-                                ),
-                            contentAlignment = Alignment.Center,
+                                    if (unlocked) subjectColor(subject).copy(alpha = 0.08f)
+                                    else MaterialTheme.colorScheme.surfaceContainerLowest,
+                                    shape,
+                                )
+                                .border(
+                                    1.dp,
+                                    if (unlocked) subjectColor(subject).copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                    shape,
+                                )
+                                .clickable(enabled = unlocked) { nav.navigate(Routes.levels(key)) }
+                                .padding(12.dp),
                         ) {
-                            Text(
-                                if (unlocked) Subjects.emoji(subject) else "🔒",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = if (unlocked) subjectColor(subject) else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text(subject, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(
-                                if (unlocked) Subjects.desc(subject) else "先在前一科目通过 2 关解锁",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("$cleared/8", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                            Text("关卡", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    Modifier
+                                        .size(38.dp)
+                                        .background(
+                                            if (unlocked) subjectColor(subject).copy(alpha = 0.16f)
+                                            else MaterialTheme.colorScheme.surfaceVariant,
+                                            RoundedCornerShape(10.dp),
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        if (unlocked) Subjects.emoji(subject) else "🔒",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = if (unlocked) subjectColor(subject) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Column(Modifier.weight(1f).padding(start = 9.dp)) {
+                                    Text(subject, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    Text(
+                                        if (unlocked) "${Subjects.desc(subject)}" else "前一科通过 2 关解锁",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                    )
+                                }
+                            }
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    if (unlocked) "开始冒险" else "未解锁",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (unlocked) subjectColor(subject) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    "★$cleared/8",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (cleared >= 2) Color(0xFFF9A825) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
+                    repeat(2 - rowSubjects.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }

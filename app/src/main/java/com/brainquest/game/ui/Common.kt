@@ -112,7 +112,7 @@ fun XpBar(xp: Int, modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("Lv.$level ${"小勇者"}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Text("Lv.$level", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             Text("$cur / $need EXP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         BqProgressBar(
