@@ -1369,10 +1369,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                // 图鉴进度
+                // 图鉴进度（可点直达图鉴页；批26 左导航移除后这里是唯一入口）
                 Row(
                     Modifier.clip(RoundedCornerShape(11.dp)).background(Color(0xB30B1018))
                         .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(11.dp))
+                        .clickable { showIndex = true }
                         .padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -1391,24 +1392,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             Row(
                 Modifier.fillMaxSize().align(Alignment.Center)
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                    .padding(start = 16.dp, end = 18.dp, top = 70.dp, bottom = 12.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 66.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(
-                    Modifier.fillMaxHeight(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        LobbyNavItem("🛒", "商城", onClick = { vm.toast("🚧 局外商城即将开放") })
-                        LobbyNavItem("👥", "好友", onClick = { vm.toast("🚧 好友系统即将开放") })
-                        LobbyNavItem("📖", "图鉴", active = seenCount > 0, onClick = { showIndex = true })
-                        LobbyNavItem("📬", "邮件", onClick = { vm.toast("🚧 邮件系统即将开放") })
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
                 // 角色展台：光环 + 立绘 + 悬浮切换 + 底部信息卡
-                Box(Modifier.weight(0.40f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                Box(Modifier.weight(0.44f).fillMaxHeight(), contentAlignment = Alignment.Center) {
                     Canvas(Modifier.fillMaxSize()) {
                         val cx = size.width / 2f
                         val cy = size.height * 0.42f
@@ -1441,7 +1429,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     Canvas(Modifier.fillMaxSize()) {
                         EntityRenderer.drawPortrait(
                             this, lobbyCls,
-                            size.width / 2f, size.height * 0.40f, 1.28f, animT.floatValue,
+                            size.width / 2f, size.height * 0.40f, 1.5f, animT.floatValue,
                         )
                     }
                     RoundIconButton(
@@ -1499,7 +1487,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 }
                 Spacer(Modifier.width(16.dp))
                 // 右栏行动面板
-                Column(Modifier.weight(0.60f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+                Column(Modifier.weight(0.56f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                     GamePanel(Modifier.fillMaxWidth(), accent = GamePalette.UI_GOLD, contentPadding = 14.dp) {
                         PanelTitle("选择模式", "四种玩法 · 随时切换")
                         Spacer(Modifier.height(9.dp))
@@ -2275,12 +2263,20 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         // ---------- ⚙ 地牢设置面板（批24：三列紧凑布局，横屏一屏放下） ----------
         if (showSettings) {
             val ctx = context
+            // 批26：这些设置存 SharedPreferences，直读不触发重组——本地状态镜像，点击立即刷新
+            var dmgNum by remember { mutableStateOf(DungeonSettings.damageNumbers(ctx)) }
+            var fpsOn by remember { mutableStateOf(DungeonSettings.fpsVisible(ctx)) }
+            var spritesOn by remember { mutableStateOf(DungeonSettings.useSprites(ctx)) }
+            var critZoomOn by remember { mutableStateOf(DungeonSettings.critZoom(ctx)) }
+            var shakeLvl by remember { mutableIntStateOf(DungeonSettings.shakeLevel(ctx)) }
+            var particleLvl by remember { mutableIntStateOf(DungeonSettings.particleDensity(ctx)) }
             GameDialog(
                 title = "⚙ 地牢设置",
                 accent = GameUi.Cyan,
                 onDismiss = { showSettings = false },
                 width = 800.dp,
             ) {
+                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     // 第一列：声音
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -2311,17 +2307,17 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     // 第二列：画面反馈
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("画面反馈", fontSize = 10.sp, color = GamePalette.UI_GOLD, fontWeight = FontWeight.Bold)
-                        ToggleSwitchRow("🔢 伤害数字", DungeonSettings.damageNumbers(ctx), onToggle = {
-                            DungeonSettings.setDamageNumbers(ctx, it)
+                        ToggleSwitchRow("🔢 伤害数字", dmgNum, onToggle = {
+                            DungeonSettings.setDamageNumbers(ctx, it); dmgNum = it
                         })
-                        ToggleSwitchRow("📈 显示帧率", DungeonSettings.fpsVisible(ctx), onToggle = {
-                            DungeonSettings.setFpsVisible(ctx, it)
+                        ToggleSwitchRow("📈 显示帧率", fpsOn, onToggle = {
+                            DungeonSettings.setFpsVisible(ctx, it); fpsOn = it
                         })
-                        ToggleSwitchRow("🧩 精灵图渲染", DungeonSettings.useSprites(ctx), onToggle = {
-                            DungeonSettings.setUseSprites(ctx, it)
+                        ToggleSwitchRow("🧩 精灵图渲染", spritesOn, onToggle = {
+                            DungeonSettings.setUseSprites(ctx, it); spritesOn = it
                         })
-                        ToggleSwitchRow("🔍 暴击画面缩放", DungeonSettings.critZoom(ctx), onToggle = {
-                            DungeonSettings.setCritZoom(ctx, it)
+                        ToggleSwitchRow("🔍 暴击画面缩放", critZoomOn, onToggle = {
+                            DungeonSettings.setCritZoom(ctx, it); critZoomOn = it
                         })
                     }
                     // 第三列：手感 / 性能
@@ -2339,8 +2335,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                                 listOf("关" to 0, "弱" to 1, "强" to 2).forEach { (label, v) ->
                                     ChoicePill(
                                         label,
-                                        selected = DungeonSettings.shakeLevel(ctx) == v,
-                                        onClick = { DungeonSettings.setShakeLevel(ctx, v) },
+                                        selected = shakeLvl == v,
+                                        onClick = { DungeonSettings.setShakeLevel(ctx, v); shakeLvl = v },
                                         accent = GamePalette.UI_GOLD,
                                     )
                                 }
@@ -2358,8 +2354,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                                 listOf("低" to 0, "中" to 1, "高" to 2).forEach { (label, v) ->
                                     ChoicePill(
                                         label,
-                                        selected = DungeonSettings.particleDensity(ctx) == v,
-                                        onClick = { DungeonSettings.setParticleDensity(ctx, v) },
+                                        selected = particleLvl == v,
+                                        onClick = { DungeonSettings.setParticleDensity(ctx, v); particleLvl = v },
                                         accent = GameUi.Xp,
                                     )
                                 }
@@ -2381,6 +2377,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                             color = GameUi.TextFaint,
                         )
                     }
+                }
                 }
             }
         }
