@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.data.Items
@@ -168,26 +169,28 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // ---------- 游戏中心：统一 2 列网格 ----------
+        // ---------- 游戏中心（批29 层级化：双主角大卡 + 次级迷你磁贴，主次分明强化视觉动线） ----------
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("🎮 游戏中心", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             Text("6 款玩法 · 1 款联机", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GameTile("⚔️", "速算英雄", "答题战斗闯关", { nav.navigate(Routes.SUBJECTS) }, modifier = Modifier.weight(1f))
-            GameTile("🧱", "华容道", "滑动移块救曹操", { nav.navigate(Routes.KLOTSKI) }, modifier = Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GameTile("⚫", "五子棋", "挑战电脑棋力", { nav.navigate(Routes.GOMOKU) }, modifier = Modifier.weight(1f))
-            GameTile("🐍", "贪吃蛇", "滑动吃豆变长", { nav.navigate(Routes.SNAKE) }, modifier = Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GameTile(
-                "🏰", "地牢幸存者", "职业装备 · 四模式",
-                { nav.navigate(Routes.DUNGEON) },
-                accent = Color(0xFF7C4DFF), badge = "新", modifier = Modifier.weight(1f),
+            FeaturedGameCard(
+                icon = "⚔️", name = "速算英雄", desc = "答题战斗 · 10 科闯关",
+                tag = "核心玩法", accent = MaterialTheme.colorScheme.primary,
+                onClick = { nav.navigate(Routes.SUBJECTS) }, modifier = Modifier.weight(1f),
             )
-            GameTile("🧟", "迷你幸存者", "弹幕求生三选一", { nav.navigate(Routes.SURVIVOR) }, accent = Color(0xFF2E7D32), modifier = Modifier.weight(1f))
+            FeaturedGameCard(
+                icon = "🏰", name = "地牢幸存者", desc = "职业装备 · 四模式",
+                tag = "新玩法", accent = Color(0xFF7C4DFF),
+                onClick = { nav.navigate(Routes.DUNGEON) }, modifier = Modifier.weight(1f),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MiniGameTile("🧱", "华容道", { nav.navigate(Routes.KLOTSKI) }, Modifier.weight(1f))
+            MiniGameTile("⚫", "五子棋", { nav.navigate(Routes.GOMOKU) }, Modifier.weight(1f))
+            MiniGameTile("🐍", "贪吃蛇", { nav.navigate(Routes.SNAKE) }, Modifier.weight(1f))
+            MiniGameTile("🧟", "迷你幸存者", { nav.navigate(Routes.SURVIVOR) }, Modifier.weight(1f))
         }
         // 联机对战：全宽横条
         FeatureBanner(
@@ -294,55 +297,80 @@ private fun DailyMini(
     }
 }
 
-/** 游戏入口磁贴：图标磁贴 + 名称/描述（+强调色/角标），全部入口统一形态 */
+/** 主角游戏大卡（批29）：竖排图标+角标+名称/描述+开始暗示，游戏中心唯二强调入口 */
 @Composable
-private fun GameTile(
+private fun FeaturedGameCard(
     icon: String,
     name: String,
     desc: String,
+    tag: String?,
+    accent: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    accent: Color? = null,
-    badge: String? = null,
 ) {
-    val shape = RoundedCornerShape(14.dp)
-    Box(
+    val shape = RoundedCornerShape(16.dp)
+    Column(
         modifier
-            .height(66.dp)
             .clip(shape)
-            .background(
-                if (accent != null) Brush.horizontalGradient(listOf(accent.copy(alpha = 0.14f), MaterialTheme.colorScheme.surfaceContainerLow))
-                else Brush.horizontalGradient(listOf(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.colorScheme.surfaceContainerLow)),
-            )
-            .border(1.dp, accent?.copy(alpha = 0.5f) ?: Color.Transparent, shape)
+            .background(Brush.verticalGradient(listOf(accent.copy(alpha = 0.22f), accent.copy(alpha = 0.08f))))
+            .border(1.2.dp, accent.copy(alpha = 0.55f), shape)
             .clickable { onClick() }
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.CenterStart,
+            .padding(horizontal = 13.dp, vertical = 11.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(42.dp).clip(RoundedCornerShape(11.dp))
-                    .background(
-                        if (accent != null) accent.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceContainerHighest,
-                    ),
+                Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)).background(accent.copy(alpha = 0.20f)),
                 contentAlignment = Alignment.Center,
-            ) { Text(icon, style = MaterialTheme.typography.headlineSmall) }
-            Column(Modifier.padding(start = 10.dp).weight(1f)) {
-                Text(name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(desc, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-            }
-            if (badge != null) {
+            ) { Text(icon, fontSize = 22.sp) }
+            if (tag != null) {
                 Text(
-                    badge,
+                    tag,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    modifier = Modifier.clip(RoundedCornerShape(7.dp))
-                        .background(accent ?: MaterialTheme.colorScheme.primary)
+                    modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(7.dp))
+                        .background(accent)
                         .padding(horizontal = 7.dp, vertical = 2.dp),
                 )
             }
         }
+        Text(
+            name,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 9.dp),
+        )
+        Text(desc, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        Text(
+            "开始 ›",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = accent,
+            modifier = Modifier.padding(top = 5.dp),
+        )
+    }
+}
+
+/** 次级游戏迷你磁贴（批29）：图标+名称竖排、无渐变弱化，让位主角大卡 */
+@Composable
+private fun MiniGameTile(icon: String, name: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickable { onClick() }
+            .padding(vertical = 9.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(icon, fontSize = 20.sp)
+        Text(
+            name,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 3.dp),
+        )
     }
 }
 
