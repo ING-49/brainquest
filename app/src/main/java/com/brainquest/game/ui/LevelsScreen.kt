@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,6 +49,9 @@ private fun subjectColor(subject: String): Color = when (subject) {
     else -> Color(0xFF607D8B)
 }
 
+/** 批30：继续冒险目标（key/科目名/关卡/已通关数） */
+private data class ContinueTarget(val key: String, val subject: String, val level: Int, val cleared: Int)
+
 /** 科目选择（闯关地图） */
 @Composable
 fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
@@ -66,6 +70,30 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
         }
     }
 
+    // 批30：继续冒险目标（同样预计算）——取「有进度且未通关」的最后一个已解锁科目里
+    // 第一关未通关的关卡（前一关必已拿星，故必定已解锁）；零进度新手回退到第一个可玩关；
+    // 全部通关则两者皆 null
+    val cont = remember(player.levelStars) {
+        var best: ContinueTarget? = null
+        var first: ContinueTarget? = null
+        var prev = true
+        Subjects.all.forEach { subject ->
+            val key = subjectKey(subject)
+            val cleared = (1..8).count { (player.levelStars["${key}_$it"] ?: 0) > 0 }
+            val unlocked = prev
+            prev = prev && cleared >= 2
+            if (unlocked) {
+                val nextLevel = (1..8).firstOrNull { (player.levelStars["${key}_$it"] ?: 0) == 0 }
+                if (nextLevel != null) {
+                    val t = ContinueTarget(key, subject, nextLevel, cleared)
+                    if (first == null) first = t
+                    if (cleared > 0) best = t
+                }
+            }
+        }
+        best ?: first
+    }
+
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("🗺️ 闯关地图", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(
@@ -73,6 +101,47 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // 批30：继续冒险主 CTA（页面唯一主按钮，一键直达上次进度关卡）
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.82f)),
+                    ),
+                )
+                .clickable {
+                    if (cont != null) nav.navigate(Routes.battle(cont.key, cont.level))
+                    else nav.navigate(Routes.levels(subjectKey(Subjects.all.first())))
+                }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(42.dp).background(Color.White.copy(alpha = 0.22f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { Text("▶", color = Color.White) }
+            Column(Modifier.weight(1f).padding(start = 11.dp)) {
+                Text(
+                    if (cont != null) {
+                        if (cont.level == 8) "继续冒险 · BOSS 战" else "继续冒险 · 第 ${cont.level} 关"
+                    } else "🏆 全部通关！重温冒险",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                )
+                Text(
+                    if (cont != null) "${cont.subject} · ${cont.cleared}/8 已通关" else "再去第一科刷新纪录吧",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.85f),
+                    maxLines = 1,
+                )
+            }
+            Text("›", style = MaterialTheme.typography.titleLarge, color = Color.White)
+        }
         // 批25：2 列网格（10 科一屏半看完，替代旧版单列长列表）；预计算解锁状态不变
         LazyColumn(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
