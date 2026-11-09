@@ -19,6 +19,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 SDK = os.environ.get("ANDROID_HOME", r"E:/Tools/Android-Studio/Android/SDK")
 APKS = os.path.join(ROOT, "apks")
 PATCHES = os.path.join(ROOT, "patches")
+STAGE = os.path.join(ROOT, "stage.json")
 PACKS = os.path.join(ROOT, "packs")
 SRC = os.path.join(PACKS, "src")
 
@@ -131,8 +132,24 @@ def signer_sha(path):
     return "unknown"
 
 
+def load_stage_baseline():
+    """阶段基线（stage.json）：本阶段只对「基线及之后」的版本生成增量补丁。
+
+    大更新 = 新阶段：把 stage.json 的 baselineVersionCode/baselineVersionName
+    改成该版本，之后各版本只补基线以来的链（基线前旧版用户走全量 APK）。
+    stage.json 缺失时回退「只补紧邻上一个版本」（不再生成全历史链）。
+    返回 (baseline_code 或 None, baseline_name)。
+    """
+    try:
+        with open(STAGE, encoding="utf-8") as f:
+            s = json.load(f)
+        return int(s["baselineVersionCode"]), str(s.get("baselineVersionName", ""))
+    except Exception:
+        return None, ""
+
+
 def build_patch(manifest):
-    """多版本补丁链：为 apks/ 中每个签名兼容、版本更老的历史 APK 生成 →最新版 的补丁。
+    """阶段制补丁链：仅为「阶段基线及之后」的签名兼容历史 APK 生成 →最新版 的补丁。
     跨签名（如 debug→release 迁移）自动跳过，只登记全量。
     """
     all_apks = []
@@ -155,10 +172,20 @@ def build_patch(manifest):
     manifest["fullApk"] = f"apks/{os.path.basename(new_path)}"
     manifest["fullApkSha256"] = sha256(new_path)
 
+    base_code, base_name = load_stage_baseline()
+    if base_code is None:
+        # 无 stage.json：只补紧邻上一个版本
+        base_code = all_apks[-2][0] if len(all_apks) >= 2 else code_n
+        base_name = f"上一个版本(code={base_code})"
+
     patches = []
+    skipped = 0
     for code_o, name_o, old_path in all_apks[:-1]:
         if code_o >= code_n:
             print(f"[patch] 跳过 {name_o}：版本不比最新旧")
+            continue
+        if code_o < base_code:
+            skipped += 1
             continue
         sig_o = signer_sha(old_path)
         if sig_o != sig_n:
@@ -186,7 +213,8 @@ def build_patch(manifest):
                         "sha256": sha256(patch_path), "size": len(data)})
         print(f"[patch] v{name_o}(code={code_o})→v{name_n}: {len(data)/1024:.1f} KB")
     manifest["patches"] = sorted(patches, key=lambda p: p["from"])
-    print(f"[patch] 补丁链共 {len(manifest['patches'])} 条（覆盖 v1.1.1+ 全部正式签名版本）")
+    print(f"[patch] 阶段制：基线 {base_name}，跳过基线前旧版 {skipped} 个（走全量）")
+    print(f"[patch] 本阶段补丁链共 {len(manifest['patches'])} 条")
 
 def main():
     ap = argparse.ArgumentParser()

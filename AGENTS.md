@@ -28,11 +28,13 @@ adb shell am start -n com.brainquest.game/.MainActivity
 # 截图验证
 adb exec-out screencap -p > screen.png
 
-# 发版三步（详见 docs/PLAYBOOK.md）
-# 1) app/build.gradle.kts 版本号+1 → gradlew assembleDebug
+# 发版四步（详见 docs/PLAYBOOK.md；v1.6.59 起差分改【阶段制】，基线在 update-server/stage.json）
+# 1) app/build.gradle.kts 版本号+1 → gradlew clean assembleDebug
 #    → cp app/build/outputs/apk/debug/app-debug.apk update-server/apks/BrainQuest-v<版本>.apk
-# 2) cd update-server && python release.py        # 差分+manifest+自校验
+# 2) cd update-server && python release.py        # 阶段制：只补基线(stage.json)以来版本，不再全历史链
 # 3) GH_EXE=E:/Tools/gh-cli/bin/gh.exe python tools/publish_github.py
+# 4) scp update-server/manifest.json root@<PK_HOST>:/opt/pk/manifest.json   # 坑39，漏了联机全挂
+# 大更新=新阶段：把 update-server/stage.json 的 baselineVersionCode/Name 改成该版本（旧版用户走全量）
 ```
 
 - GitHub 仓库：https://github.com/ING-49/brainquest （public）
@@ -60,7 +62,7 @@ adb exec-out screencap -p > screen.png
 | `tools/klotski_anim_check.py` | 华容道拖动跟手/过阈值滑行/精确落格/步数取证 |
 | `tools/gomoku_undo_check.py` | 五子棋悔棋语义（回到我落子之前）+ 思考期取消 + 返回确认 |
 | `tools/_oneshot/` | ⛔ 历史一次性改写脚本（20 个），改动已并入源码，**勿重跑**（会二次改写源码/题库） |
-| `update-server/release.py` | 一键：打内容包 + BQDELTA1 差分 + manifest + 合成自校验 |
+| `update-server/release.py` | 一键：打内容包 + BQDELTA1 差分 + manifest + 合成自校验（**阶段制**：只对 `stage.json` 基线及之后版本生成补丁；大更新=新阶段时改基线） |
 | `update-server/delta.py` | 自研差分编码器（滚动哈希块匹配，numpy 加速） |
 | `启动更新服务器.bat` | 本地静态服务器（自动显示局域网 IP，供真机同 Wi-Fi 更新） |
 

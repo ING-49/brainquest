@@ -22,14 +22,17 @@
         → tools/autoplay.py 自动答题回归 → tools/update_demo.py 更新回归
    ↓
 【发版】① build.gradle.kts versionCode+1 / versionName 升级
-        ② gradlew assembleDebug → cp APK 到 update-server/apks/BrainQuest-v<ver>.apk
+        ② gradlew clean assembleDebug → cp APK 到 update-server/apks/BrainQuest-v<ver>.apk
         ③ cd update-server && python release.py
            （打内容包 zip + 生成 BQDELTA1 差分 + manifest.json + 合成自校验）
+           ★阶段制（v1.6.59 起）：只对 stage.json 基线及之后版本出补丁（1~N 条，
+             不再全历史 70+ 条）；大更新=新阶段时改 stage.json 的 baselineVersionCode/Name
         ④ python tools/publish_github.py
            （创建 GitHub Release + 上传资产 + latest 地址自校验）
+        ⑤ scp update-server/manifest.json root@<PK_HOST>:/opt/pk/manifest.json（坑39）
    ↓
 【分发】App 内「设置 → 检查更新」→ 增量补丁（几百 KB）→ 合成 → 签名校验 → 系统安装
-        全量兜底：manifest 无匹配补丁时自动走全量下载
+        全量兜底：manifest 无匹配补丁时自动走全量下载（基线前旧版即走这条路）
 ```
 
 ### 关键地址
@@ -133,12 +136,14 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 ## 五、发版检查单
 
 - [ ] `app/build.gradle.kts` versionCode +1、versionName 升级
-- [ ] `gradlew assembleDebug` 成功
+- [ ] `gradlew clean assembleDebug` 成功（clean 防 zipflinger 虚高，坑22）
 - [ ] APK 复制到 `update-server/apks/BrainQuest-v<版本>.apk`
-- [ ] `python release.py`（正常结束并出现 `[pack]`/`[patch]`/`[manifest]` 前缀，如 `[patch] 补丁链共 N 条` 与 `[manifest] 已生成 manifest.json`；**没有 `[verify]` 这个字样**）
+- [ ] `python release.py`（正常结束并出现 `[pack]`/`[patch]`/`[manifest]` 前缀；阶段制输出为 `[patch] 阶段制：基线 …，跳过基线前旧版 N 个` 与 `[patch] 本阶段补丁链共 N 条`，以及 `[manifest] 已生成 manifest.json`；**没有 `[verify]` 这个字样**）
 - [ ] `python tools/publish_github.py`（末尾出现 `✓ GitHub 托管生效`）
 - [ ] 浏览器验证 `releases/latest/download/manifest.json` 指向新版本
+- [ ] 独立读线核对：`gh api releases/latest` 的 tag、APK digest（坑34/37）
 - [ ] 真机/模拟器实际走一次「检查更新 → 增量更新」
+- [ ] scp manifest 上 PK 服务器（坑39，漏了联机全挂）
 - [ ] git commit + push
 
 ## 五之一、出题规则热更（gen_rules.json）
