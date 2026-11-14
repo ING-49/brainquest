@@ -2,9 +2,15 @@ package com.brainquest.game.ui.meta
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -14,6 +20,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
@@ -36,12 +44,14 @@ fun DailyScreen(vm: AppViewModel, nav: NavHostController) {
                 onBack = { nav.popBackStack() },
                 subtitle = "$modeText · 连续 ${player.dailyStreak} 天 · 今日${if (vm.isDailyDone()) "已完成" else "待挑战"}",
             )
-            androidx.compose.material3.Card(
-                modifier = Modifier.padding(top = 16.dp),
-                onClick = { started = true },
+            // 批33：启动卡=信息+动机预告+主按钮形态（设计说明 §5——主 CTA 必须有按钮形态，
+            // 不能整卡可点了事；奖励预告+streak 是本页的动机钩子）
+            Card(
+                modifier = Modifier.padding(top = 16.dp).fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
             ) {
-                Column(Modifier.padding(24.dp)) {
-                    Text("开始今天的 10 道混合题", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
+                Column(Modifier.padding(20.dp)) {
+                    Text("开始今天的 10 道混合题", style = androidx.compose.material3.MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
                         if (player.hardMode) "🎓 考研模式：大学科目高难题（高数/线代/概率/高频/通信）"
                         else "🌱 入门模式：数学口算 / 逻辑 / 英语 / 科学 / 编程（难度 2）",
@@ -49,17 +59,46 @@ fun DailyScreen(vm: AppViewModel, nav: NavHostController) {
                         modifier = Modifier.padding(top = 6.dp),
                     )
                     Text(
-                        "可在「设置 → 大学考研模式」切换难度范围",
+                        "✨ 完成即得金币与每日任务进度",
                         style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                         color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = 6.dp),
                     )
+                    if (player.dailyStreak > 0) {
+                        Text(
+                            "🔥 已连续挑战 ${player.dailyStreak} 天，今天别断",
+                            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE65100),
+                            modifier = Modifier.padding(top = 3.dp),
+                        )
+                    }
                     if (player.hardMode) {
                         androidx.compose.material3.OutlinedButton(
                             onClick = { nav.navigate(com.brainquest.game.ui.Routes.PAPERS) },
                             modifier = Modifier.padding(top = 8.dp),
                         ) { Text("📄 真题试卷（历年真题精选，含解析）") }
                     }
+                    Button(
+                        onClick = { started = true },
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFFB300),
+                            contentColor = Color(0xFF3E2723),
+                        ),
+                    ) {
+                        Text(
+                            if (vm.isDailyDone()) "今日已完成 · ▶ 再练一轮" else "▶ 开始挑战",
+                            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Text(
+                        "可在「设置 → 大学考研模式」切换难度范围",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
                 }
             }
         }

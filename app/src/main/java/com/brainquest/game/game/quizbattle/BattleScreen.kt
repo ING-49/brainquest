@@ -248,8 +248,7 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                 height = 10.dp,
             )
             Text("❤️ ${battle.playerHp}", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.size(8.dp))
-            com.brainquest.game.ui.CoinText(player.coins, style = MaterialTheme.typography.labelLarge)
+            // 批33：金币撤出战斗页（金币与战斗决策无关=噪声，见设计说明 §4）
         }
 
         // 伤害飘字
