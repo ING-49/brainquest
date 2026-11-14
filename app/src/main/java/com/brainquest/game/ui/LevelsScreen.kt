@@ -329,6 +329,7 @@ fun LevelListScreen(vm: AppViewModel, nav: NavHostController, subject: String) {
                         .pressScale(lvInteraction, 0.98f),
                     enabled = unlocked,
                     interactionSource = lvInteraction,
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isNext) 8.dp else 0.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = when {
                             isNext -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)

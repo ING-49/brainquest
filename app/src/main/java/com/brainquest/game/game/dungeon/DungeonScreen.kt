@@ -52,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.drawscope.translate
@@ -1432,6 +1433,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                                     val s = if (clsPressed) 0.97f else 1f
                                     scaleX = s; scaleY = s
                                 }
+                                .shadow(if (sel) 6.dp else 0.dp, RoundedCornerShape(12.dp))
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(
                                     if (sel) androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(accent.copy(alpha = 0.28f), accent.copy(alpha = 0.10f)))
@@ -1587,6 +1589,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                                     val s = if (modePressed) 0.97f else 1f
                                     scaleX = s; scaleY = s
                                 }
+                                .shadow(if (sel) 6.dp else 0.dp, RoundedCornerShape(12.dp))
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(
                                     if (sel) androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0x38FFD54F), Color(0x14FFD54F)))

@@ -49,6 +49,7 @@ fun DailyScreen(vm: AppViewModel, nav: NavHostController) {
             Card(
                 modifier = Modifier.padding(top = 16.dp).fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
             ) {
                 Column(Modifier.padding(20.dp)) {
                     Text("开始今天的 10 道混合题", style = androidx.compose.material3.MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

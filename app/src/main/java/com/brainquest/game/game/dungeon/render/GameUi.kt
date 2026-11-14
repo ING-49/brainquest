@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -91,6 +92,8 @@ fun GamePanel(
 ) {
     Column(
         modifier
+            // 批35：面板投影——面板=浮在场景之上的前景层（页面纵深统一语言）
+            .shadow(8.dp, shape)
             .clip(shape)
             .background(Brush.verticalGradient(listOf(GameUi.PanelTop, GameUi.PanelBottom)))
             .border(1.dp, if (accent != null) accent.copy(alpha = 0.45f) else GameUi.Border, shape)
@@ -276,6 +279,7 @@ fun GameActionButton(
                 scaleX = s; scaleY = s
             }
             .height(height)
+            .shadow(if (primary) 6.dp else 3.dp, shape)
             .clip(shape)
             .background(
                 if (primary) Brush.verticalGradient(listOf(accent, accent.copy(alpha = 0.72f)))
