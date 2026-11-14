@@ -217,6 +217,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     // 批34：玩家火把光 Brush 缓存（玩家移动每 ~48px 重建一次，避免逐帧分配）
     val torchHolder = remember { arrayOfNulls<androidx.compose.ui.graphics.Brush>(1) }
     val torchKey = remember { intArrayOf(0, 0) }
+    // 批36：Y-sort 复用缓冲（避免逐帧分配）
+    val ysortBuf = remember { ArrayList<com.brainquest.game.game.core.CombatEngine.Enemy>(48) }
     val vignetteSize = remember { floatArrayOf(0f, 0f) }
     // 升级反馈：全屏白光 + 面板弹性放大
     val lvlScale = remember { androidx.compose.animation.core.Animatable(1f) }
@@ -622,8 +624,21 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             EntityRenderer.drawDrops(this, game, t)
             EntityRenderer.drawCoins(this, game, t)
             val spritesOn = DungeonSettings.useSprites(context)
-            for (e in game.engine.enemies) EntityRenderer.drawEnemy(this, game, e, t, spritesOn)
-            EntityRenderer.drawPlayer(this, game, t, DungeonSettings.useSprites(context))
+            // 批36：Y-sort（画家算法）——玩家与敌人按"脚底"y 排序后统一绘制，谁靠下谁后画=谁在前。
+            // 修复：此前敌人按列表顺序、玩家永远最后 → 玩家走到敌人上方时错误盖住敌人（遮挡关系错乱）
+            ysortBuf.clear()
+            for (e in game.engine.enemies) ysortBuf.add(e)
+            ysortBuf.sortBy { it.y + it.r }
+            val playerFootY = game.engine.py + 16f
+            var playerDrawn = false
+            for (e in ysortBuf) {
+                if (!playerDrawn && playerFootY <= e.y + e.r) {
+                    EntityRenderer.drawPlayer(this, game, t, spritesOn)
+                    playerDrawn = true
+                }
+                EntityRenderer.drawEnemy(this, game, e, t, spritesOn)
+            }
+            if (!playerDrawn) EntityRenderer.drawPlayer(this, game, t, spritesOn)
             // 锁定目标金色标记（头顶）
             game.engine.aimTarget?.let { at ->
                 if (at.alive) {
