@@ -98,6 +98,19 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     val context = LocalContext.current
 
+    // 批38：沉浸全屏（批37 地牢屏同款）——横屏游戏页隐藏系统栏，离开自动恢复
+    val dndView = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(dndView) {
+        val window = (dndView.context as? android.app.Activity)?.window
+        val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, dndView) }
+        controller?.systemBarsBehavior =
+            androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        onDispose {
+            controller?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
     // 游戏实例全局唯一：重开用 game.start()（内部 reset），防止 pointerInput(Unit) 闭包绑到旧实例
     val game = remember { SurvivorGame() }
     var hud by remember { mutableStateOf(Hud(SurvivorGame.Phase.READY, 0, 0, 1, 1f, 0f)) }
