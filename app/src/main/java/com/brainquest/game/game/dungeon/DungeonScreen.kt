@@ -1376,6 +1376,23 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         color = Color(0xFF90A4AE).copy(alpha = a),
                         modifier = Modifier.padding(top = 10.dp),
                     )
+                    // 批40：开局天赋生效提示（局外成长的局内直接反馈；仅第1层过场显示）
+                    if (hud.floor + 1 == 1) {
+                        val tGold = 30 * (game.pendingPerks["gold"] ?: 0)
+                        val tBonus = "生命+" + (8 * (game.pendingPerks["hp"] ?: 0)) +
+                            " 攻击+" + (1 * (game.pendingPerks["atk"] ?: 0)) +
+                            " 移速+" + (4f * (game.pendingPerks["spd"] ?: 0)).toInt() +
+                            " 暴击+" + (3 * (game.pendingPerks["crit"] ?: 0)) + "%"
+                        if (tBonus != "生命+0 攻击+0 移速+0 暴击+0%" || tGold > 0) {
+                            Text(
+                                "⭐ 天赋生效：$tBonus" + if (tGold > 0) " · 开局+$tGold💰" else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = GamePalette.UI_GOLD.copy(alpha = a),
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1383,6 +1400,18 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         // ---------- 游戏大厅（批28 王者式骨架：左职业列表直选 | 中立绘大舞台 | 右模式卡列+右下大开始键） ----------
         if (hud.phase == DungeonGame.Phase.READY) {
             val lobbyCls = ClassDef.byId(hud.lobbyCls)
+            // 批40：局外成长可见——名牌/左卡显示含天赋的实际值（此前只显示职业基础值，买了天赋在大厅毫无反馈）。
+            // 用 player.dungeonPerks（响应式）而非 game.pendingPerks（后者只在点开始时同步，大厅渲染时为空）
+            val perks = player.dungeonPerks
+            val bHp = 8 * (perks["hp"] ?: 0)
+            val bAtk = 1 * (perks["atk"] ?: 0)
+            val bSpd = (4f * (perks["spd"] ?: 0)).toInt()
+            val bCrit = 3 * (perks["crit"] ?: 0)
+            val bGold = 30 * (perks["gold"] ?: 0)
+            val hasBonus = bHp + bAtk + bSpd + bCrit + bGold > 0
+            val effHp = lobbyCls.maxHp + bHp
+            val effAtk = lobbyCls.attack + bAtk
+            val effSpd = (lobbyCls.speed + 4f * (perks["spd"] ?: 0)).toInt()
             // 图鉴只统计真实怪物键（答题事件会写入 QUIZ_* 标记，不能算进收藏）
             val seenCount = player.seenMonsters.count { !it.startsWith("QUIZ_") }.coerceAtMost(11)
             val seenTotal = 11
@@ -1492,7 +1521,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                                     maxLines = 1,
                                 )
                                 Text(
-                                    "❤${c.maxHp} 🗡️${c.attack}",
+                                    "❤${c.maxHp + bHp} 🗡️${c.attack + bAtk}",   // 批40：含天赋实际值
                                     fontSize = 8.sp,
                                     color = GameUi.TextDim,
                                     maxLines = 1,
@@ -1575,9 +1604,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp),
                         ) {
-                            MiniStat("❤", "${lobbyCls.maxHp}", GameUi.Hp)
-                            MiniStat("🗡️", "${lobbyCls.attack}", GamePalette.UI_GOLD)
-                            MiniStat("👟", "${lobbyCls.speed.toInt()}", GameUi.Cyan)
+                            MiniStat("❤", "$effHp", GameUi.Hp)
+                            MiniStat("🗡️", "$effAtk", GamePalette.UI_GOLD)
+                            MiniStat("👟", "$effSpd", GameUi.Cyan)
                             MiniStat("⚡", "${lobbyCls.attackInterval}s", GameUi.Xp)
                             Text(
                                 "${lobbyCls.passiveName} · 技能:${lobbyCls.skillName}",
@@ -1585,6 +1614,17 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                                 color = Color(0xFF78909C),
                                 maxLines = 1,
                                 modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (hasBonus) {
+                            // 批40：天赋加成行（金币→天赋→变强的闭环，在大厅可见）
+                            Text(
+                                "⭐ 天赋加成: 生命+$bHp 攻击+$bAtk 移速+$bSpd 暴击+$bCrit%" + if (bGold > 0) " · 开局金币+$bGold" else "",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GamePalette.UI_GOLD,
+                                maxLines = 1,
+                                modifier = Modifier.padding(top = 4.dp),
                             )
                         }
                     }
