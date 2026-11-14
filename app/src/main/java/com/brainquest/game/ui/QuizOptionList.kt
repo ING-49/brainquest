@@ -4,8 +4,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,11 +50,6 @@ fun QuizOptionList(
         if (i !in eliminated || revealed) {
             val isCorrect = revealed && i == answer
             val isWrongPick = revealed && i == chosen && chosen != answer
-            val accent = when {
-                isCorrect -> GREEN
-                isWrongPick -> RED
-                else -> Color.Unspecified
-            }
             Card(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 colors = CardDefaults.cardColors(
@@ -68,17 +67,36 @@ fun QuizOptionList(
                 enabled = enabled && !revealed,
                 onClick = { onChoose(i) },
             ) {
-                Row(Modifier.padding(12.dp)) {
-                    Text(
-                        "${'A' + i}. ",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = accent,
-                    )
+                Row(Modifier.padding(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    // 批31：字母圆徽章（对=绿底/错=红底/待选=主色淡底），替代裸 "A." 前缀
+                    Box(
+                        Modifier
+                            .size(26.dp)
+                            .background(
+                                when {
+                                    isCorrect -> GREEN
+                                    isWrongPick -> RED
+                                    else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                },
+                                RoundedCornerShape(999.dp),
+                            ),
+                        contentAlignment = androidx.compose.ui.Alignment.Center,
+                    ) {
+                        Text(
+                            "${'A' + i}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                isCorrect -> Color.White
+                                isWrongPick -> Color.White
+                                else -> MaterialTheme.colorScheme.primary
+                            },
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
                     FormulaText(
                         opt,
                         style = MaterialTheme.typography.titleMedium,
-                        color = accent,
                         formula = formula,
                         modifier = Modifier.weight(1f),
                     )

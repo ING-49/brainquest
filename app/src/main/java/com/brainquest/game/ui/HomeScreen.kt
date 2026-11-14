@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -94,7 +96,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                     Column(Modifier.padding(start = 12.dp).weight(1f)) {
                         Text("你好，${player.nickname}！", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text(
-                            "Lv.${levelForXp(player.xp)} · 连续挑战 ${player.dailyStreak} 天",
+                            if (player.dailyStreak > 0) "🔥 连续挑战 ${player.dailyStreak} 天" else "Lv.${levelForXp(player.xp)} · 今天也来答几题吧",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -158,6 +160,11 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                                     if (vm.claimDailyTask(def.id) > 0) Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.COIN)
                                 },
                                 enabled = done,
+                                // 批31：可领取态金亮（领取是强反馈时刻，别和普通按钮一个颜色）
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFFB300),
+                                    contentColor = Color(0xFF3E2723),
+                                ),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                                 modifier = Modifier.padding(start = 10.dp).height(30.dp),
                             ) {
@@ -200,9 +207,9 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
 
         // ---------- 功能入口 ----------
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FuncChip("📖", "错题本", player.wrongBook.size.takeIf { it > 0 }?.toString(), { nav.navigate(Routes.WRONGBOOK) }, modifier = Modifier.weight(1f))
-            FuncChip("🛒", "商店", null, { nav.navigate(Routes.SHOP) }, modifier = Modifier.weight(1f))
-            FuncChip("🏅", "成就", player.achievements.size.takeIf { it > 0 }?.toString(), { nav.navigate(Routes.ACHIEVEMENTS) }, modifier = Modifier.weight(1f))
+            FuncChip("📖", "错题本", player.wrongBook.size.takeIf { it > 0 }?.toString(), { nav.navigate(Routes.WRONGBOOK) }, modifier = Modifier.weight(1f), tint = Color(0xFFC62828))
+            FuncChip("🛒", "商店", null, { nav.navigate(Routes.SHOP) }, modifier = Modifier.weight(1f), tint = Color(0xFFFFB300))
+            FuncChip("🏅", "成就", player.achievements.size.takeIf { it > 0 }?.toString(), { nav.navigate(Routes.ACHIEVEMENTS) }, modifier = Modifier.weight(1f), tint = MaterialTheme.colorScheme.primary)
         }
 
         // ---------- 我的道具（紧凑） ----------
@@ -270,7 +277,15 @@ private fun DailyMini(
                     else -> Brush.horizontalGradient(listOf(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.colorScheme.surfaceContainerLow))
                 },
             )
-            .border(1.dp, if (highlight && !done) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent, shape)
+            .border(
+                1.3.dp,
+                when {
+                    done -> Color(0xFF2E7D32).copy(alpha = 0.45f)
+                    highlight -> MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                    else -> Color.Transparent
+                },
+                shape,
+            )
             .clickable { onClick() }
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.CenterStart,
@@ -278,7 +293,13 @@ private fun DailyMini(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    .background(
+                        when {
+                            done -> Color(0xFF2E7D32).copy(alpha = 0.12f)
+                            highlight -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                            else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                        },
+                    ),
                 contentAlignment = Alignment.Center,
             ) { Text(icon, style = MaterialTheme.typography.titleMedium) }
             Column(Modifier.padding(start = 10.dp).weight(1f)) {
@@ -291,7 +312,13 @@ private fun DailyMini(
                 )
             }
             if (done) {
-                Text("✓", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                Text(
+                    "✓",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.clip(CircleShape).background(Color(0xFF2E7D32)).padding(horizontal = 7.dp, vertical = 2.dp),
+                )
             }
         }
     }
@@ -408,8 +435,9 @@ private fun FeatureBanner(
 }
 
 /** 功能入口等宽按钮（错题本/商店/成就） */
+/** 功能入口等宽按钮（错题本/商店/成就）；批31 tint 彩底图标，弱化但仍有识别度 */
 @Composable
-private fun FuncChip(icon: String, label: String, count: String?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun FuncChip(icon: String, label: String, count: String?, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color? = null) {
     val shape = RoundedCornerShape(12.dp)
     Row(
         modifier
@@ -422,7 +450,11 @@ private fun FuncChip(icon: String, label: String, count: String?, onClick: () ->
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        Text(icon, style = MaterialTheme.typography.titleSmall)
+        Box(
+            Modifier.size(28.dp).clip(RoundedCornerShape(8.dp))
+                .background(tint?.copy(alpha = 0.14f) ?: MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
+        ) { Text(icon, fontSize = 14.sp) }
         Text(
             label,
             style = MaterialTheme.typography.labelLarge,

@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.data.question.Subjects
@@ -120,9 +121,14 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.size(42.dp).background(Color.White.copy(alpha = 0.22f), CircleShape),
+                Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    // 批31：金色渐变播放钮——全卡唯一暖色焦点，视线先落这里
+                    .background(Brush.verticalGradient(listOf(Color(0xFFFFC94D), Color(0xFFF9A825))))
+                    .border(1.5.dp, Color.White.copy(alpha = 0.55f), CircleShape),
                 contentAlignment = Alignment.Center,
-            ) { Text("▶", color = Color.White) }
+            ) { Text("▶", color = Color.White, fontSize = 16.sp) }
             Column(Modifier.weight(1f).padding(start = 11.dp)) {
                 Text(
                     if (cont != null) {
@@ -201,18 +207,41 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
                                 Modifier.fillMaxWidth().padding(top = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text(
-                                    if (unlocked) "开始冒险" else "未解锁",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (unlocked) subjectColor(subject) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.weight(1f),
-                                )
+                                if (unlocked) {
+                                    // 批31：科目色实心胶囊 CTA，替代裸文本
+                                    Text(
+                                        "开始冒险",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .background(subjectColor(subject))
+                                            .padding(horizontal = 9.dp, vertical = 3.dp),
+                                    )
+                                } else {
+                                    Text(
+                                        "未解锁",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Spacer(Modifier.weight(1f))
                                 Text(
                                     "★$cleared/8",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = if (cleared >= 2) Color(0xFFF9A825) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (unlocked) {
+                                // 批31：星级进度条（视觉量化闯关进度，替代纯数字）
+                                BqProgressBar(
+                                    progress = cleared / 8f,
+                                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                    height = 5.dp,
+                                    color = subjectColor(subject),
                                 )
                             }
                         }
@@ -240,24 +269,50 @@ fun LevelListScreen(vm: AppViewModel, nav: NavHostController, subject: String) {
             Triple(level, unlocked, stars)
         }
     }
+    // 批31：下一个要打的关卡 = 第一个已解锁未通关（高亮「进行中」）
+    val nextLevel = levelRows.firstOrNull { it.second && it.third == 0 }?.first
+    val clearedCount = levelRows.count { it.third > 0 }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         PageHeader(subject, onBack = { nav.popBackStack() }, subtitle = Subjects.desc(subject))
+        // 批31：科目通关进度条（header 直接量化全科进度）
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            BqProgressBar(
+                progress = clearedCount / 8f,
+                modifier = Modifier.weight(1f),
+                height = 6.dp,
+                color = subjectColor(subject),
+            )
+            Text(
+                " $clearedCount/8",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = subjectColor(subject),
+            )
+        }
         LazyColumn(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(levelRows.size) { idx ->
                 val (level, unlocked, stars) = levelRows[idx]
                 val isBoss = level == 8
+                val isNext = unlocked && level == nextLevel
 
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(enabled = unlocked) { nav.navigate(Routes.battle(key, level)) },
+                        .clickable(enabled = unlocked) { nav.navigate(Routes.battle(key, level)) }
+                        .then(
+                            // 批31：下一关主色描边 + 轻微上浮，视觉引导「打这个」
+                            if (isNext) Modifier.border(1.8.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)) else Modifier,
+                        ),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (unlocked) MaterialTheme.colorScheme.surfaceContainerLow
-                        else MaterialTheme.colorScheme.surfaceContainerLowest,
+                        containerColor = when {
+                            isNext -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                            unlocked -> MaterialTheme.colorScheme.surfaceContainerLow
+                            else -> MaterialTheme.colorScheme.surfaceContainerLowest
+                        },
                     ),
                 ) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -292,11 +347,25 @@ fun LevelListScreen(vm: AppViewModel, nav: NavHostController, subject: String) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        Text(
-                            starText(stars),
-                            color = Color(0xFFFFB300),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                        if (isNext) {
+                            // 批31：进行中徽章
+                            Text(
+                                "▶ 进行中",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .padding(horizontal = 9.dp, vertical = 3.dp),
+                            )
+                        } else {
+                            Text(
+                                starText(stars),
+                                color = Color(0xFFFFB300),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
                     }
                 }
             }

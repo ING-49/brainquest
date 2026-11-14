@@ -3,8 +3,10 @@ package com.brainquest.game.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import com.brainquest.game.data.levelForXp
@@ -58,9 +62,9 @@ fun PageHeader(title: String, onBack: () -> Unit, subtitle: String = "") {
     }
 }
 
-/** 统计卡：三层结构（图标 / 数值 / 文字），数值单行不折行 */
+/** 统计卡：三层结构（图标 / 数值 / 文字），数值单行不折行；批31 tint 上色（图标彩底圆 + 数值同色） */
 @Composable
-fun StatChip(emoji: String, label: String, value: String, modifier: Modifier = Modifier) {
+fun StatChip(emoji: String, label: String, value: String, modifier: Modifier = Modifier, tint: Color? = null) {
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -69,8 +73,18 @@ fun StatChip(emoji: String, label: String, value: String, modifier: Modifier = M
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(emoji, style = MaterialTheme.typography.titleLarge)
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+            Box(
+                Modifier.size(30.dp).clip(CircleShape)
+                    .background(tint?.copy(alpha = 0.14f) ?: MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) { Text(emoji, fontSize = 14.sp) }
+            Text(
+                value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = tint ?: MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+            )
             Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
@@ -102,7 +116,7 @@ fun CoinText(
     }
 }
 
-/** 玩家等级经验条 */
+/** 玩家等级经验条（批31：Lv 徽章药丸化，强化等级身份感） */
 @Composable
 fun XpBar(xp: Int, modifier: Modifier = Modifier) {
     val level = levelForXp(xp)
@@ -110,9 +124,23 @@ fun XpBar(xp: Int, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Lv.$level", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Text(
+                "Lv.$level",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)),
+                        ),
+                    )
+                    .padding(horizontal = 8.dp, vertical = 1.dp),
+            )
+            Spacer(Modifier.weight(1f))
             Text("$cur / $need EXP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         BqProgressBar(
@@ -149,13 +177,23 @@ fun BqProgressBar(
     }
 }
 
-/** 圆形 emoji 头像 */
+/** 圆形 emoji 头像（批31：渐变光环描边，身份更聚焦） */
 @Composable
 fun AvatarBadge(avatar: String, size: Int = 56) {
     Box(
         modifier = Modifier
             .size(size.dp)
-            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+            .border(
+                2.5.dp,
+                Brush.linearGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.tertiary,
+                    ),
+                ),
+                CircleShape,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -195,7 +233,19 @@ fun SectionCard(title: String, modifier: Modifier = Modifier, content: @Composab
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(Modifier.padding(14.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // 批31：标题 accent 竖条，统一段落视觉语言
+                Box(
+                    Modifier.size(width = 3.dp, height = 15.dp)
+                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)),
+                )
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 7.dp),
+                )
+            }
             content()
         }
     }

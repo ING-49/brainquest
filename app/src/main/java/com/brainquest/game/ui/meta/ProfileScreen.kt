@@ -1,6 +1,7 @@
 package com.brainquest.game.ui.meta
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,10 +44,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.ui.Routes
@@ -121,10 +124,11 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            StatChip("🎯", "答对", "${player.totalCorrect}", Modifier.weight(1f))
-            StatChip("💥", "答错", "${player.totalWrong}", Modifier.weight(1f))
-            StatChip("📈", "正确率", "${(player.accuracy * 100).toInt()}%", Modifier.weight(1f))
-            StatChip("⭐", "星星", "${player.totalStars}", Modifier.weight(1f))
+            // 批31：语义色上色——对=绿 错=红 率=蓝 星=金
+            StatChip("🎯", "答对", "${player.totalCorrect}", Modifier.weight(1f), tint = Color(0xFF2E7D32))
+            StatChip("💥", "答错", "${player.totalWrong}", Modifier.weight(1f), tint = Color(0xFFC62828))
+            StatChip("📈", "正确率", "${(player.accuracy * 100).toInt()}%", Modifier.weight(1f), tint = Color(0xFF1976D2))
+            StatChip("⭐", "星星", "${player.totalStars}", Modifier.weight(1f), tint = Color(0xFFFFB300))
         }
 
         // 本周学习（最近 7 天答题柱状）
@@ -154,27 +158,42 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.Bottom,
             ) {
-                weekBars.forEach { (label, correct, total) ->
+                weekBars.forEachIndexed { idx, (label, correct, total) ->
+                    val isToday = idx == weekBars.lastIndex
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             Modifier
                                 .fillMaxWidth(0.55f)
                                 .height((8 + 52f * correct / maxBar).dp)
                                 .background(
-                                    MaterialTheme.colorScheme.primary,
+                                    if (isToday && correct > 0) {
+                                        Brush.verticalGradient(listOf(Color(0xFFFFB300), Color(0xFFF9A825)))
+                                    } else {
+                                        androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary)
+                                    },
                                     androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                                )
+                                // 批31：今日柱金亮 + 描边，「今天」有存在感
+                                .then(
+                                    if (isToday && correct > 0) Modifier.border(1.2.dp, Color(0xFFF9A825), androidx.compose.foundation.shape.RoundedCornerShape(4.dp)) else Modifier,
                                 ),
                         )
-                        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isToday) FontWeight.Bold else null,
+                            color = if (isToday) Color(0xFFF9A825) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
         }
 
-        MenuCard("🏅 成就墙", "已解锁 ${player.achievements.size} 个成就") { nav.navigate(Routes.ACHIEVEMENTS) }
-        MenuCard("📖 错题本", "${player.wrongBook.count { !it.mastered }} 道待复习") { nav.navigate(Routes.WRONGBOOK) }
-        MenuCard("🛒 商店", "道具 · 主题 · 头像") { nav.navigate(Routes.SHOP) }
-        MenuCard("⚙️ 设置与更新", "音效 · 震动 · 热更新 · APK升级") { nav.navigate(Routes.SETTINGS) }
+        // 批31：每行独立主题色（成就金 / 错题红 / 商店琥珀 / 设置蓝灰）
+        MenuCard("🏅", "成就墙", "已解锁 ${player.achievements.size} 个成就", Color(0xFFFFB300)) { nav.navigate(Routes.ACHIEVEMENTS) }
+        MenuCard("📖", "错题本", "${player.wrongBook.count { !it.mastered }} 道待复习", Color(0xFFC62828)) { nav.navigate(Routes.WRONGBOOK) }
+        MenuCard("🛒", "商店", "道具 · 主题 · 头像", Color(0xFFF9A825)) { nav.navigate(Routes.SHOP) }
+        MenuCard("⚙️", "设置与更新", "音效 · 震动 · 热更新 · APK升级", Color(0xFF546E7A)) { nav.navigate(Routes.SETTINGS) }
 
         if (showAvatarPicker) {
             // Q 版头像需拥有才能选（kawaii_0 为体验款人人可用），其余可在商店购入
@@ -365,14 +384,19 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
     }
 }
 
+/** 菜单卡（批31：emoji 彩底方 tile，行首有锚点不再是一行灰字） */
 @Composable
-private fun MenuCard(title: String, subtitle: String, onClick: () -> Unit) {
+private fun MenuCard(emoji: String, title: String, subtitle: String, tint: Color, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
+            Box(
+                Modifier.size(38.dp).background(tint.copy(alpha = 0.13f), androidx.compose.foundation.shape.RoundedCornerShape(10.dp)),
+                contentAlignment = androidx.compose.ui.Alignment.Center,
+            ) { Text(emoji, fontSize = 18.sp) }
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

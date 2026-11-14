@@ -334,8 +334,9 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                         GameActionButton(
                             "开始游戏",
                             onClick = { game.start() },
-                            accent = Color(0xFF4FC3F7),
-                            textColor = Color(0xFF06121A),
+                            // 批31：主按钮加深蓝提高对比（原浅蓝底深字发灰）
+                            accent = Color(0xFF0288D1),
+                            textColor = Color.White,
                             height = 48.dp,
                             modifier = Modifier.fillMaxWidth(),
                         )
