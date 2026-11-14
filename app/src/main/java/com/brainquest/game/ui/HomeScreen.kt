@@ -82,6 +82,8 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
 
     val checkedIn = player.lastCheckIn == vm.today()
     val dailyDone = vm.isDailyDone()
+    // 批39：艾宾浩斯今日到期数（学习闭环显性化——错题到期才上主页，不到期不打扰）
+    val dueReview = remember(player.wrongBook) { vm.dueReviewQuestions().size }
 
     Column(
         modifier = Modifier
@@ -217,6 +219,30 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
+        // ---------- 今日复习（批39：到期才出现——艾宾浩斯队列上主页，学习价值显性化） ----------
+        if (dueReview > 0) {
+            Row(
+                Modifier.fillMaxWidth().enterStagger(3)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFFC62828).copy(alpha = 0.13f), MaterialTheme.colorScheme.surfaceContainerLow)))
+                    .border(1.dp, Color(0xFFC62828).copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                    .clickable { nav.navigate(Routes.WRONGBOOK) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(34.dp).clip(RoundedCornerShape(9.dp))
+                        .background(Color(0xFFC62828).copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
+                ) { Text("📅", fontSize = 16.sp) }
+                Column(Modifier.weight(1f).padding(start = 9.dp)) {
+                    Text("今日待复习 $dueReview 题", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text("按遗忘曲线安排 · 答对推进下一轮", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                }
+                Text("开始 ›", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
+            }
+        }
+
         // ---------- 游戏中心（批29 层级化：双主角大卡 + 次级迷你磁贴，主次分明强化视觉动线） ----------
         Row(modifier = Modifier.enterStagger(3), verticalAlignment = Alignment.CenterVertically) {
             Text("🎮 游戏中心", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -248,7 +274,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
 
         // ---------- 功能入口 ----------
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FuncChip("📖", "错题本", player.wrongBook.size.takeIf { it > 0 }?.toString(), { nav.navigate(Routes.WRONGBOOK) }, modifier = Modifier.weight(1f), tint = Color(0xFFC62828))
+            FuncChip("📖", "错题本", dueReview.takeIf { it > 0 }?.toString(), { nav.navigate(Routes.WRONGBOOK) }, modifier = Modifier.weight(1f), tint = Color(0xFFC62828))   // 批39：显示今日到期数而非总数
             FuncChip("🛒", "商店", null, { nav.navigate(Routes.SHOP) }, modifier = Modifier.weight(1f), tint = Color(0xFFFFB300))
             FuncChip("🏅", "成就", player.achievements.size.takeIf { it > 0 }?.toString(), { nav.navigate(Routes.ACHIEVEMENTS) }, modifier = Modifier.weight(1f), tint = MaterialTheme.colorScheme.primary)
         }

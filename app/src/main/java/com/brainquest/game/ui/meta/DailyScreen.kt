@@ -111,7 +111,19 @@ fun DailyScreen(vm: AppViewModel, nav: NavHostController) {
         AlertDialog(
             onDismissRequest = {},
             title = { Text("🎯 挑战完成！") },
-            text = { Text("答对 $correct / $total ${starText(if (correct >= 9) 3 else if (correct >= 6) 2 else 1)}") },
+            text = {
+                Column {
+                    Text("答对 $correct / $total ${starText(if (correct >= 9) 3 else if (correct >= 6) 2 else 1)}")
+                    // 批39：streak 闭环——结算即预告明日（损失厌恶）
+                    Text(
+                        if (player.dailyStreak > 1) "🔥 已连续挑战 ${player.dailyStreak} 天 · 明天再来别断"
+                        else "✅ 已记录今天 · 明天再来开启连续挑战",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            },
             confirmButton = {
                 Button(onClick = { nav.popBackStack() }) { Text("领奖返回") }
             },
