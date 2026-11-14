@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.size
@@ -319,6 +320,7 @@ private fun DailyMini(
         modifier
             .pressScale(dmInteraction)
             .height(74.dp)
+            .shadow(4.dp, shape)
             .clip(shape)
             .background(
                 when {
@@ -389,6 +391,7 @@ private fun FeaturedGameCard(
     Column(
         modifier
             .pressScale(fgInteraction, 0.965f)
+            .shadow(6.dp, shape)
             .clip(shape)
             .background(Brush.verticalGradient(listOf(accent.copy(alpha = 0.22f), accent.copy(alpha = 0.08f))))
             .border(1.2.dp, accent.copy(alpha = 0.55f), shape)
@@ -468,6 +471,7 @@ private fun FeatureBanner(
         Modifier
             .pressScale(fbInteraction)
             .fillMaxWidth()
+            .shadow(4.dp, shape)
             .clip(shape)
             .background(
                 Brush.horizontalGradient(

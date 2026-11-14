@@ -246,7 +246,12 @@ object EntityRenderer {
         // 墙（描边）+ 墙顶亮边 + 墙体投影暗带（立体感）
         scope.drawRoundRect(pal.wall, Offset(l, t), Size(w, h), CornerRadius(18f), style = Stroke(DungeonGame.WALL))
         scope.drawRect(GamePalette.BG_WALL_TOP, Offset(l + DungeonGame.WALL, t + DungeonGame.WALL), Size(w - DungeonGame.WALL * 2, 6f))
+        // 批34：房间内阴影补全——光从上来：顶边亮带保留（原有），左/右/底加暗带。
+        // 房间=下沉的坑，四边都有暗带才有"凹陷感"，此前只有顶边（1/4）
         scope.drawRect(Color(0x30000000), Offset(l + DungeonGame.WALL, t + DungeonGame.WALL + 6f), Size(w - DungeonGame.WALL * 2, 24f))
+        scope.drawRect(Color(0x1C000000), Offset(l + DungeonGame.WALL, t + DungeonGame.WALL + 6f), Size(20f, h - DungeonGame.WALL * 2 - 6f))
+        scope.drawRect(Color(0x1C000000), Offset(l + w - DungeonGame.WALL - 20f, t + DungeonGame.WALL + 6f), Size(20f, h - DungeonGame.WALL * 2 - 6f))
+        scope.drawRect(Color(0x24000000), Offset(l + DungeonGame.WALL + 20f, t + h - DungeonGame.WALL - 20f), Size(w - DungeonGame.WALL * 2 - 40f, 20f))
         // 清怪后的房间中心标记（房型）
         val cx = l + w / 2
         val cy = t + h / 2

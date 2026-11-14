@@ -213,6 +213,9 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val rngFx = remember { kotlin.random.Random(7) }
     // 暗角渐变（只在画布尺寸变化时重建，避免每帧分配）
     val vignetteHolder = remember { arrayOfNulls<androidx.compose.ui.graphics.Brush>(1) }
+    // 批34：玩家火把光 Brush 缓存（玩家移动每 ~48px 重建一次，避免逐帧分配）
+    val torchHolder = remember { arrayOfNulls<androidx.compose.ui.graphics.Brush>(1) }
+    val torchKey = remember { intArrayOf(0, 0) }
     val vignetteSize = remember { floatArrayOf(0f, 0f) }
     // 升级反馈：全屏白光 + 面板弹性放大
     val lvlScale = remember { androidx.compose.animation.core.Animatable(1f) }
@@ -628,6 +631,27 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     drawCircle(GamePalette.UI_GOLD.copy(alpha = 0.35f), 10f, Offset(mx, my), style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
                     drawCircle(GamePalette.UI_GOLD, 3.5f, Offset(mx, my))
                 }
+            }
+            // 批34：玩家火把光（纵深·光影）——以玩家为中心的径向暗角，远暗近亮。
+            // 只"暗"不"亮"的半边：微光环已有（EntityRenderer），这里补距离衰减。
+            // 画在世界层（随震屏/缩放一致），HUD 在变换外不受影响（坑35）
+            run {
+                val lcx = game.engine.px - game.camX
+                val lcy = game.engine.py - game.camY
+                val kx = (lcx / 48f).toInt()
+                val ky = (lcy / 48f).toInt()
+                if (torchHolder[0] == null || torchKey[0] != kx || torchKey[1] != ky) {
+                    torchKey[0] = kx; torchKey[1] = ky
+                    torchHolder[0] = androidx.compose.ui.graphics.Brush.radialGradient(
+                        0f to Color(0x00070A14),
+                        0.42f to Color(0x00070A14),
+                        0.72f to Color(0x56070A14),
+                        1f to Color(0x9E070A14),
+                        center = Offset(lcx, lcy),
+                        radius = size.width * 0.62f,
+                    )
+                }
+                torchHolder[0]?.let { drawRect(it, topLeft = Offset.Zero, size = size) }
             }
             // 特效：闪电 → 粒子 → 伤害飘字
             for (b in bolts) {
