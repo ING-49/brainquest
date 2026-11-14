@@ -178,6 +178,21 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     var confirmExit by remember { mutableStateOf(false) }
     var showBag by remember { mutableStateOf(false) }
     var rerollPick by remember { mutableStateOf(false) }   // 商店重铸第二步（选槽位）；无条件 hoist（坑 21）
+
+    // 批37：沉浸全屏（隐藏状态栏/导航栏）——横屏高度寸土寸金（可视~390dp），
+    // 状态栏+insets 曾把大厅顶栏与局内 HUD 整体往下压（"最上面的部分不够上"）。
+    // sticky 模式：下拉临时呼出；离开地牢屏自动恢复系统栏
+    val dndView = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(dndView) {
+        val window = (dndView.context as? android.app.Activity)?.window
+        val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, dndView) }
+        controller?.systemBarsBehavior =
+            androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        onDispose {
+            controller?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
+    }
     var joyBase by remember { mutableStateOf(Offset.Zero) }
     var joyOn by remember { mutableStateOf(false) }
     val frame = remember { mutableIntStateOf(0) }
@@ -1000,7 +1015,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             GamePanel(
                 modifier = Modifier.align(Alignment.TopStart)
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                    .padding(start = 12.dp, top = 92.dp),
+                    .padding(start = 12.dp, top = 62.dp),   // 批37：沉浸后 HUD 行底≈57dp，装备栏紧随其后
                 contentPadding = 6.dp,
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -1430,7 +1445,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             Row(
                 Modifier.fillMaxSize().align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                    .padding(start = 14.dp, end = 14.dp, top = 56.dp, bottom = 9.dp),
+                    .padding(start = 14.dp, end = 14.dp, top = 52.dp, bottom = 9.dp),   // 批37：沉浸后无状态栏，贴紧顶栏(48dp)
             ) {
                 // 左：职业列表（直选，替代左右翻页箭头）
                 Column(
