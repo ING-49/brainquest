@@ -3,6 +3,7 @@ package com.brainquest.game.ui.meta
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ import com.brainquest.game.ui.XpBar
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Arrangement
 import com.brainquest.game.ui.SectionCard
+import com.brainquest.game.ui.pressScale
 import kotlinx.coroutines.launch
 
 @Composable
@@ -387,8 +389,12 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
 /** 菜单卡（批31：emoji 彩底方 tile，行首有锚点不再是一行灰字） */
 @Composable
 private fun MenuCard(emoji: String, title: String, subtitle: String, tint: Color, onClick: () -> Unit) {
+    val mcInteraction = remember { MutableInteractionSource() }
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier
+            .pressScale(mcInteraction)
+            .fillMaxWidth()
+            .clickable(interactionSource = mcInteraction, indication = null, onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

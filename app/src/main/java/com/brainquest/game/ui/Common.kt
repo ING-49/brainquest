@@ -1,13 +1,22 @@
 package com.brainquest.game.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.Arrangement
@@ -153,7 +162,8 @@ fun XpBar(xp: Int, modifier: Modifier = Modifier) {
     }
 }
 
-/** 统一进度条：药丸圆角、无缺口（M3 自带条在未满时有断层感），进度变化处直接换用本组件 */
+/** 统一进度条：药丸圆角、无缺口（M3 自带条在未满时有断层感），进度变化处直接换用本组件。
+ *  批32：进度值从 0 / 旧值平滑动画到新值（入场填充 + 变化过渡，600ms） */
 @Composable
 fun BqProgressBar(
     progress: Float,
@@ -162,6 +172,10 @@ fun BqProgressBar(
     trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
     height: Dp = 8.dp,
 ) {
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(progress) {
+        anim.animateTo(progress.coerceIn(0f, 1f), tween(600, easing = FastOutSlowInEasing))
+    }
     Box(
         modifier
             .height(height)
@@ -171,7 +185,7 @@ fun BqProgressBar(
         Box(
             Modifier
                 .fillMaxHeight()
-                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .fillMaxWidth(anim.value)
                 .background(color),
         )
     }
@@ -254,3 +268,38 @@ fun SectionCard(title: String, modifier: Modifier = Modifier, content: @Composab
 fun starText(stars: Int): String = "★".repeat(stars) + "☆".repeat((3 - stars).coerceAtLeast(0))
 
 val coinColor = Color(0xFFFFB300)
+
+/**
+ * 批32 交互基建①：按压缩放（配合 clickable(interactionSource, indication=null) 使用）。
+ * 用 scale 替代灰色 ripple，触感更"游戏"；与地牢大厅批28的卡片按下态同款。
+ */
+@Composable
+fun Modifier.pressScale(interaction: MutableInteractionSource, scale: Float = 0.97f): Modifier {
+    val pressed by interaction.collectIsPressedAsState()
+    return graphicsLayer {
+        val s = if (pressed) scale else 1f
+        scaleX = s; scaleY = s
+    }
+}
+
+/**
+ * 批32 交互基建②：区块入场错峰（首帧滑入+淡入，index 每加一层延 45ms）。
+ * 只做一次（LaunchedEffect(Unit)），滚动不重放。
+ */
+@Composable
+fun Modifier.enterStagger(index: Int): Modifier {
+    val alpha = remember { Animatable(0f) }
+    val shift = remember { Animatable(14f) }
+    LaunchedEffect(Unit) {
+        launch {
+            alpha.animateTo(1f, tween(240, delayMillis = index * 45, easing = FastOutSlowInEasing))
+        }
+        launch {
+            shift.animateTo(0f, tween(240, delayMillis = index * 45, easing = FastOutSlowInEasing))
+        }
+    }
+    return graphicsLayer {
+        this.alpha = alpha.value
+        translationY = shift.value
+    }
+}

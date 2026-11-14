@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,7 +28,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.EaseInOutSine
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -76,7 +90,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // ---------- 顶部用户卡 ----------
-        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        ElevatedCard(modifier = Modifier.fillMaxWidth().enterStagger(0)) {
             Column(
                 Modifier
                     .padding(2.dp)
@@ -108,7 +122,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
         }
 
         // ---------- 日常：签到 + 每日挑战（两张并排整卡可点） ----------
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(modifier = Modifier.enterStagger(1), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             DailyMini(
                 icon = "📅",
                 title = "每日签到",
@@ -129,13 +143,21 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
         }
 
         // ---------- 每日任务（紧凑三行） ----------
-        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Card(modifier = Modifier.fillMaxWidth().enterStagger(2), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
             Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
                 Text("📋 每日任务", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 com.brainquest.game.data.DailyTasks.all.forEach { def ->
                     val progress = (player.dailyTaskProgress[def.id] ?: 0).coerceAtMost(def.goal)
                     val done = progress >= def.goal
                     val claimed = def.id in player.dailyTaskClaimed
+                    // 批32：领取成功时 "+N" 金字上浮消散（奖励时刻的视觉反馈）
+                    var rewardPop by remember { mutableStateOf(false) }
+                    LaunchedEffect(rewardPop) {
+                        if (rewardPop) {
+                            kotlinx.coroutines.delay(1000)
+                            rewardPop = false
+                        }
+                    }
                     Row(
                         Modifier.fillMaxWidth().padding(top = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -153,22 +175,40 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                                 color = if (done) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
                             )
                         }
-                        when {
-                            claimed -> Text("✅", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 10.dp))
-                            else -> Button(
-                                onClick = {
-                                    if (vm.claimDailyTask(def.id) > 0) Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.COIN)
-                                },
-                                enabled = done,
-                                // 批31：可领取态金亮（领取是强反馈时刻，别和普通按钮一个颜色）
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFFFB300),
-                                    contentColor = Color(0xFF3E2723),
-                                ),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                modifier = Modifier.padding(start = 10.dp).height(30.dp),
+                        Box(contentAlignment = Alignment.Center) {
+                            when {
+                                claimed -> Text("✅", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 10.dp))
+                                else -> Button(
+                                    onClick = {
+                                        if (vm.claimDailyTask(def.id) > 0) {
+                                            Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.COIN)
+                                            rewardPop = true
+                                        }
+                                    },
+                                    enabled = done,
+                                    // 批31：可领取态金亮（领取是强反馈时刻，别和普通按钮一个颜色）
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFFFB300),
+                                        contentColor = Color(0xFF3E2723),
+                                    ),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                    modifier = Modifier.padding(start = 10.dp).height(30.dp),
+                                ) {
+                                    CoinText(def.reward, style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = rewardPop,
+                                enter = scaleIn(initialScale = 0.5f) + fadeIn(),
+                                exit = fadeOut(),
                             ) {
-                                CoinText(def.reward, style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    "+${def.reward}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFFFB300),
+                                    modifier = Modifier.padding(start = 10.dp).offset(y = (-22).dp),
+                                )
                             }
                         }
                     }
@@ -177,11 +217,11 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
         }
 
         // ---------- 游戏中心（批29 层级化：双主角大卡 + 次级迷你磁贴，主次分明强化视觉动线） ----------
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.enterStagger(3), verticalAlignment = Alignment.CenterVertically) {
             Text("🎮 游戏中心", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             Text("6 款玩法 · 1 款联机", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(modifier = Modifier.enterStagger(4), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FeaturedGameCard(
                 icon = "⚔️", name = "速算英雄", desc = "答题战斗 · 10 科闯关",
                 tag = "核心玩法", accent = MaterialTheme.colorScheme.primary,
@@ -193,7 +233,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                 onClick = { nav.navigate(Routes.DUNGEON) }, modifier = Modifier.weight(1f),
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.enterStagger(5), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MiniGameTile("🧱", "华容道", { nav.navigate(Routes.KLOTSKI) }, Modifier.weight(1f))
             MiniGameTile("⚫", "五子棋", { nav.navigate(Routes.GOMOKU) }, Modifier.weight(1f))
             MiniGameTile("🐍", "贪吃蛇", { nav.navigate(Routes.SNAKE) }, Modifier.weight(1f))
@@ -267,8 +307,17 @@ private fun DailyMini(
     highlight: Boolean = false,
 ) {
     val shape = RoundedCornerShape(14.dp)
+    // 批32：可领取时描边呼吸引导（1s 反向慢周期，克制），按下微缩替代 ripple
+    val pulseTr = rememberInfiniteTransition(label = "dailyPulse")
+    val pulseA by pulseTr.animateFloat(
+        0f, 1f,
+        infiniteRepeatable(tween(1000, easing = EaseInOutSine), RepeatMode.Reverse),
+        label = "dailyPulseA",
+    )
+    val dmInteraction = remember { MutableInteractionSource() }
     Box(
         modifier
+            .pressScale(dmInteraction)
             .height(74.dp)
             .clip(shape)
             .background(
@@ -281,12 +330,12 @@ private fun DailyMini(
                 1.3.dp,
                 when {
                     done -> Color(0xFF2E7D32).copy(alpha = 0.45f)
-                    highlight -> MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                    highlight -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f + 0.3f * pulseA)
                     else -> Color.Transparent
                 },
                 shape,
             )
-            .clickable { onClick() }
+            .clickable(interactionSource = dmInteraction, indication = null) { onClick() }
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -336,12 +385,14 @@ private fun FeaturedGameCard(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(16.dp)
+    val fgInteraction = remember { MutableInteractionSource() }
     Column(
         modifier
+            .pressScale(fgInteraction, 0.965f)
             .clip(shape)
             .background(Brush.verticalGradient(listOf(accent.copy(alpha = 0.22f), accent.copy(alpha = 0.08f))))
             .border(1.2.dp, accent.copy(alpha = 0.55f), shape)
-            .clickable { onClick() }
+            .clickable(interactionSource = fgInteraction, indication = null) { onClick() }
             .padding(horizontal = 13.dp, vertical = 11.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -382,11 +433,13 @@ private fun FeaturedGameCard(
 /** 次级游戏迷你磁贴（批29）：图标+名称竖排、无渐变弱化，让位主角大卡 */
 @Composable
 private fun MiniGameTile(icon: String, name: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val mgInteraction = remember { MutableInteractionSource() }
     Column(
         modifier
+            .pressScale(mgInteraction)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .clickable { onClick() }
+            .clickable(interactionSource = mgInteraction, indication = null) { onClick() }
             .padding(vertical = 9.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -410,8 +463,10 @@ private fun FeatureBanner(
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(14.dp)
+    val fbInteraction = remember { MutableInteractionSource() }
     Box(
         Modifier
+            .pressScale(fbInteraction)
             .fillMaxWidth()
             .clip(shape)
             .background(
@@ -419,7 +474,7 @@ private fun FeatureBanner(
                     listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surfaceContainerLow),
                 ),
             )
-            .clickable { onClick() }
+            .clickable(interactionSource = fbInteraction, indication = null) { onClick() }
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -439,13 +494,15 @@ private fun FeatureBanner(
 @Composable
 private fun FuncChip(icon: String, label: String, count: String?, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color? = null) {
     val shape = RoundedCornerShape(12.dp)
+    val fcInteraction = remember { MutableInteractionSource() }
     Row(
         modifier
+            .pressScale(fcInteraction)
             .height(44.dp)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-            .clickable { onClick() }
+            .clickable(interactionSource = fcInteraction, indication = null) { onClick() }
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,

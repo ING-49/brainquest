@@ -1,8 +1,16 @@
 package com.brainquest.game.ui
 
+import androidx.compose.animation.core.EaseInOutSine
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -103,9 +111,18 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         // 批30：继续冒险主 CTA（页面唯一主按钮，一键直达上次进度关卡）
+        // 批32：白描边呼吸（唯一主 CTA 有生命感）+ 按压缩放
+        val ctaPulseTr = rememberInfiniteTransition(label = "ctaPulse")
+        val ctaPulse by ctaPulseTr.animateFloat(
+            0f, 1f,
+            infiniteRepeatable(tween(900, easing = EaseInOutSine), RepeatMode.Reverse),
+            label = "ctaPulseA",
+        )
+        val ctaInteraction = remember { MutableInteractionSource() }
         Row(
             Modifier
                 .fillMaxWidth()
+                .pressScale(ctaInteraction, 0.98f)
                 .padding(top = 12.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(
@@ -113,7 +130,8 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
                         listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.82f)),
                     ),
                 )
-                .clickable {
+                .border(1.6.dp, Color.White.copy(alpha = 0.25f + 0.25f * ctaPulse), RoundedCornerShape(14.dp))
+                .clickable(interactionSource = ctaInteraction, indication = null) {
                     if (cont != null) nav.navigate(Routes.battle(cont.key, cont.level))
                     else nav.navigate(Routes.levels(subjectKey(Subjects.all.first())))
                 }
@@ -159,8 +177,10 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
                     rowSubjects.forEach { (subject, unlocked, cleared) ->
                         val key = subjectKey(subject)
                         val shape = RoundedCornerShape(14.dp)
+                        val subInteraction = remember { MutableInteractionSource() }
                         Column(
                             Modifier
+                                .pressScale(subInteraction, 0.965f)
                                 .weight(1f)
                                 .clip(shape)
                                 .background(
@@ -173,7 +193,7 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
                                     if (unlocked) subjectColor(subject).copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                                     shape,
                                 )
-                                .clickable(enabled = unlocked) { nav.navigate(Routes.levels(key)) }
+                                .clickable(interactionSource = subInteraction, indication = null, enabled = unlocked) { nav.navigate(Routes.levels(key)) }
                                 .padding(12.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -299,14 +319,14 @@ fun LevelListScreen(vm: AppViewModel, nav: NavHostController, subject: String) {
                 val isBoss = level == 8
                 val isNext = unlocked && level == nextLevel
 
+                val lvInteraction = remember { MutableInteractionSource() }
                 Card(
+                    onClick = { if (unlocked) nav.navigate(Routes.battle(key, level)) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(enabled = unlocked) { nav.navigate(Routes.battle(key, level)) }
-                        .then(
-                            // 批31：下一关主色描边 + 轻微上浮，视觉引导「打这个」
-                            if (isNext) Modifier.border(1.8.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)) else Modifier,
-                        ),
+                        .pressScale(lvInteraction, 0.98f),
+                    enabled = unlocked,
+                    interactionSource = lvInteraction,
                     colors = CardDefaults.cardColors(
                         containerColor = when {
                             isNext -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
@@ -314,6 +334,7 @@ fun LevelListScreen(vm: AppViewModel, nav: NavHostController, subject: String) {
                             else -> MaterialTheme.colorScheme.surfaceContainerLowest
                         },
                     ),
+                    border = if (isNext) BorderStroke(1.8.dp, MaterialTheme.colorScheme.primary) else null,
                 ) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(
