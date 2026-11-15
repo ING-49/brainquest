@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -48,6 +50,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -165,12 +169,17 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        Modifier.fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFFFFFBF2), Color(0xFFF4F6FB))))
+    ) {
+        Box(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
         PageHeader(
             "${Subjects.emoji(subject)} ${subject} · ${if (battle.isBoss) "BOSS战" else "第${level}关"}${if (player.hardMode) " · 🎓考研" else ""}",
             onBack = { if (resultState != 0) nav.popBackStack() else confirmExit = true },   // 批23-A：对局中返回需确认
             subtitle = "限时 ${battle.timeLimitSec}s / 题 · 答对出招 答错挨打",
         )
+        }
         if (confirmExit) {
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = { confirmExit = false },
@@ -185,25 +194,35 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
             )
         }
 
-        // 敌人面板
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        // 批41：敌方阵营暗带（战斗氛围，全宽出血）——品类参照：回合制战斗的"敌方区域"
+        Box(
+            Modifier.fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color(0xFF1C2434), Color(0xFF121826))))
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    battle.enemy.emoji,
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier = Modifier
-                        .graphicsLayer {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(72.dp)
+                        .background(
+                            Brush.radialGradient(
+                                0f to Color(0x55E53935),
+                                0.7f to Color(0x22E53935),
+                                1f to Color(0x00E53935),
+                            )
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        battle.enemy.emoji,
+                        fontSize = 34.sp,
+                        modifier = Modifier.graphicsLayer {
                             translationX = enemyShake.value * if (enemyShake.value < 0.5f) -14f else 14f
-                            alpha = 1f
-                        }
-                        .size(width = 56.dp, height = 56.dp),
-                )
+                        },
+                    )
+                }
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                        Text(battle.enemy.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(battle.enemy.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                         if (battle.combo >= 2) {
                             LaunchedEffect(battle.combo) {
                                 comboScale.snapTo(1.5f)
@@ -211,7 +230,7 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                             }
                             Text(
                                 "🔥 连击 x${battle.combo}",
-                                color = Color(0xFFE65100),
+                                color = Color(0xFFFFB74D),
                                 style = MaterialTheme.typography.labelLarge,
                                 modifier = Modifier.graphicsLayer {
                                     scaleX = comboScale.value
@@ -220,16 +239,16 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                             )
                         }
                     }
-                    BqProgressBar(
-                        progress = battle.enemyHp.toFloat() / battle.enemyHpMax,
+                    SegmentedHpBar(
+                        frac = battle.enemyHp.toFloat() / battle.enemyHpMax,
+                        flash = hpFlash.value,
                         modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                        color = androidx.compose.ui.graphics.lerp(Color(0xFFE53935), Color.White, hpFlash.value * 0.8f),
-                        height = 10.dp,
                     )
                     Text(
                         "HP ${battle.enemyHp} / ${battle.enemyHpMax}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color(0x99FFFFFF),
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
             }
@@ -237,7 +256,7 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
 
         // 我方状态
         Row(
-            Modifier.fillMaxWidth().padding(top = 10.dp),
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("🧑‍⚔️${player.nickname}", style = MaterialTheme.typography.labelLarge)
@@ -252,7 +271,7 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
         }
 
         // 伤害飘字
-        Box(Modifier.fillMaxWidth().height(36.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(36.dp), contentAlignment = Alignment.Center) {
             androidx.compose.animation.AnimatedVisibility(
                 visible = feedback != null,
                 enter = fadeIn() + slideInVertically { -it },
@@ -269,7 +288,9 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
 
         // 题目卡（内容可滚动：长题干/解析不虚）
         Card(
-            modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                .weight(1f, fill = false)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f), RoundedCornerShape(12.dp)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         ) {
             Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
@@ -335,7 +356,7 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
 
         // 道具栏
         Row(
-            Modifier.fillMaxWidth().padding(top = 10.dp),
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedButton(
@@ -460,6 +481,34 @@ private suspend fun handleAnswer(
             // 新题会先以"已揭晓"状态画出一帧，表现为短暂闪出正确答案
             onNextQuestion()
             battle.nextQuestion()
+        }
+    }
+}
+
+/** 批41：浅色分段血条（敌方暗带上用；5 段，分段思路参考 GameUi.HudHpBar） */
+@Composable
+private fun SegmentedHpBar(frac: Float, flash: Float, modifier: Modifier = Modifier) {
+    val segments = 5
+    Box(
+        modifier
+            .height(12.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0x33000000))
+    ) {
+        Row(Modifier.fillMaxHeight().padding(1.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            repeat(segments) { i ->
+                val filled = i < (frac * segments).coerceIn(0f, segments.toFloat())
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(
+                            if (filled) androidx.compose.ui.graphics.lerp(Color(0xFFE53935), Color.White, flash * 0.8f)
+                            else Color(0x22FFFFFF)
+                        )
+                )
+            }
         }
     }
 }
