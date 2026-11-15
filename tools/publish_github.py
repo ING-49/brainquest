@@ -130,9 +130,38 @@ def main():
         except Exception as e:
             print(f"  第{attempt+1}次校验未就绪: {e}")
         time.sleep(5)
-    assert served and served["latestVersionCode"] == gh_manifest["latestVersionCode"], "latest manifest 校验失败"
+    if not (served and served["latestVersionCode"] == gh_manifest["latestVersionCode"]):
+        # 坑34：直连常命中 CDN 旧缓存 → gh api 兜底复核
+        print("直连校验未通过（疑似 CDN 旧缓存），改走 gh api 复核…")
+        assert verify_via_gh_api(latest, gh_manifest["latestVersionCode"]), "latest manifest 校验失败（含 API 兜底）"
+        served = gh_manifest
     print(f"✓ GitHub 托管生效：latest → v{served['latestVersionName']}(code {served['latestVersionCode']})")
     print(f"App 服务器地址填: {latest.rsplit('/', 1)[0]}")
+
+
+def verify_via_gh_api(repo_url: str, expect_code: int) -> bool:
+    """坑34 兜底：直连 releases/latest/download 常命中 CDN 旧缓存导致假失败，
+    改走 gh api 读 release 资产元数据核对（API 不吃 CDN 缓存）。"""
+    import subprocess, re, tempfile
+    repo = repo_url.split('github.com/')[-1].strip('/') if repo_url.startswith('http') else repo_url
+    gh_exe = os.environ.get("GH_EXE", "gh")
+    r = subprocess.run([gh_exe, "api", f"repos/{repo}/releases/latest",
+                        "--jq", ".tag_name + \"/\" + (.assets | length | tostring)"], capture_output=True, text=True)
+    if r.returncode != 0 or "/" not in r.stdout:
+        return False
+    tag = r.stdout.strip().split("/")[0]
+    m = re.match(r"v(\d+\.\d+\.\d+)", tag)
+    if not m:
+        return False
+    # tag 里的版本名与期望 code 不直接可比，改读 manifest 资产的文件
+    tmp = os.path.join(tempfile.gettempdir(), "bq_manifest_check.json")
+    r2 = subprocess.run([gh_exe, "release", "download", tag, "--pattern", "manifest.json",
+                         "--dir", tmp, "--clobber"], capture_output=True, text=True)
+    if r2.returncode != 0:
+        return False
+    with open(os.path.join(tmp, "manifest.json"), encoding="utf-8") as f:
+        served = json.load(f)
+    return served.get("latestVersionCode") == expect_code
 
 
 if __name__ == "__main__":
