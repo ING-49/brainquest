@@ -17,7 +17,12 @@ class SurvivorGame {
     enum class Phase { READY, PLAYING, LEVELUP, PAUSED, GAMEOVER }
 
     // ---------- 实体 ----------
-    class Enemy(var x: Float, var y: Float, val r: Float, var hp: Float, val maxHp: Float, val speed: Float, val dmg: Float) {
+    class Enemy(
+        var x: Float, var y: Float, val r: Float, var hp: Float, val maxHp: Float, val speed: Float, val dmg: Float,
+        // 批42：数学实体——普通怪=字形（数字/运算符/希腊字母），大怪=几何线框边数（3/4/5）
+        val glyph: String = "1",
+        val sides: Int = 0,
+    ) {
         var alive = true
     }
 
@@ -242,11 +247,12 @@ class SurvivorGame {
 
     /** 升级三选一：5 种强化随机取 3 种 */
     private fun rollUpgrades(): List<Upgrade> = listOf(
-        Upgrade("atk", "⚔️ 攻击力", "子弹伤害 +25%"),
-        Upgrade("aspd", "⚡ 攻速", "攻击间隔 −15%"),
-        Upgrade("spd", "👟 移速", "移动速度 +10%"),
-        Upgrade("hp", "❤️ 生命", "生命上限 +25 并回复 25"),
-        Upgrade("pickup", "🧲 拾取", "拾取范围 +30%"),
+        // 批42：强化数学化命名（参考《火柴人 vs 数学》美学；机制不变）
+        Upgrade("atk", "× 系数增幅", "子弹伤害 +25%"),
+        Upgrade("aspd", "d/dt 加速", "攻击间隔 −15%"),
+        Upgrade("spd", "√ 速度矢量", "移动速度 +10%"),
+        Upgrade("hp", "|x| 绝对护甲", "生命上限 +25 并回复 25"),
+        Upgrade("pickup", "π 引力环", "拾取范围 +30%"),
     ).shuffled(Random).take(3)
 
     fun chooseUpgrade(id: String) {
@@ -283,7 +289,16 @@ class SurvivorGame {
         val speed = enemyBaseSpeed + min(elapsed * 0.35f, 60f)
         val dmg = contactBaseDmg + min(elapsed / 75f, 8f)
         val r = if (Random.nextFloat() < 0.08f) 26f else 13f + Random.nextFloat() * 7f   // 8% 大只
-        enemies.add(Enemy(px + cos(ang) * ring, py + sin(ang) * ring, r, hp, hp, speed, dmg))
+        // 批42：字形按生存时间三阶解锁（数字→运算符→希腊字母），有成长感
+        val glyphPool = when {
+            elapsed < 30f -> listOf("1", "2", "3", "4", "5", "6", "7", "8", "9")
+            elapsed < 90f -> listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "−")
+            elapsed < 180f -> listOf("2", "3", "5", "7", "+", "−", "×", "÷", "=")
+            else -> listOf("π", "√", "∑", "∞", "∆", "×", "÷", "=")
+        }
+        val glyph = glyphPool[Random.nextInt(glyphPool.size)]
+        val sides = if (r > 20f) listOf(3, 4, 5)[Random.nextInt(3)] else 0
+        enemies.add(Enemy(px + cos(ang) * ring, py + sin(ang) * ring, r, hp, hp, speed, dmg, glyph, sides))
     }
 
     companion object {

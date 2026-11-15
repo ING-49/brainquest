@@ -36,6 +36,11 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -71,6 +76,9 @@ import kotlin.math.hypot
 
 // 配色：深海蓝底 + 网格，玩家青色、敌人红系、子弹金黄、经验球绿
 private val BG = Color(0xFF101826)
+    // 批42：数学坐标纸——副格(原GRID)/主格线/坐标轴
+    private val GRID_MAJOR = Color(0xFF2E4A6B)
+    private val AXIS_C = Color(0xFF3D5A80)
 private val GRID = Color(0xFF1D2A3E)
 private val PLAYER_C = Color(0xFF4FC3F7)
 private val ENEMY_C = Color(0xFFE15A5A)
@@ -93,6 +101,9 @@ private data class Hud(
 )
 
 /** 迷你幸存者：左半屏摇杆移动，自动攻击最近敌人，杀敌拾取经验，升级三选一，活得越久越难 */
+/** 批42：强化 id → 数学字形 */
+private val upGlyph = mapOf("atk" to "×", "aspd" to "∂", "spd" to "√", "hp" to "|x|", "pickup" to "π")
+
 @Composable
 fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
@@ -119,6 +130,9 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
     var confirmExit by remember { mutableStateOf(false) }
     val frame = remember { mutableIntStateOf(0) }
     val joyMaxPx = with(LocalDensity.current) { 48.dp.toPx() }
+    // 批42：数学字形测量缓存（drawText 需要 TextLayoutResult；按字形缓存避免每帧测量）
+    val textMeasurer = rememberTextMeasurer()
+    val glyphMetrics = remember { mutableMapOf<String, androidx.compose.ui.text.TextLayoutResult>() }
 
     // 游戏循环：withFrameNanos 驱动 tick，frame 自增只触发 Canvas 重绘（不重组）
     LaunchedEffect(Unit) {
@@ -201,19 +215,31 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
         ) {
             frame.intValue   // 订阅：每帧重绘
 
-            // 背景网格（随相机平移）
+            // 背景网格（批42：数学坐标纸——每 5 格一条主格线，过暗不抢主体）
             val step = 64f
             var gx = -game.camX % step
             if (gx < 0) gx += step
             while (gx < size.width) {
-                drawLine(GRID, Offset(gx, 0f), Offset(gx, size.height), 2f)
+                val worldX = gx + game.camX
+                val major = (worldX / step).toInt() % 5 == 0
+                drawLine(if (major) GRID_MAJOR else GRID, Offset(gx, 0f), Offset(gx, size.height), if (major) 3f else 2f)
                 gx += step
             }
             var gy = -game.camY % step
             if (gy < 0) gy += step
             while (gy < size.height) {
-                drawLine(GRID, Offset(0f, gy), Offset(size.width, gy), 2f)
+                val worldY = gy + game.camY
+                val major = (worldY / step).toInt() % 5 == 0
+                drawLine(if (major) GRID_MAJOR else GRID, Offset(0f, gy), Offset(size.width, gy), if (major) 3f else 2f)
                 gy += step
+            }
+            // 批42：X/Y 坐标轴与原点（世界 0,0）——"数学空间"的锚
+            val ox = 0f - game.camX
+            val oy = 0f - game.camY
+            if (ox > -10f && ox < size.width + 10f) drawLine(AXIS_C, Offset(ox, 0f), Offset(ox, size.height), 4f)
+            if (oy > -10f && oy < size.height + 10f) drawLine(AXIS_C, Offset(0f, oy), Offset(size.width, oy), 4f)
+            if (ox > -30f && ox < size.width + 30f && oy > -30f && oy < size.height + 30f) {
+                drawCircle(AXIS_C, 10f, Offset(ox, oy), style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
             }
 
             // 经验球
@@ -229,7 +255,35 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 if (!e.alive) continue
                 val sx = e.x - game.camX; val sy = e.y - game.camY
                 if (sx < -40f || sy < -40f || sx > size.width + 40f || sy > size.height + 40f) continue
-                drawCircle(if (e.r > 20f) ENEMY_BIG_C else ENEMY_C, e.r, Offset(sx, sy))
+                if (e.sides >= 3) {
+                    // 批42：大怪=几何线框体（三角/方/五边），微光填充
+                    val path = Path()
+                    for (k in 0 until e.sides) {
+                        val ang = -1.5707963f + k * (6.2831853f / e.sides)
+                        val vx = sx + kotlin.math.cos(ang) * e.r
+                        val vy = sy + kotlin.math.sin(ang) * e.r
+                        if (k == 0) path.moveTo(vx, vy) else path.lineTo(vx, vy)
+                    }
+                    path.close()
+                    drawPath(path, ENEMY_BIG_C.copy(alpha = 0.30f))
+                    drawPath(path, ENEMY_BIG_C, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
+                } else {
+                    drawCircle(ENEMY_C, e.r, Offset(sx, sy))
+                    // 批42：发光数学字形（红晕四向重绘 + 白心）
+                    var layout = glyphMetrics[e.glyph]
+                    if (layout == null) {
+                        layout = textMeasurer.measure(
+                            e.glyph,
+                            TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White),
+                        )
+                        glyphMetrics[e.glyph] = layout
+                    }
+                    val tl = Offset(sx - layout.size.width / 2f, sy - layout.size.height / 2f)
+                    for (off in listOf(Offset(-1.5f, 0f), Offset(1.5f, 0f), Offset(0f, -1.5f), Offset(0f, 1.5f))) {
+                        drawText(layout, color = ENEMY_C, topLeft = tl + off)
+                    }
+                    drawText(layout, topLeft = tl)
+                }
                 if (e.hp < e.maxHp) {
                     val w = e.r * 2f
                     drawRect(BAR_BG, Offset(sx - e.r, sy - e.r - 8f), Size(w, 3f))
@@ -316,7 +370,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 ) {
                     GamePanel(Modifier.widthIn(max = 560.dp), accent = Color(0xFF4FC3F7), contentPadding = 20.dp) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🧟", fontSize = 30.sp)
+                            Text("∑", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)   // 批42
                             Column(Modifier.padding(start = 10.dp)) {
                                 Text(
                                     "迷你幸存者",
@@ -324,7 +378,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
                                 )
-                                Text("弹幕求生 · 杀敌升级 · 三选一", fontSize = 11.sp, color = GameUi.TextDim)
+                                Text("数学空间 · 几何生存 · 三选一", fontSize = 11.sp, color = GameUi.TextDim)   // 批42 主题化
                             }
                         }
                         Spacer(Modifier.height(14.dp))
@@ -392,7 +446,17 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                     ) {
                         game.pendingUpgrades.forEachIndexed { idx, up ->
                             GamePanel(Modifier.weight(1f), accent = GameUi.Xp, contentPadding = 16.dp) {
-                                Text("强化 0${idx + 1}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GameUi.Gold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // 批42：强化的数学字形标识
+                                    Text(
+                                        upGlyph[up.id] ?: "?",
+                                        fontSize = 24.sp, fontWeight = FontWeight.Bold, color = GameUi.Xp,
+                                    )
+                                    Text(
+                                        "强化 0${idx + 1}", fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                        color = GameUi.Gold, modifier = Modifier.padding(start = 8.dp),
+                                    )
+                                }
                                 Text(
                                     up.name,
                                     style = MaterialTheme.typography.titleMedium,
