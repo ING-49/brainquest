@@ -36,8 +36,8 @@ class SurvivorGame {
         var magnet = false
     }
 
-    /** 强化选项（升级三选一） */
-    data class Upgrade(val id: String, val name: String, val desc: String)
+    /** 强化选项（升级三选一）；批45：rare=稀有强化（金色卡，效果更强） */
+    data class Upgrade(val id: String, val name: String, val desc: String, val rare: Boolean = false)
 
     // ---------- 常量 ----------
     val playerR = 16f
@@ -70,6 +70,7 @@ class SurvivorGame {
     private var attackTimer = 0f
     private var spawnTimer = 0f
     private var burstTimer = 45f   // 每 45s 一波小高潮
+    private var eliteTimer = 60f   // 批45：每 60s 一只 ∑ 求和体（精英）
 
     // ---------- 视口与相机 ----------
     var viewW = 1080f; var viewH = 2000f
@@ -114,7 +115,7 @@ class SurvivorGame {
         attackDmg = 10f; attackInterval = 0.8f
         moveSpeed = 220f; pickupRange = 100f
         elapsed = 0f; kills = 0
-        invincible = 0f; attackTimer = 0f; spawnTimer = 0f; burstTimer = 45f
+        invincible = 0f; attackTimer = 0f; spawnTimer = 0f; burstTimer = 45f; eliteTimer = 60f
         enemies.clear(); bullets.clear(); orbs.clear()
         pendingUpgrades = emptyList()
         joyActive = false; joyX = 0f; joyY = 0f
@@ -145,6 +146,11 @@ class SurvivorGame {
         if (burstTimer <= 0f) {
             burstTimer = 45f
             repeat(5) { if (enemies.size < MAX_ENEMIES) spawnEnemy() }
+        }
+        eliteTimer -= dt
+        if (eliteTimer <= 0f && enemies.size < MAX_ENEMIES) {
+            spawnElite()
+            eliteTimer = 60f
         }
 
         // 自动攻击最近敌人
@@ -246,22 +252,35 @@ class SurvivorGame {
     }
 
     /** 升级三选一：5 种强化随机取 3 种 */
-    private fun rollUpgrades(): List<Upgrade> = listOf(
-        // 批42：强化数学化命名（参考《火柴人 vs 数学》美学；机制不变）
-        Upgrade("atk", "× 系数增幅", "子弹伤害 +25%"),
-        Upgrade("aspd", "d/dt 加速", "攻击间隔 −15%"),
-        Upgrade("spd", "√ 速度矢量", "移动速度 +10%"),
-        Upgrade("hp", "|x| 绝对护甲", "生命上限 +25 并回复 25"),
-        Upgrade("pickup", "π 引力环", "拾取范围 +30%"),
-    ).shuffled(Random).take(3)
+    private fun rollUpgrades(): List<Upgrade> {
+        // 批42：强化数学化命名（参考《火柴人 vs 数学》美学）；批45：稀有强化
+        val base = listOf(
+            Upgrade("atk", "× 系数增幅", "子弹伤害 +25%"),
+            Upgrade("aspd", "d/dt 加速", "攻击间隔 −15%"),
+            Upgrade("spd", "√ 速度矢量", "移动速度 +10%"),
+            Upgrade("hp", "|x| 绝对护甲", "生命上限 +25 并回复 25"),
+            Upgrade("pickup", "π 引力环", "拾取范围 +30%"),
+        )
+        val rares = listOf(
+            Upgrade("atk2", "×² 平方爆发", "子弹伤害 +50%", true),
+            Upgrade("hp2", "|x|² 巨盾", "生命上限 +60 并回复 60", true),
+        )
+        val pool = base.toMutableList()
+        if (Random.nextFloat() < 0.2f) {
+            pool[Random.nextInt(pool.size)] = rares[Random.nextInt(rares.size)]
+        }
+        return pool.shuffled(Random).take(3)
+    }
 
     fun chooseUpgrade(id: String) {
         if (phase != Phase.LEVELUP) return
         when (id) {
             "atk" -> attackDmg *= 1.25f
+            "atk2" -> attackDmg *= 1.5f
             "aspd" -> attackInterval *= 0.85f
             "spd" -> moveSpeed *= 1.10f
             "hp" -> { maxHp += 25f; hp = min(hp + 25f, maxHp) }
+            "hp2" -> { maxHp += 60f; hp = min(hp + 60f, maxHp) }
             "pickup" -> pickupRange *= 1.30f
         }
         pendingUpgrades = emptyList()
@@ -299,6 +318,14 @@ class SurvivorGame {
         val glyph = glyphPool[Random.nextInt(glyphPool.size)]
         val sides = if (r > 20f) listOf(3, 4, 5)[Random.nextInt(3)] else 0
         enemies.add(Enemy(px + cos(ang) * ring, py + sin(ang) * ring, r, hp, hp, speed, dmg, glyph, sides))
+    }
+
+    /** 批45：∑ 求和体（精英）——每 60s 一只，六边线框+大血量，压节奏用 */
+    private fun spawnElite() {
+        val ring = hypot(viewW, viewH) / 2f + 50f
+        val ang = Random.nextFloat() * 6.2831853f
+        val hp = enemyBaseHp * 6f + elapsed * 3.5f
+        enemies.add(Enemy(px + cos(ang) * ring, py + sin(ang) * ring, 32f, hp, hp, 42f + min(elapsed * 0.2f, 25f), contactBaseDmg * 1.5f, "∑", 6))
     }
 
     companion object {

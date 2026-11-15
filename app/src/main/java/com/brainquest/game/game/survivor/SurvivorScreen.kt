@@ -267,6 +267,19 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                     path.close()
                     drawPath(path, ENEMY_BIG_C.copy(alpha = 0.30f))
                     drawPath(path, ENEMY_BIG_C, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
+                    if (e.r > 28f) {
+                        // 批45：精英 ∑ 求和体——几何框内金色大 ∑
+                        var sumLayout = glyphMetrics["∑BIG"]
+                        if (sumLayout == null) {
+                            sumLayout = textMeasurer.measure("∑", TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color.White))
+                            glyphMetrics["∑BIG"] = sumLayout
+                        }
+                        val stl = Offset(sx - sumLayout.size.width / 2f, sy - sumLayout.size.height / 2f)
+                        for (off in listOf(Offset(-1.5f, 0f), Offset(1.5f, 0f), Offset(0f, -1.5f), Offset(0f, 1.5f))) {
+                            drawText(sumLayout, color = ENEMY_BIG_C, topLeft = stl + off)
+                        }
+                        drawText(sumLayout, topLeft = stl)
+                    }
                 } else {
                     drawCircle(ENEMY_C, e.r, Offset(sx, sy))
                     // 批42：发光数学字形（红晕四向重绘 + 白心）
@@ -291,10 +304,12 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
 
-            // 子弹
+            // 子弹（批45：金色 × 乘号——两段交叉线，数学主题）
             for (b in game.bullets) {
                 if (!b.alive) continue
-                drawCircle(BULLET_C, game.bulletR, Offset(b.x - game.camX, b.y - game.camY))
+                val bx = b.x - game.camX; val by = b.y - game.camY
+                drawLine(BULLET_C, Offset(bx - 5f, by - 5f), Offset(bx + 5f, by + 5f), 3f)
+                drawLine(BULLET_C, Offset(bx - 5f, by + 5f), Offset(bx + 5f, by - 5f), 3f)
             }
 
             // 玩家（无敌帧期间闪烁）
@@ -445,7 +460,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         game.pendingUpgrades.forEachIndexed { idx, up ->
-                            GamePanel(Modifier.weight(1f), accent = GameUi.Xp, contentPadding = 16.dp) {
+                            GamePanel(Modifier.weight(1f), accent = if (up.rare) GameUi.Gold else GameUi.Xp, contentPadding = 16.dp) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     // 批42：强化的数学字形标识
                                     Text(
@@ -453,9 +468,11 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                                         fontSize = 24.sp, fontWeight = FontWeight.Bold, color = GameUi.Xp,
                                     )
                                     Text(
-                                        "强化 0${idx + 1}", fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                                        color = GameUi.Gold, modifier = Modifier.padding(start = 8.dp),
-                                    )
+                                        if (up.rare) "✦ 稀有强化" else "强化 0${idx + 1}",
+                                        fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                        color = if (up.rare) Color(0xFFFFB74D) else GameUi.Gold,
+                                        modifier = Modifier.padding(start = 8.dp),
+                                    )   // 批45：稀有卡金标
                                 }
                                 Text(
                                     up.name,
