@@ -292,6 +292,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         commit { it.copy(seenMonsters = (it.seenMonsters + kinds).distinct()) }
     }
 
+    /** 图鉴：标记幸存者已遭遇的怪种类（批48） */
+    fun markSurvivorSeen(kinds: List<String>) {
+        if (kinds.isEmpty()) return
+        commit { it.copy(survivorSeen = (it.survivorSeen + kinds).distinct()) }
+    }
+
     /** 图鉴：合并本局各怪击杀数（批47） */
     fun mergeMonsterKills(kills: Map<String, Int>) {
         if (kills.isEmpty()) return

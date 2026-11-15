@@ -3,6 +3,8 @@ package com.brainquest.game.game.survivor
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -128,6 +130,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
     var rewarded by remember { mutableStateOf(false) }
     var newRecord by remember { mutableStateOf(false) }
     var confirmExit by remember { mutableStateOf(false) }
+    var showCodex by remember { mutableStateOf(false) }   // 批48：数学空间图鉴
     val frame = remember { mutableIntStateOf(0) }
     val joyMaxPx = with(LocalDensity.current) { 48.dp.toPx() }
     // 批42：数学字形测量缓存（drawText 需要 TextLayoutResult；按字形缓存避免每帧测量）
@@ -165,6 +168,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
     LaunchedEffect(hud.phase) {
         if (hud.phase == SurvivorGame.Phase.GAMEOVER && !rewarded) {
             rewarded = true
+            vm.markSurvivorSeen(game.defeatedKinds.map { k -> "SURV_" + listOf("DIGIT", "OP", "GEOM", "ELITE")[k.coerceIn(0, 3)] })   // 批48：图鉴记录
             newRecord = vm.addSurvivorResult(hud.timeSec, hud.kills)
         }
     }
@@ -265,8 +269,9 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                         if (k == 0) path.moveTo(vx, vy) else path.lineTo(vx, vy)
                     }
                     path.close()
-                    drawPath(path, ENEMY_BIG_C.copy(alpha = 0.30f))
-                    drawPath(path, ENEMY_BIG_C, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
+                    val geoC = if (e.kind == 3) ENEMY_BIG_C else Color(0xFFFFB74D)   // 批48：几何狂橙，精英保持深红
+                    drawPath(path, geoC.copy(alpha = 0.30f))
+                    drawPath(path, geoC, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
                     if (e.r > 28f) {
                         // 批45：精英 ∑ 求和体——几何框内金色大 ∑
                         var sumLayout = glyphMetrics["∑BIG"]
@@ -281,8 +286,14 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                         drawText(sumLayout, topLeft = stl)
                     }
                 } else {
-                    drawCircle(ENEMY_C, e.r, Offset(sx, sy))
-                    // 批42：发光数学字形（红晕四向重绘 + 白心）
+                    // 批48：按种类配色——数字崽红 / 运算符蜂青 / 几何狂橙
+                    val kindColor = when (e.kind) {
+                        1 -> Color(0xFF4DD0E1)
+                        2 -> Color(0xFFFFB74D)
+                        else -> if (e.r > 20f) ENEMY_BIG_C else ENEMY_C
+                    }
+                    drawCircle(kindColor, e.r, Offset(sx, sy))
+                    // 批42：发光数学字形（四向重绘 + 白心）
                     var layout = glyphMetrics[e.glyph]
                     if (layout == null) {
                         layout = textMeasurer.measure(
@@ -293,7 +304,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     val tl = Offset(sx - layout.size.width / 2f, sy - layout.size.height / 2f)
                     for (off in listOf(Offset(-1.5f, 0f), Offset(1.5f, 0f), Offset(0f, -1.5f), Offset(0f, 1.5f))) {
-                        drawText(layout, color = ENEMY_C, topLeft = tl + off)
+                        drawText(layout, color = kindColor, topLeft = tl + off)
                     }
                     drawText(layout, topLeft = tl)
                 }
@@ -375,6 +386,48 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
         }
 
         // ---------- Ready（批24：场景背景 + 说明面板） ----------
+        // ---------- 批48：数学空间图鉴（4 种怪档案） ----------
+        if (showCodex) {
+            Box(Modifier.fillMaxSize().background(Color(0xE6070A14))) {
+                Column(
+                    Modifier.fillMaxSize()
+                        .padding(horizontal = 24.dp, vertical = 14.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RoundIconButton("←", onClick = { showCodex = false }, size = 38.dp)
+                        Column(Modifier.padding(start = 10.dp)) {
+                            Text("📐 数学空间图鉴", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = GameUi.Gold)
+                            Text(
+                                "已遭遇 ${survCodexEntries.count { game.defeatedKinds.contains(it.kindIdx) }} / ${survCodexEntries.size} · 击杀后解锁档案",
+                                fontSize = 10.sp, color = GameUi.TextDim,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    survCodexEntries.forEach { e ->
+                        val seen = game.defeatedKinds.contains(e.kindIdx)
+                        GamePanel(Modifier.fillMaxWidth().padding(vertical = 6.dp), accent = if (seen) GameUi.Gold else null, contentPadding = 14.dp) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(e.glyph, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = if (seen) e.color else Color(0x55FFFFFF))
+                                Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                                    Text(if (seen) e.name else "？？？（${e.name}）", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                                    Text(if (seen) "已收录" else "未遭遇", fontSize = 10.sp, color = if (seen) GameUi.Gold else GameUi.TextFaint)
+                                }
+                            }
+                            if (seen) {
+                                Text("属性：${e.attr}", style = MaterialTheme.typography.bodySmall, color = GameUi.Text, modifier = Modifier.padding(top = 8.dp))
+                                Text("行动习惯：${e.behavior}", style = MaterialTheme.typography.bodySmall, color = GameUi.TextDim, modifier = Modifier.padding(top = 3.dp))
+                            } else {
+                                Text("档案加密——遭遇并击杀后解锁。", style = MaterialTheme.typography.bodySmall, color = GameUi.TextFaint, modifier = Modifier.padding(top = 8.dp))
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    GameActionButton("返回", onClick = { showCodex = false }, primary = false, height = 44.dp, modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
         if (hud.phase == SurvivorGame.Phase.READY) {
             Box(Modifier.fillMaxSize()) {
                 GameBackdrop(accent = Color(0xFF4FC3F7))
@@ -413,6 +466,14 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                             color = GameUi.Gold,
                         )
                         Spacer(Modifier.height(16.dp))
+                        GameActionButton(
+                            "📜 图鉴",
+                            onClick = { showCodex = true },
+                            primary = false,
+                            height = 44.dp,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(Modifier.height(8.dp))
                         GameActionButton(
                             "开始游戏",
                             onClick = { game.start() },
@@ -618,3 +679,30 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
 }
 
 private fun formatTime(sec: Int): String = "%d:%02d".format(sec / 60, sec % 60)
+
+
+/** 批48：数学空间图鉴条目 */
+private data class SurvCodexEntry(
+    val key: String,
+    val kindIdx: Int,
+    val glyph: String,
+    val name: String,
+    val color: androidx.compose.ui.graphics.Color,
+    val attr: String,
+    val behavior: String,
+)
+
+private val survCodexEntries = listOf(
+    SurvCodexEntry("SURV_DIGIT", 0, "1", "数字崽", androidx.compose.ui.graphics.Color(0xFFE15A5A),
+        "血量低 · 速度中 · 威胁低",
+        "无脑直线扑向玩家，成群出没——数量是唯一威胁"),
+    SurvCodexEntry("SURV_OP", 1, "+", "运算符蜂", androidx.compose.ui.graphics.Color(0xFF4DD0E1),
+        "血量低 · 速度快 · 威胁中",
+        "顶着 + − 符号沿正弦轨迹绕飞，天然避开直线弹幕——需要预判拦截"),
+    SurvCodexEntry("SURV_GEOM", 2, "△", "几何狂", androidx.compose.ui.graphics.Color(0xFFFFB74D),
+        "血量中 · 速度爆发 · 威胁中高",
+        "多边形线框体，每 3 秒蓄力冲刺一次（2.2 倍速），冲刺前会靠近锁定"),
+    SurvCodexEntry("SURV_ELITE", 3, "∑", "∑ 求和体", androidx.compose.ui.graphics.Color(0xFFB23A3A),
+        "血量极高 · 速度慢 · 威胁高",
+        "每 60 秒降临的精英：六边线框+金色大 ∑，缓慢但坚定——击杀掉落大经验，优先级目标"),
+)

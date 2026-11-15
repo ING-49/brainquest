@@ -22,8 +22,13 @@ class SurvivorGame {
         // 批42：数学实体——普通怪=字形（数字/运算符/希腊字母），大怪=几何线框边数（3/4/5）
         val glyph: String = "1",
         val sides: Int = 0,
+        // 批48：怪种类——0=数字崽(直追) 1=运算符蜂(正弦绕行) 2=几何狂(周期冲刺) 3=∑求和体(精英)
+        val kind: Int = 0,
     ) {
         var alive = true
+        var wobbleSeed = Random.nextFloat() * 6.2831853f   // 批48：运算符蜂的相位
+        var dashCd = 0f                                    // 批48：几何狂的冲刺冷却
+        var dashT = 0f                                     // 批48：冲刺剩余时间
     }
 
     class Bullet(var x: Float, var y: Float, val dx: Float, val dy: Float) {
@@ -182,6 +187,8 @@ class SurvivorGame {
                     if (e.hp <= 0f) {
                         e.alive = false
                         kills++
+                        defeatedKinds.add(e.kind)
+                        kindKills[e.kind] = (kindKills[e.kind] ?: 0) + 1   // 批48：图鉴记录
                         if (orbs.size < MAX_ORBS) orbs.add(Orb(e.x, e.y, 1))
                     }
                     break
@@ -189,14 +196,30 @@ class SurvivorGame {
             }
         }
 
-        // 敌人追踪 + 碰撞玩家（有无敌帧）
+        // 敌人追踪 + 碰撞玩家（批48：按种类分支行为）
         for (e in enemies) {
             if (!e.alive) continue
             val dx = px - e.x; val dy = py - e.y
             val d = hypot(dx, dy)
             if (d > 1f) {
-                e.x += dx / d * e.speed * dt
-                e.y += dy / d * e.speed * dt
+                val sp = when (e.kind) {
+                    1 -> e.speed                                   // 运算符蜂：本体更快
+                    else -> {
+                        // 几何狂：周期冲刺（冷却 3s，冲 0.4s @2.2x）
+                        if (e.kind == 2) {
+                            e.dashCd -= dt
+                            if (e.dashCd <= 0f && d < 420f) { e.dashT = 0.4f; e.dashCd = 3f }
+                        }
+                        e.speed * (if (e.dashT > 0f) 2.2f else 1f)
+                    }
+                }
+                val base = dx / d
+                // 运算符蜂：沿主方向 + 垂直正弦摆动（绕行避开直线弹幕）
+                val perpX = if (e.kind == 1) -dy / d * kotlin.math.sin(elapsed * 4f + e.wobbleSeed) * 0.55f else 0f
+                val perpY = if (e.kind == 1) dx / d * kotlin.math.sin(elapsed * 4f + e.wobbleSeed) * 0.55f else 0f
+                e.x += (base * sp + perpX) * dt
+                e.y += (dy / d * sp + perpY) * dt
+                if (e.dashT > 0f) e.dashT -= dt
             }
             if (invincible <= 0f) {
                 val rr = e.r + playerR
@@ -317,15 +340,30 @@ class SurvivorGame {
         }
         val glyph = glyphPool[Random.nextInt(glyphPool.size)]
         val sides = if (r > 20f) listOf(3, 4, 5)[Random.nextInt(3)] else 0
-        enemies.add(Enemy(px + cos(ang) * ring, py + sin(ang) * ring, r, hp, hp, speed, dmg, glyph, sides))
+        // 批48：种类混合——<30s 全数字崽，30~90s 混入运算符蜂，>90s 混入几何狂
+        val kind = when {
+            elapsed < 30f -> 0
+            elapsed < 90f -> if (Random.nextFloat() < 0.3f) 1 else 0
+            else -> when {
+                Random.nextFloat() < 0.2f -> 2
+                Random.nextFloat() < 0.35f -> 1
+                else -> 0
+            }
+        }
+        val spd = if (kind == 1) speed * 1.2f else speed   // 运算符蜂更快
+        enemies.add(Enemy(px + cos(ang) * ring, py + sin(ang) * ring, r, hp, hp, spd, dmg, glyph, sides, kind))
     }
+
+    /** 批48：击杀记录（图鉴+计数） */
+    val defeatedKinds = mutableSetOf<Int>()
+    val kindKills = mutableMapOf<Int, Int>()
 
     /** 批45：∑ 求和体（精英）——每 60s 一只，六边线框+大血量，压节奏用 */
     private fun spawnElite() {
         val ring = hypot(viewW, viewH) / 2f + 50f
         val ang = Random.nextFloat() * 6.2831853f
         val hp = enemyBaseHp * 6f + elapsed * 3.5f
-        enemies.add(Enemy(px + cos(ang) * ring, py + sin(ang) * ring, 32f, hp, hp, 42f + min(elapsed * 0.2f, 25f), contactBaseDmg * 1.5f, "∑", 6))
+        enemies.add(Enemy(px + cos(ang) * ring, py + sin(ang) * ring, 32f, hp, hp, 42f + min(elapsed * 0.2f, 25f), contactBaseDmg * 1.5f, "∑", 6, 3))
     }
 
     companion object {
