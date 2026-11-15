@@ -11,10 +11,10 @@
 | 项 | 值 |
 |---|---|
 | JDK 17 | `E:\Tools\jdk-17.0.20.1+1`（JAVA_HOME 已 setx）⚠️ 不要用 Studio 自带 JBR（Java 25，Kotlin 2.0 编译器崩溃报 `IllegalArgumentException: <版本号>`） |
-| Android SDK | `E:\Tools\Android-Studio\Android\SDK`（ANDROID_HOME 已 setx；platform 34/37、build-tools 34.0.0/36.0.0、系统镜像 android-34 google_apis x86_64） |
-| 模拟器 AVD | **`BQ2`**（Pixel 6, API 34；旧 `BrainQuest` 于 2026-10-03 被电脑硬关机写坏、已删除重建为 BQ2）；**AVD home 目录 `E:/Tools/Android-Studio/avd-home`**（启动前需 `export ANDROID_AVD_HOME=E:/Tools/Android-Studio/avd-home`，否则报 Unknown AVD name）。headless 启动：`emulator -avd BQ2 -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot`（需设 ANDROID_HOME/ANDROID_AVD_HOME；坏了就 `avdmanager create avd -n BQ2 -k "system-images;android-34;google_apis;x86_64" -d pixel_6` 重建） |
+| Android SDK | `D:\Software\Android-Studio\Android\SDK`（ANDROID_HOME 已 setx；platform 34/37、build-tools 34.0.0/36.0.0、系统镜像 android-34 google_apis x86_64） |
+| 模拟器 AVD | **`BQ2`**（Pixel 6, API 34；旧 `BrainQuest` 于 2026-10-03 被电脑硬关机写坏、已删除重建为 BQ2）；**AVD home 目录 `D:/Software/Android-Studio/avd-home`**（启动前需 `export ANDROID_AVD_HOME=D:/Software/Android-Studio/avd-home`，否则报 Unknown AVD name）。headless 启动：`emulator -avd BQ2 -no-window -gpu angle_indirect -no-audio -no-boot-anim -no-snapshot`（需设 ANDROID_HOME/ANDROID_AVD_HOME；坏了就 `avdmanager create avd -n BQ2 -k "system-images;android-34;google_apis;x86_64" -d pixel_6` 重建） |
 | gh CLI | `E:\Tools\gh-cli\bin\gh.exe`（已登录 GitHub 账号 ING-49，token 在系统 keyring） |
-| Gradle | wrapper 8.7；依赖走阿里云镜像（settings.gradle.kts，dl.google.com 被墙）；GRADLE_USER_HOME=`E:\Tools\Android-Studio\Gradle-home` |
+| Gradle | wrapper 8.7；依赖走阿里云镜像（settings.gradle.kts，dl.google.com 被墙）；GRADLE_USER_HOME=`D:\Software\Android-Studio\Gradle-home` |
 | Python | 本机 `python` 解析到 LibreOffice 自带 **3.13.15**；2026-09-25 已装 **numpy / websockets / pillow**（`scipy` 仍未装，像素取证脚本里用 scipy 的先跑 `python -m pip install scipy`）。`pip` 不在 PATH，用 `python -m pip`。bsdiff4 已弃用（Windows 版有缺陷） |
 
 ## 关键命令
