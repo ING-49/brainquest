@@ -648,6 +648,12 @@ class CombatEngine {
                 val dx = e.x - b.x; val dy = e.y - b.y
                 val rr = e.r + b.r
                 if (dx * dx + dy * dy <= rr * rr) {
+                    // 批47：泥沼傀儡「吞弹」——玩家子弹被吸收并回 2 血，远程打它是在喂它
+                    if (e.kind == EnemyKind.MUDDY_GOLEM) {
+                        b.alive = false
+                        e.hp = min(e.maxHp, e.hp + 2f)
+                        continue
+                    }
                     val bl = hypot(b.dx, b.dy)
                     val knx = if (bl > 1f) b.dx / bl else 0f
                     val kny = if (bl > 1f) b.dy / bl else 0f

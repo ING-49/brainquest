@@ -7,7 +7,7 @@ for ini in [
     r'D:\Software\Android-Studio\avd-home\CarMonitor.ini',
 ]:
     s = io.open(ini, encoding='utf-8').read()
-    old = r'E:\Tools\Android-Studio\avd-home'
+    old = r'D:\Software\Android-Studio\avd-home'
     new = r'D:\Software\Android-Studio\avd-home'
     if old in s:
         s = s.replace(old, new)

@@ -99,6 +99,7 @@ class DungeonGame {
     private var skillCdPerkMult = 1f   // 🌀 技能强化天赋倍率（进局算好，选职业时乘上）
     var runMode: String = "standard"; private set   // standard/endless/bossrush/arena（批15 玩法模式）
     val seenMonsters = mutableSetOf<String>()   // 📖 本局遭遇的怪物（图鉴，批20-D；结算合并进 PlayerState）
+    val monsterKills = mutableMapOf<String, Int>()   // 📖 本局各怪击杀数（批47）
     // 事件房（批20-C）：神秘赌桌
     private val eventSpots = HashMap<Room, Pair<Float, Float>>()
     private val eventDone = mutableSetOf<Room>()
@@ -219,7 +220,12 @@ class DungeonGame {
         engine.onCoinPicked = { v -> coins += v }
         engine.onEnemyKilled = { e ->
             seenMonsters.add(e.kind.name)
-            if (e.bossFloor > 0) seenMonsters.add("BOSS_" + listOf("big_demon", "chort", "big_zombie", "ogre")[(e.bossFloor - 1).mod(4)])
+            monsterKills[e.kind.name] = (monsterKills[e.kind.name] ?: 0) + 1   // 批47：击杀计数
+            if (e.bossFloor > 0) {
+                seenMonsters.add("BOSS_" + listOf("big_demon", "chort", "big_zombie", "ogre")[(e.bossFloor - 1).mod(4)])
+                val bKey = "BOSS_" + listOf("big_demon", "chort", "big_zombie", "ogre")[(e.bossFloor - 1).mod(4)]
+                monsterKills[bKey] = (monsterKills[bKey] ?: 0) + 1
+            }
             totalKills++
             if (c.id == "mage") engine.heal(1)   // 法师被动：击杀回 1 血
             // 金币掉落：精英 +8 / Boss +25（改金币实体：飞散落地→磁吸→拾取才入账）
@@ -357,6 +363,7 @@ class DungeonGame {
             val kindHp = when (kind) {
                 EnemyKind.SHIELD_GUARD -> 1.9f
                 EnemyKind.BOOM_SLIME -> 0.8f
+                EnemyKind.MUDDY_GOLEM -> 2.2f
                 else -> 1f
             }
             val kindDmg = when (kind) {
@@ -373,6 +380,7 @@ class DungeonGame {
                 EnemyKind.SLIME -> 55f
                 EnemyKind.CASTER -> 60f
                 EnemyKind.SHIELD_GUARD -> 45f
+                EnemyKind.MUDDY_GOLEM -> 40f
                 else -> 68f
             }) + min(floor, 12) * 4f   // 批15：速度成长 12 层封顶
             val r = when {
@@ -382,6 +390,7 @@ class DungeonGame {
                 kind == EnemyKind.BONE_ARCHER -> 16f
                 kind == EnemyKind.BOOM_SLIME -> 15f
                 kind == EnemyKind.SLIME -> 17f
+                kind == EnemyKind.MUDDY_GOLEM -> 22f
                 else -> 18f
             }   // 整体加大 ~15%：更有怪物体积感
             // 批19：回到房内散布（与最初一致）——敌人待机静止显示，玩家进房才开战（dormant 机制）
@@ -462,6 +471,7 @@ class DungeonGame {
                 repeat(n) {
                     val kind = when {
                         floor >= 3 && rng.nextInt(7) == 0 -> EnemyKind.SHIELD_GUARD   // 盾卫第 3 层起
+                        floor >= 2 && rng.nextInt(6) == 0 -> EnemyKind.MUDDY_GOLEM   // 泥沼傀儡第 2 层起（批47）
                         floor >= 2 && rng.nextInt(6) == 0 -> EnemyKind.BONE_ARCHER    // 弓手第 2 层起
                         floor >= 2 && rng.nextInt(6) == 0 -> EnemyKind.BOOM_SLIME     // 自爆第 2 层起
                         floor >= 2 && rng.nextInt(5) == 0 -> EnemyKind.CASTER
@@ -515,7 +525,7 @@ class DungeonGame {
         val scaleHp = (1f + 0.40f * (floor - 1)) * endlessK
         val scaleDmg = (1f + 0.2f * (floor - 1)) * endlessK
         repeat(3 + rng.nextInt(2)) { i ->
-            val kind = listOf(EnemyKind.SKELETON, EnemyKind.BAT, EnemyKind.CASTER, EnemyKind.BOOM_SLIME, EnemyKind.BONE_ARCHER).random(rng)
+            val kind = listOf(EnemyKind.SKELETON, EnemyKind.BAT, EnemyKind.CASTER, EnemyKind.BOOM_SLIME, EnemyKind.BONE_ARCHER, EnemyKind.MUDDY_GOLEM).random(rng)
             val x = roomLeft(room) + 120f + rng.nextFloat() * (room.w - 240f)
             val y = roomTop(room) + 100f + rng.nextFloat() * (room.h - 200f)
             val e = CombatEngine.Enemy(x, y, 17f, 30f * scaleHp, 30f * scaleHp, 70f + min(floor, 12) * 4f,

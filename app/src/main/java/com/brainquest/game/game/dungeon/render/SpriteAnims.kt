@@ -23,6 +23,7 @@ object SpriteAnims {
         "CASTER" to "necromancer",
         "SHIELD_GUARD" to "ogre",
         "BOOM_SLIME" to "wogol",
+        "MUDDY_GOLEM" to "muddy",
     )
 
     fun load(assets: android.content.res.AssetManager) {

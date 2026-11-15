@@ -292,6 +292,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         commit { it.copy(seenMonsters = (it.seenMonsters + kinds).distinct()) }
     }
 
+    /** 图鉴：合并本局各怪击杀数（批47） */
+    fun mergeMonsterKills(kills: Map<String, Int>) {
+        if (kills.isEmpty()) return
+        commit {
+            val merged = it.monsterKills.toMutableMap()
+            kills.forEach { (k, v) -> merged[k] = (merged[k] ?: 0) + v }
+            it.copy(monsterKills = merged)
+        }
+    }
+
     fun reportBest(key: String, score: Int): Boolean {
         val old = _player.value.bestScores[key] ?: 0
         if (score > old) {
