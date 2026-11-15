@@ -9,7 +9,7 @@ import re
 import subprocess
 import time
 
-ADB = r"E:/Tools/Android-Studio/Android/SDK/platform-tools/adb.exe"
+ADB = r"D:/Software/Android-Studio/Android/SDK/platform-tools/adb.exe"
 PKG = "com.brainquest.game"
 
 

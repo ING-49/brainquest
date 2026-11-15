@@ -8,7 +8,7 @@ import sys, time, re, subprocess
 sys.path.insert(0, r"E:\PROJECT_CCC\ZCode_project\APP-learn\tools")
 import ui
 
-ADB = r"E:/Tools/Android-Studio/Android/SDK/platform-tools/adb.exe"
+ADB = r"D:/Software/Android-Studio/Android/SDK/platform-tools/adb.exe"
 S = r"E:\PROJECT_CCC\ZCode_project\APP-learn\tools\_shots_dungeon1"
 
 ROOM_W, ROOM_H, GRID_X, GRID_Y = 1000, 640, 1400, 960

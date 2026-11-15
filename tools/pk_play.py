@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ui as _ui  # dump 走 exec-out /dev/tty，Git Bash 下稳定
 
-ADB = r"E:/Tools/Android-Studio/Android/SDK/platform-tools/adb.exe"
+ADB = r"D:/Software/Android-Studio/Android/SDK/platform-tools/adb.exe"
 
 
 def sh(*a):
