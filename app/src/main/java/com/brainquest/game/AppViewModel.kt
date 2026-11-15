@@ -292,6 +292,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         commit { it.copy(seenMonsters = (it.seenMonsters + kinds).distinct()) }
     }
 
+    /** 👤 记录职业使用局数（批49：人物图鉴） */
+    fun recordClassRun(classId: String) = commit {
+        it.copy(classRuns = it.classRuns + (classId to (it.classRuns[classId] ?: 0) + 1))
+    }
+
     /** 图鉴：标记幸存者已遭遇的怪种类（批48） */
     fun markSurvivorSeen(kinds: List<String>) {
         if (kinds.isEmpty()) return

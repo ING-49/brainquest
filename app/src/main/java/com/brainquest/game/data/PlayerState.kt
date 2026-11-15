@@ -62,6 +62,7 @@ data class PlayerState(
     val seenMonsters: List<String> = emptyList(), // 📖 已遭遇的怪物（图鉴，批20-D）
     val monsterKills: Map<String, Int> = emptyMap(), // 📖 各怪累计击杀（批47：图鉴详情页展示）
     val survivorSeen: List<String> = emptyList(), // 📐 数学空间已遭遇的怪种类（批48）
+    val classRuns: Map<String, Int> = emptyMap(), // 👤 各职业使用局数（批49：人物图鉴）
     val totalDungeonKills: Int = 0, // 🏰 地牢累计击杀（跨局累加，胜败局都算）
 ) {
     val totalAnswered: Int get() = totalCorrect + totalWrong
