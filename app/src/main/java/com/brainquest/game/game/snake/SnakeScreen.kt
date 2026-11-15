@@ -151,7 +151,7 @@ fun SnakeScreen(vm: AppViewModel, nav: NavHostController) {
         }
 
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("🍎 得分 ${game.score}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("🍎 ${game.score}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFFFFB300))   // 批44：街机大分数
             Text("速度 ${game.speedLabel}", style = MaterialTheme.typography.titleSmall)
             Text(
                 "最高分 ${player.bestScores["snake_best"] ?: 0}",

@@ -281,13 +281,22 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                     startGame("ai")
                     Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)
                 }) { Text("🔄 重开一局") }
-                Text(
-                    "本局 ${sessionWins} 胜 ${sessionLosses} 负 · 🔥 连胜 $streak · " +
-                        (if (game.finished) "本局结束" else if (game.playerTurn) "轮到你" else "电脑思考中…"),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                    // 批44：回合图形化指示——黑子=轮到你，白子=电脑思考中
+                    Box(
+                        Modifier
+                            .size(13.dp)
+                            .clip(CircleShape)
+                            .background(if (game.playerTurn && !game.finished) Color(0xFF212121) else Color(0xFDFDFD))
+                            .border(1.dp, Color(0xFF6D4C41), CircleShape),
+                    )
+                    Text(
+                        " 本局 ${sessionWins} 胜 ${sessionLosses} 负 · 🔥 连胜 $streak · " +
+                            (if (game.finished) "本局结束" else if (game.playerTurn) "轮到你" else "电脑思考中…"),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             Box(
@@ -447,6 +456,16 @@ private fun GomokuBoard(
                         .width(cell * game.size)
                         .height(1.dp)
                         .background(GRID_LINE),
+                )
+            }
+            // 批44：星位（天元 + 四星，15 路标准）
+            val starDot = cell * 0.22f
+            listOf(3 to 3, 3 to 11, 11 to 3, 11 to 11, 7 to 7).forEach { (sr, sc) ->
+                Box(
+                    Modifier
+                        .offset(x = cell * sc - starDot / 2, y = cell * sr - starDot / 2)
+                        .size(starDot)
+                        .background(Color(0x40000000), CircleShape),
                 )
             }
             for (r in 0 until game.size) {

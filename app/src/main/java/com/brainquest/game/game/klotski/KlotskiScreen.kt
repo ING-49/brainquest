@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -118,7 +119,12 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
+    Column(
+        Modifier.fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFFFFFDF5), Color(0xFFF6EFE0))))   // 批44：淡暖纸感底，衬古典棋盘
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
         // 系统返回键：在对局中先退回选关，再返回才离开页面
         androidx.activity.compose.BackHandler(enabled = game != null) {
             game = null
