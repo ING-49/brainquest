@@ -243,6 +243,23 @@ object EntityRenderer {
                 cx2 += step; col++
             }
         }
+        // 批43：房型地面元素——进房/隔门望即感知类型（SHOP 金环 / EVENT 紫法阵 / CHEST 淡金光斑）
+        val gcx = l + w / 2f
+        val gcy = t + h / 2f
+        when (room.type) {
+            RoomType.SHOP -> {
+                scope.drawCircle(Color(0x30FFC107), 200f, Offset(gcx, gcy))
+                scope.drawCircle(Color(0x55FFC107), 160f, Offset(gcx, gcy), style = Stroke(6f))
+            }
+            RoomType.EVENT -> {
+                scope.drawCircle(Color(0x407C4DFF), 190f, Offset(gcx, gcy), style = Stroke(5f))
+                scope.drawCircle(Color(0x307C4DFF), 130f, Offset(gcx, gcy), style = Stroke(3f))
+            }
+            RoomType.CHEST -> {
+                scope.drawCircle(Color(0x2AFFC107), 140f, Offset(gcx, gcy))
+            }
+            else -> {}
+        }
         // 墙（描边）+ 墙顶亮边 + 墙体投影暗带（立体感）
         scope.drawRoundRect(pal.wall, Offset(l, t), Size(w, h), CornerRadius(18f), style = Stroke(DungeonGame.WALL))
         scope.drawRect(GamePalette.BG_WALL_TOP, Offset(l + DungeonGame.WALL, t + DungeonGame.WALL), Size(w - DungeonGame.WALL * 2, 6f))
@@ -531,8 +548,15 @@ object EntityRenderer {
     private fun drawBossBody(scope: DrawScope, sx: Float, sy: Float, e: com.brainquest.game.game.core.CombatEngine.Enemy, time: Float) {
         val r = e.r
         val rage = e.phase >= 2
-        val body = if (rage) androidx.compose.ui.graphics.lerp(Color(0xFF8E2424), GamePalette.BOSS_GLOW, 0.3f + 0.1f * sin(time * 10f)) else Color(0xFF6D2A2A)
-        val dark = Color(0xFF3A1414)
+        // 批43：盔甲色相按层轮换（深渊红/腐沼绿/炎狱橙/寒渊蓝），狂暴期整体向 BOSS_GLOW 变亮
+        val floorArmor = listOf(
+            Color(0xFF6D2A2A) to Color(0xFF3A1414),   // 深渊领主
+            Color(0xFF2E5333) to Color(0xFF14261A),   // 腐沼之主
+            Color(0xFF7A3212) to Color(0xFF3A1A0A),   // 炎狱魔将
+            Color(0xFF1F4E79) to Color(0xFF0D2438),   // 寒渊暴君
+        )[(e.bossFloor - 1).mod(4)]
+        val body = if (rage) androidx.compose.ui.graphics.lerp(floorArmor.first, GamePalette.BOSS_GLOW, 0.3f + 0.1f * sin(time * 10f)) else floorArmor.first
+        val dark = floorArmor.second
         val sway = sin(time * 2f + e.wobbleSeed) * 3f
         scope.run {
             // 阴影

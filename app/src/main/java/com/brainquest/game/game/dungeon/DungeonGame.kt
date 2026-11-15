@@ -24,6 +24,8 @@ class DungeonGame {
     enum class Phase { READY, CLASS_SELECT, EXPLORING, LEVELUP, LOOT, SHOP, EVENT, PAUSED, GAMEOVER, VICTORY, TRANSITION }
 
     companion object {
+        /** 批43：Boss 名字按层数轮换（4 层一循环） */
+        val BOSS_NAMES = listOf("深渊领主", "腐沼之主", "炎狱魔将", "寒渊暴君")
         const val ROOM_W = 2000f   // 标准战斗房宽（基准值，实际用 Room.w）
         const val ROOM_H = 1300f   // 标准战斗房高
         const val GRID_X = 2400f   // 房间横向间距（含走廊）
@@ -92,6 +94,8 @@ class DungeonGame {
     var cls: ClassDef? = null; private set
     /** DEBUG/局外成长：永久升级（选职业前由 Screen 注入，startRun 应用） */
     var pendingPerks: Map<String, Int> = emptyMap()
+    // 批43：Boss 差异化——名字按层数轮换（HUD 名牌/出场横幅用）
+    var bossName: String = "深渊领主"
     private var skillCdPerkMult = 1f   // 🌀 技能强化天赋倍率（进局算好，选职业时乘上）
     var runMode: String = "standard"; private set   // standard/endless/bossrush/arena（批15 玩法模式）
     val seenMonsters = mutableSetOf<String>()   // 📖 本局遭遇的怪物（图鉴，批20-D；结算合并进 PlayerState）
@@ -336,7 +340,7 @@ class DungeonGame {
         e.entrancePending = false
         engine.addShake(10f)
         engine.events.add(CombatEngine.FxEvent(e.x, e.y, "", false, null, 4))
-        engine.events.add(CombatEngine.FxEvent(e.x, e.y, "第${floor}层 · 魔王现身", false, null, 7))   // 出场横幅（屏幕层渲染）
+        engine.events.add(CombatEngine.FxEvent(e.x, e.y, "第${floor}层 · ${bossName} 现身", false, null, 7))   // 出场横幅（屏幕层渲染）
     }
 
     private fun populateRoom(room: Room) {
@@ -428,6 +432,7 @@ class DungeonGame {
                     11f * scaleDmg, EnemyKind.DUMMY, elite = false, xpValue = 8,
                 )
                 boss.bossFloor = floor
+                bossName = BOSS_NAMES[(floor - 1).mod(BOSS_NAMES.size)]   // 批43：按层轮换
                 boss.dormant = true   // 预刷新待机：玩家进房才激活（否则落地即追击，隔房参战/被隔房斩杀）
                 boss.entrancePending = true   // 出场特效（震屏+冲击环）推迟到激活瞬间——populate 发生在邻房预刷新，提前放会误震邻房
                 engine.spawnLater(0.4f, boss)

@@ -1254,7 +1254,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("👹", fontSize = 13.sp)
                     Text(
-                        "第${hud.floor}层 · 深渊领主",
+                        "第${hud.floor}层 · ${game.bossName}",   // 批43：按层轮换
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFFF8A80),
