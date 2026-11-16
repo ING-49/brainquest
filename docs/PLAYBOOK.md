@@ -133,6 +133,13 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **考研模式**：`PlayerState.hardMode` → 设置开关。每日挑战走 `pickDaily`（开=大学五科 60% 真题+40% 难度4，关=基础五科难度2）；闯关/战斗 v1.6.0 起同样联动（`BattleState(subject, level, hardMode=…)`，非数学/逻辑科目走 `pickKaoyanBattleExcluding` 真题+高难并去重），战斗页标题带 🎓 徽标
 - **错题本艾宾浩斯复习**（v1.6.0）：`WrongEntry.stage/nextReviewAt` + `PlayerState.reviewIntervalMs`（答错当天→1→2→4→7→15 天）；复习答对 stage+1，答错退回 stage0 且 60s 后重练；`AppViewModel.dueReviewQuestions()` 汇总到期题，错题本页顶部「今日待复习」卡片一键进入复习
 
+## 五之〇、图鉴系统速查（批47-49）
+
+- **数据**：PlayerState.seenMonsters（遭遇）/ monsterKills（各怪击杀数，批47）/ survivorSeen（幸存者怪种类，批48）/ classRuns（职业使用局数，批49）
+- **合并时机**：结算（GAMEOVER/VICTORY）+ **中途退出（exitToLobby/confirmExit）也要合并**——批47 修复"中途退出丢收集"
+- **图鉴页**：地牢大厅 📖 进入；Tab 🧟怪物（12 条档案，点卡片开详情：立绘/属性三色条/攻击特点/行动习惯/出没/击杀数）/ 👤人物（drawPortrait 立绘+使用局数）；幸存者 READY 弹窗 📜 进入（4 条数学实体档案）
+- **新怪五件套**：EnemyKind + AI 分支 + 精灵映射（0x72 包 muddy 未用素材可作新怪）+ 刷怪池时段 + 图鉴条目档案
+
 ## 五、发版检查单
 
 - [ ] `app/build.gradle.kts` versionCode +1、versionName 升级
