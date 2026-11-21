@@ -115,6 +115,11 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
             vm.addCoins((50 - g.moves / 4).coerceAtLeast(10) + if (newRecord) 30 else 0)
             vm.addXp(25 + if (newRecord) 15 else 0)
             Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.WIN)
+            Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.COIN)   // 批52：发奖音
+            if (newRecord) {
+                kotlinx.coroutines.delay(500)
+                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CHEER)   // 批52：新纪录 CHEER
+            }
             showWin = true
         }
     }
@@ -235,7 +240,11 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                                         g.move(selected, if (acc.y > 0) 1 else -1, 0)
                                     }
                                     acc = Offset.Zero
-                                    if (moved) Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.MOVE)
+                                    if (moved) {
+                                        Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.MOVE)
+                                    } else {
+                                        Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.WRONG)   // 批52：撞挡反馈
+                                    }
                                 }
                             },
                         )
@@ -269,6 +278,7 @@ fun KlotskiScreen(vm: AppViewModel, nav: NavHostController) {
                             onTryMove = { dr, dc ->
                                 val moved = g.move(b.id, dr, dc)
                                 if (moved) Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.MOVE)
+                                else Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.WRONG)   // 批52：撞挡反馈
                                 moved
                             },
                         )

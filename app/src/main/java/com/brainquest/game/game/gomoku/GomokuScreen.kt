@@ -160,6 +160,7 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             } else {
                 Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.WIN)
+                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.COIN)   // 批52：发奖音
             }
             GomokuSession.rewarded = true
             showResult = true
@@ -227,8 +228,8 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                 sideLabel = "⚪ 白方", stoneColor = WHITE_STONE, stoneEdge = WHITE_STONE_EDGE,
                 active = !game.finished && game.turnSide == "白",
                 undoEnabled = undoEnabled,
-                onUndo = { game.undo(); rewarded = false; GomokuSession.rewarded = false; showResult = false },
-                onReset = { startGame("friend") },
+                onUndo = { game.undo(); rewarded = false; GomokuSession.rewarded = false; showResult = false; Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK) },
+                onReset = { Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK); startGame("friend") },
                 rotated = true,
             )
             Spacer(Modifier.height(6.dp))
@@ -243,8 +244,8 @@ fun GomokuScreen(vm: AppViewModel, nav: NavHostController) {
                 sideLabel = "⚫ 黑方", stoneColor = BLACK_STONE, stoneEdge = BLACK_STONE_EDGE,
                 active = !game.finished && game.turnSide == "黑",
                 undoEnabled = undoEnabled,
-                onUndo = { game.undo(); rewarded = false; GomokuSession.rewarded = false; showResult = false },
-                onReset = { startGame("friend") },
+                onUndo = { game.undo(); rewarded = false; GomokuSession.rewarded = false; showResult = false; Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK) },
+                onReset = { Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK); startGame("friend") },
                 rotated = false,
             )
         } else {

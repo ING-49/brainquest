@@ -97,9 +97,14 @@ fun SnakeScreen(vm: AppViewModel, nav: NavHostController) {
         }
     }
 
-    // 吃到豆子
+    // 吃到豆子（批52：头闪 Animatable）
+    val headPop = remember { androidx.compose.animation.core.Animatable(1f) }
     LaunchedEffect(game, game.score) {
-        if (game.score > 0) Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.EAT)
+        if (game.score > 0) {
+            Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.EAT)
+            headPop.snapTo(1.35f)
+            headPop.animateTo(1f, androidx.compose.animation.core.tween(140))
+        }
     }
 
     // 结算（一局一次）
@@ -112,10 +117,11 @@ fun SnakeScreen(vm: AppViewModel, nav: NavHostController) {
                 vm.addXp(game.score / 3)
             }
             Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CRASH)
+            if (game.score > 0) Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.COIN)   // 批52：发奖音
             showResult = true
             if (newRecord) {
                 delay(700)
-                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.WIN)
+                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CHEER)   // 批52：新纪录 CHEER
             }
         }
     }
