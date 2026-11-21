@@ -677,6 +677,10 @@ class CombatEngine {
                             break
                         }
                     }
+                    // 批51：火球命中爆点（耗尽穿透时）——复用 kind 18 爆裂连锁渲染
+                    if (b.element == Element.FIRE && b.pierce == 0) {
+                        events.add(FxEvent(e.x, e.y, "", false, Element.FIRE, 18))
+                    }
                     if (b.pierce > 0) b.pierce-- else { b.alive = false }
                     break
                 }

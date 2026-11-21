@@ -3,6 +3,7 @@ package com.brainquest.game.game.dungeon.render
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.lerp
@@ -649,10 +650,20 @@ object EntityRenderer {
             val c = Color(d.item.rarityColorLong)
             val pulse = 1f + sin(time * 5f + d.t) * 0.15f
             val r = 10f * pulse
-            scope.drawLine(c, Offset(sx, sy - r), Offset(sx + r, sy), 4f)
-            scope.drawLine(c, Offset(sx + r, sy), Offset(sx, sy + r), 4f)
-            scope.drawLine(c, Offset(sx, sy + r), Offset(sx - r, sy), 4f)
-            scope.drawLine(c, Offset(sx - r, sy), Offset(sx, sy - r), 4f)
+            // 批51：品质色光柱（向上渐隐）+ 菱形缓旋——掉落更有存在感
+            scope.drawRect(
+                Brush.verticalGradient(listOf(c.copy(alpha = 0.05f), c.copy(alpha = 0.30f))),
+                Offset(sx - 7f, sy - 90f), Size(14f, 90f),
+            )
+            scope.withTransform({
+                translate(sx, sy)
+                rotate(time * 1.2f, pivot = Offset.Zero)
+            }) {
+                scope.drawLine(c, Offset(0f, -r), Offset(r, 0f), 4f)
+                scope.drawLine(c, Offset(r, 0f), Offset(0f, r), 4f)
+                scope.drawLine(c, Offset(0f, r), Offset(-r, 0f), 4f)
+                scope.drawLine(c, Offset(-r, 0f), Offset(0f, -r), 4f)
+            }
             scope.drawCircle(SHADOW, 8f, Offset(sx, sy + 12f))
         }
     }
@@ -663,9 +674,17 @@ object EntityRenderer {
         for (c in game.engine.coinDrops) {
             val sx = c.x - game.camX
             val sy = c.y - game.camY + kotlin.math.sin(time * 6f + c.x * 0.05f) * 2f
-            scope.drawCircle(Color(0xFFD97706), 7f, Offset(sx, sy))
-            scope.drawCircle(Color(0xFFFDE68A), 2.8f, Offset(sx - 1.6f, sy - 1.6f))
-            scope.drawCircle(Color(0xFFD97706), 7f, Offset(sx, sy), style = Stroke(1.5f))
+            // 批51：硬币翻转（宽度按 cos 收缩模拟旋转）+ 磁吸拖尾短线
+            val spin = kotlin.math.cos(time * 7f + c.x * 0.13f)
+            val rw = 7f * kotlin.math.abs(spin).coerceAtLeast(0.25f)
+            if (c.magnet) {
+                val dx = game.engine.px - c.x; val dy = game.engine.py - c.y
+                val dl = kotlin.math.hypot(dx, dy).coerceAtLeast(1f)
+                scope.drawLine(Color(0x66FDE68A), Offset(sx, sy), Offset(sx + dx / dl * 26f, sy + dy / dl * 26f), 3f)
+            }
+            scope.drawOval(Color(0xFFD97706), Offset(sx - rw, sy - 7f), Size(rw * 2, 14f))
+            scope.drawOval(Color(0xFFFDE68A), Offset(sx - rw * 0.4f, sy - 2.8f), Size(rw * 0.8f, 5.6f))
+            scope.drawOval(Color(0xFFD97706), Offset(sx - rw, sy - 7f), Size(rw * 2, 14f), style = Stroke(1.5f))
         }
     }
 
