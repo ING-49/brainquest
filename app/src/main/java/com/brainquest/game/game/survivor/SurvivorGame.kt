@@ -29,6 +29,7 @@ class SurvivorGame {
         var wobbleSeed = Random.nextFloat() * 6.2831853f   // 批48：运算符蜂的相位
         var dashCd = 0f                                    // 批48：几何狂的冲刺冷却
         var dashT = 0f                                     // 批48：冲刺剩余时间
+        var hitFlash = 0f                                  // 批50：命中白闪计时
     }
 
     class Bullet(var x: Float, var y: Float, val dx: Float, val dy: Float) {
@@ -77,6 +78,19 @@ class SurvivorGame {
     private var burstTimer = 45f   // 每 45s 一波小高潮
     private var eliteTimer = 60f   // 批45：每 60s 一只 ∑ 求和体（精英）
 
+    // ---------- 批50：反馈特效状态 ----------
+    class DeathFx(val x: Float, val y: Float, val color: Int, val seed: Int) { var age = 0f }
+    class TrailPt(val x: Float, val y: Float) { var age = 0f }
+    val deathFx = ArrayList<DeathFx>(8)
+    val trail = ArrayDeque<TrailPt>(8)
+    var hurtFlash = 0f              // 玩家受击红晕（Screen 渲染衰减）
+    var shake = 0f                  // 受击相机微抖
+    var levelRingT = 0f             // 升级金环剩余时间（Screen 每帧递减渲染）
+    var levelRingX = 0f; var levelRingY = 0f
+    private var trailTimer = 0f
+    // 批50：反馈音效计数（Screen 差量触发）
+    var sfxShoot = 0; var sfxHit = 0; var sfxDeath = 0; var sfxOrb = 0; var sfxHurt = 0
+
     // ---------- 视口与相机 ----------
     var viewW = 1080f; var viewH = 2000f
     var camX = 0f; private set
@@ -121,6 +135,9 @@ class SurvivorGame {
         moveSpeed = 220f; pickupRange = 100f
         elapsed = 0f; kills = 0
         invincible = 0f; attackTimer = 0f; spawnTimer = 0f; burstTimer = 45f; eliteTimer = 60f
+        hurtFlash = 0f; shake = 0f; levelRingT = 0f; trailTimer = 0f
+        deathFx.clear(); trail.clear()
+        sfxShoot = 0; sfxHit = 0; sfxDeath = 0; sfxOrb = 0; sfxHurt = 0
         enemies.clear(); bullets.clear(); orbs.clear()
         pendingUpgrades = emptyList()
         joyActive = false; joyX = 0f; joyY = 0f
@@ -132,14 +149,34 @@ class SurvivorGame {
         val dt = dtRaw.coerceIn(0f, 0.05f)   // 掉帧/切后台恢复时不瞬移
         elapsed += dt
         if (invincible > 0f) invincible -= dt
+        // 批50：反馈计时衰减
+        if (hurtFlash > 0f) hurtFlash -= dt
+        if (shake > 0f) shake -= dt
 
         // 玩家移动
         if (joyActive && (joyX != 0f || joyY != 0f)) {
             px += joyX * moveSpeed * dt
             py += joyY * moveSpeed * dt
         }
+        // 批50：相机微抖（受击）
         camX = px - viewW / 2
         camY = py - viewH / 2
+        if (shake > 0f) {
+            camX += (Random.nextFloat() - 0.5f) * shake * 40f
+            camY += (Random.nextFloat() - 0.5f) * shake * 40f
+        }
+        // 批50：拖尾采样（移动时每 0.05s 一点）与老化
+        trailTimer -= dt
+        if (trailTimer <= 0f && joyActive) {
+            trail.addLast(TrailPt(px, py))
+            if (trail.size > 6) trail.removeFirst()
+            trailTimer = 0.05f
+        }
+        for (t in trail) t.age += dt
+        while (trail.isNotEmpty() && trail.first().age > 0.3f) trail.removeFirst()
+        // 批50：死亡粒子老化
+        for (d in deathFx) d.age += dt
+        deathFx.removeAll { it.age > 0.35f }
 
         // 敌人刷新：频率随时间提高（1.3s → 0.45s @5min，批23 注释对齐实现）
         spawnTimer -= dt
@@ -167,6 +204,7 @@ class SurvivorGame {
                 val d = hypot(dx, dy)
                 if (d > 1f && bullets.size < MAX_BULLETS) {
                     bullets.add(Bullet(px, py, dx / d * bulletSpeed, dy / d * bulletSpeed))
+                    sfxShoot++   // 批50：发射音
                     attackTimer = attackInterval
                 }
             }
@@ -183,10 +221,25 @@ class SurvivorGame {
                 val rr = e.r + bulletR
                 if (dx * dx + dy * dy <= rr * rr) {
                     b.alive = false
+                    // 批50：命中反馈——沿弹道击退 6px + 白闪 + 音效计数
+                    val bl = hypot(b.dx, b.dy)
+                    if (bl > 1f) { e.x += b.dx / bl * 6f; e.y += b.dy / bl * 6f }
+                    e.hitFlash = 0.1f
+                    sfxHit++
                     e.hp -= attackDmg
                     if (e.hp <= 0f) {
                         e.alive = false
                         kills++
+                        sfxDeath++
+                        // 批50：死亡粒子迸溅（按 kind 配色，8 颗放射 + 中心白闪）
+                        if (deathFx.size < 16) {
+                            val dcol = when (e.kind) {
+                                1 -> 0xFF4DD0E1.toInt()
+                                2 -> 0xFFFFB74D.toInt()
+                                else -> if (e.r > 20f) 0xFFB23A3A.toInt() else 0xFFE15A5A.toInt()
+                            }
+                            deathFx.add(DeathFx(e.x, e.y, dcol, (e.x.toInt() + e.y.toInt()) and 0x7fffffff))
+                        }
                         defeatedKinds.add(e.kind)
                         kindKills[e.kind] = (kindKills[e.kind] ?: 0) + 1   // 批48：图鉴记录
                         if (orbs.size < MAX_ORBS) orbs.add(Orb(e.x, e.y, 1))
@@ -226,6 +279,7 @@ class SurvivorGame {
                 if (dx * dx + dy * dy <= rr * rr) {
                     hp -= e.dmg
                     invincible = invincibleSec
+                    hurtFlash = 0.3f; shake = 0.15f; sfxHurt++   // 批50：受击反馈
                     if (hp <= 0f) {
                         hp = 0f
                         phase = Phase.GAMEOVER
@@ -243,6 +297,7 @@ class SurvivorGame {
             val rr = playerR + orbR
             if (d2 <= rr * rr) {
                 o.alive = false
+                sfxOrb++   // 批50：拾取音
                 gainXp(o.value)
                 if (phase != Phase.PLAYING) return   // 升级弹窗打断本帧
             } else {
@@ -270,6 +325,8 @@ class SurvivorGame {
             level++
             xpNext = 4 + (level - 1) * 3
             pendingUpgrades = rollUpgrades()
+            // 批50：升级金环演出（Screen 每帧递减渲染）
+            levelRingT = 0.5f; levelRingX = px; levelRingY = py
             phase = Phase.LEVELUP
         }
     }

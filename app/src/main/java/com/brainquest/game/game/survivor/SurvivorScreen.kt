@@ -37,8 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -132,6 +134,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
     var confirmExit by remember { mutableStateOf(false) }
     var showCodex by remember { mutableStateOf(false) }   // 批48：数学空间图鉴
     val frame = remember { mutableIntStateOf(0) }
+    val sfxPrev = remember { intArrayOf(0, 0, 0, 0, 0) }   // 批50：音效差量基线
     val joyMaxPx = with(LocalDensity.current) { 48.dp.toPx() }
     // 批42：数学字形测量缓存（drawText 需要 TextLayoutResult；按字形缓存避免每帧测量）
     val textMeasurer = rememberTextMeasurer()
@@ -152,6 +155,12 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 game.xp.toFloat() / game.xpNext.coerceAtLeast(1),
             )
             if (h != hud) hud = h
+            // 批50：反馈音效（差量触发；ToneGenerator 自带 60ms 节流）
+            if (game.sfxShoot > sfxPrev[0]) { Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.SHOOT); sfxPrev[0] = game.sfxShoot }
+            if (game.sfxHit > sfxPrev[1]) { Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.HIT); sfxPrev[1] = game.sfxHit }
+            if (game.sfxDeath > sfxPrev[2]) { Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.DEATH); sfxPrev[2] = game.sfxDeath }
+            if (game.sfxOrb > sfxPrev[3]) { Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.ORB); sfxPrev[3] = game.sfxOrb }
+            if (game.sfxHurt > sfxPrev[4]) { Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CRASH); sfxPrev[4] = game.sfxHurt }
         }
     }
 
@@ -246,12 +255,32 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 drawCircle(AXIS_C, 10f, Offset(ox, oy), style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
             }
 
-            // 经验球
+            // 经验球（批50：脉动 + 磁吸光晕 + 大球渲染）
             for (o in game.orbs) {
                 if (!o.alive) continue
                 val sx = o.x - game.camX; val sy = o.y - game.camY
                 if (sx < -20f || sy < -20f || sx > size.width + 20f || sy > size.height + 20f) continue
-                drawCircle(ORB_C, game.orbR, Offset(sx, sy))
+                val pulse = 0.85f + 0.25f * kotlin.math.sin(game.elapsed * 5f + o.x * 0.03f)
+                val orbR = if (o.value > 1) game.orbR * 1.6f else game.orbR
+                if (o.magnet) drawCircle(ORB_C.copy(alpha = 0.18f), orbR + 6f, Offset(sx, sy))   // 磁吸光晕
+                drawCircle(ORB_C, orbR * pulse, Offset(sx, sy))
+                drawCircle(Color(0xFFDFFFE3), orbR * pulse * 0.35f, Offset(sx - orbR * 0.2f, sy - orbR * 0.2f))   // 高光
+            }
+
+            // 批50：死亡粒子迸溅（按 kind 配色，8 颗放射 + 中心白闪，寿命 0.35s）
+            for (d in game.deathFx) {
+                val k = (d.age / 0.35f).coerceIn(0f, 1f)
+                val dcol = Color(d.color)
+                val cx = d.x - game.camX; val cy = d.y - game.camY
+                for (i in 0..7) {
+                    val ang = i * 0.7853981f + d.seed % 16 * 0.1f
+                    val dist = d.age * (140f + (i % 3) * 60f)
+                    drawCircle(dcol.copy(alpha = (1f - k) * 0.9f), 3.5f * (1f - k * 0.6f), Offset(cx + kotlin.math.cos(ang) * dist, cy + kotlin.math.sin(ang) * dist))
+                }
+                if (d.age < 0.12f) {
+                    val fw = 1f - d.age / 0.12f
+                    drawCircle(Color.White.copy(alpha = fw * 0.85f), 18f * fw, Offset(cx, cy))
+                }
             }
 
             // 敌人（受伤后画细血条）
@@ -308,6 +337,10 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     drawText(layout, topLeft = tl)
                 }
+                // 批50：命中白闪（hitFlash 0.1s）
+                if (e.hitFlash > 0f) {
+                    drawCircle(Color.White.copy(alpha = (e.hitFlash * 6f).coerceAtMost(0.8f)), e.r + 2f, Offset(sx, sy), style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
+                }
                 if (e.hp < e.maxHp) {
                     val w = e.r * 2f
                     drawRect(BAR_BG, Offset(sx - e.r, sy - e.r - 8f), Size(w, 3f))
@@ -323,6 +356,13 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 drawLine(BULLET_C, Offset(bx - 5f, by + 5f), Offset(bx + 5f, by - 5f), 3f)
             }
 
+            // 批50：移动拖尾（渐隐青圆，越旧越淡越小）
+            for (t in game.trail) {
+                val tx = t.x - game.camX; val ty = t.y - game.camY
+                val a = 1f - (t.age / 0.3f).coerceIn(0f, 1f)
+                drawCircle(PLAYER_C.copy(alpha = 0.22f * a), game.playerR * (0.35f + 0.4f * a), Offset(tx, ty))
+            }
+
             // 玩家（无敌帧期间闪烁）
             val psx = game.px - game.camX
             val psy = game.py - game.camY
@@ -336,6 +376,24 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
             if (game.joyActive) {
                 drawCircle(JOY_C, 56f, Offset(game.joyBaseX, game.joyBaseY), style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
                 drawCircle(JOY_C, 26f, Offset(game.joyBaseX + game.joyX * joyMaxPx, game.joyBaseY + game.joyY * joyMaxPx))
+            }
+
+            // 批50：升级金环（从升级点扩散，0.5s）
+            if (game.levelRingT > 0f) {
+                val rx = game.levelRingX - game.camX; val ry = game.levelRingY - game.camY
+                val k = (game.levelRingT / 0.5f).coerceIn(0f, 1f)
+                drawCircle(GameUi.Gold.copy(alpha = 0.7f * k), 170f * (1f - k) + 20f, Offset(rx, ry), style = androidx.compose.ui.graphics.drawscope.Stroke(5f))
+            }
+
+            // 批50：受击红晕（屏幕边缘，随 hurtFlash 衰减）
+            if (game.hurtFlash > 0f) {
+                val a = (game.hurtFlash / 0.3f).coerceIn(0f, 1f)
+                drawRect(
+                    Brush.verticalGradient(
+                        listOf(Color(0x00FF5252), Color(0x66FF5252).copy(alpha = 0.5f * a), Color(0x00FF5252)),
+                        startY = 0f, endY = size.height,
+                    )
+                )
             }
 
         }
@@ -399,14 +457,14 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                         Column(Modifier.padding(start = 10.dp)) {
                             Text("📐 数学空间图鉴", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = GameUi.Gold)
                             Text(
-                                "已遭遇 ${survCodexEntries.count { game.defeatedKinds.contains(it.kindIdx) }} / ${survCodexEntries.size} · 击杀后解锁档案",
+                                "已遭遇 ${survCodexEntries.count { player.survivorSeen.contains(it.key) }} / ${survCodexEntries.size} · 击杀后解锁档案",
                                 fontSize = 10.sp, color = GameUi.TextDim,
                             )
                         }
                     }
                     Spacer(Modifier.height(12.dp))
                     survCodexEntries.forEach { e ->
-                        val seen = game.defeatedKinds.contains(e.kindIdx)
+                        val seen = player.survivorSeen.contains(e.key)   // 批48 修正：读持久化而非每局实例
                         GamePanel(Modifier.fillMaxWidth().padding(vertical = 6.dp), accent = if (seen) GameUi.Gold else null, contentPadding = 14.dp) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(e.glyph, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = if (seen) e.color else Color(0x55FFFFFF))
@@ -428,7 +486,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
         }
-        if (hud.phase == SurvivorGame.Phase.READY) {
+        if (hud.phase == SurvivorGame.Phase.READY && !showCodex) {   // 批48：图鉴开启时让位（坑40 叠加顺序）
             Box(Modifier.fillMaxSize()) {
                 GameBackdrop(accent = Color(0xFF4FC3F7))
                 Column(
@@ -498,7 +556,22 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
 
         // ---------- LevelUp 三选一（批24 卡牌化） ----------
         if (hud.phase == SurvivorGame.Phase.LEVELUP) {
-            Box(Modifier.fillMaxSize().background(Color(0xB305070C)), contentAlignment = Alignment.Center) {
+            // 批50：卡片入场动画（alpha/scale 220ms）
+            val lvIn = remember { androidx.compose.animation.core.Animatable(0f) }
+            androidx.compose.runtime.LaunchedEffect(hud.phase) {
+                if (hud.phase == SurvivorGame.Phase.LEVELUP) {
+                    lvIn.snapTo(0f)
+                    lvIn.animateTo(1f, androidx.compose.animation.core.tween(220))
+                }
+            }
+            Box(
+                Modifier.fillMaxSize().background(Color(0xB305070C)).graphicsLayer {
+                    alpha = 0.4f + 0.6f * lvIn.value
+                    val sc = 0.92f + 0.08f * lvIn.value
+                    scaleX = sc; scaleY = sc
+                },
+                contentAlignment = Alignment.Center,
+            ) {
                 Column(
                     Modifier.padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

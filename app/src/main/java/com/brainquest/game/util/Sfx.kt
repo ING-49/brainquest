@@ -18,6 +18,7 @@ enum class SfxType {
     CORRECT, WRONG, CLICK, WIN, LOSE,
     SELECT, MOVE, PLACE, PLACE_AI, EAT, CRASH, START,
     COIN, CHEER,
+    SHOOT, HIT, DEATH, ORB,   // 批50：幸存者动作反馈音（合成短音）
 }
 
 /** 轻量音效（ToneGenerator 音序，无需音频资源）+ 震动反馈 */
@@ -109,6 +110,13 @@ object Sfx {
             Note(ToneGenerator.TONE_DTMF_5, 80, 30),
             Note(ToneGenerator.TONE_DTMF_9, 150),
         )
+        SfxType.SHOOT -> listOf(Note(ToneGenerator.TONE_DTMF_0, 45))
+        SfxType.HIT -> listOf(Note(ToneGenerator.TONE_DTMF_7, 55))
+        SfxType.DEATH -> listOf(
+            Note(ToneGenerator.TONE_DTMF_8, 60, 20),
+            Note(ToneGenerator.TONE_PROP_ACK, 90),
+        )
+        SfxType.ORB -> listOf(Note(ToneGenerator.TONE_DTMF_6, 40))
     }
 
     private fun hapticOf(type: SfxType): HapticKind = when (type) {
