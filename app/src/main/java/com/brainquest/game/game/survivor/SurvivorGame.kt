@@ -83,6 +83,7 @@ class SurvivorGame {
     class TrailPt(val x: Float, val y: Float) { var age = 0f }
     val deathFx = ArrayList<DeathFx>(8)
     val trail = ArrayDeque<TrailPt>(8)
+    var faceX = 0f; var faceY = -1f   // 批53：火柴人朝向（最后移动方向）
     var hurtFlash = 0f              // 玩家受击红晕（Screen 渲染衰减）
     var shake = 0f                  // 受击相机微抖
     var levelRingT = 0f             // 升级金环剩余时间（Screen 每帧递减渲染）
@@ -116,6 +117,9 @@ class SurvivorGame {
 
     /** 已生存秒数（HUD 用） */
     fun timeSec(): Int = elapsed.toInt()
+
+    /** 批53：攻击进度 0→1（火柴人攻击姿态用） */
+    fun attackProg(): Float = ((attackInterval - attackTimer) / attackInterval).coerceIn(0f, 1f)
 
     fun start() {
         if (phase == Phase.READY || phase == Phase.GAMEOVER || phase == Phase.PAUSED) {   // 批21 修复：暂停菜单"重新开始"原本 no-op
@@ -157,6 +161,7 @@ class SurvivorGame {
         if (joyActive && (joyX != 0f || joyY != 0f)) {
             px += joyX * moveSpeed * dt
             py += joyY * moveSpeed * dt
+            faceX = joyX; faceY = joyY   // 批53：更新火柴人朝向
         }
         // 批50：相机微抖（受击）
         camX = px - viewW / 2

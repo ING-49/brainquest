@@ -1,6 +1,12 @@
 package com.brainquest.game.game.survivor
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
@@ -44,6 +50,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -228,6 +235,27 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
         ) {
             frame.intValue   // 订阅：每帧重绘
 
+            // 批53：远景漂浮几何线框（空间层次：远景层，视差 0.35）
+            for (i in 0..2) {
+                val seed = i * 77.7f
+                val spanW = size.width + 400f
+                val spanH = size.height + 300f
+                val baseX = (seed * 13.7f) % spanW
+                val baseY = (seed * 7.3f) % spanH
+                val px2 = ((baseX - game.camX * 0.35f + kotlin.math.sin(game.elapsed * 0.13f + seed) * 40f) % spanW + spanW) % spanW - 200f
+                val py2 = ((baseY - game.camY * 0.35f + kotlin.math.cos(game.elapsed * 0.11f + seed) * 30f) % spanH + spanH) % spanH - 150f
+                val wr = 90f + i * 40f
+                val sides2 = 3 + i
+                val wpath = androidx.compose.ui.graphics.Path()
+                for (k in 0 until sides2) {
+                    val ang2 = -1.5707963f + k * (6.2831853f / sides2)
+                    val vx2 = px2 + kotlin.math.cos(ang2) * wr
+                    val vy2 = py2 + kotlin.math.sin(ang2) * wr
+                    if (k == 0) wpath.moveTo(vx2, vy2) else wpath.lineTo(vx2, vy2)
+                }
+                wpath.close()
+                drawPath(wpath, Color(0xFF3D5A80).copy(alpha = 0.10f), style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
+            }
             // 背景网格（批42：数学坐标纸——每 5 格一条主格线，过暗不抢主体）
             val step = 64f
             var gx = -game.camX % step
@@ -246,7 +274,35 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 drawLine(if (major) GRID_MAJOR else GRID, Offset(0f, gy), Offset(size.width, gy), if (major) 3f else 2f)
                 gy += step
             }
-            // 批42：X/Y 坐标轴与原点（世界 0,0）——"数学空间"的锚
+            // 批53：格心装饰符号（hash 恒定：大小/角度/透明度三重变化，集中在轴附近引导视线）
+            val symPool = listOf("π", "√", "∑", "∞", "∆", "+", "−", "×", "÷")
+            var dgy = -game.camY % (step * 2)
+            if (dgy < 0) dgy += step * 2
+            while (dgy < size.height) {
+                var dgx = -game.camX % (step * 2)
+                if (dgx < 0) dgx += step * 2
+                while (dgx < size.width) {
+                    val wx2 = dgx + game.camX; val wy2 = dgy + game.camY
+                    val h2 = ((wx2.toInt() * 73856093) xor (wy2.toInt() * 19349663))
+                    if ((h2 ushr 5) % 100 < 22) {
+                        val g2 = symPool[(h2 ushr 9) % symPool.size]
+                        val rot2 = ((h2 ushr 13) % 30 - 15) * 0.0174f
+                        val sc2 = 9 + (h2 ushr 17) % 7
+                        val lay2 = glyphMetrics.getOrPut("deco$g2${sc2 / 4}") {
+                            textMeasurer.measure(g2, TextStyle(fontSize = sc2.sp, fontWeight = FontWeight.Bold, color = Color.White))
+                        }
+                        withTransform({
+                            translate(dgx + step - 4f, dgy + step - 4f)
+                            rotate(rot2, pivot = Offset.Zero)
+                        }) {
+                            drawText(lay2, color = Color(0x14FFFFFF), topLeft = Offset(-lay2.size.width / 2f, -lay2.size.height / 2f))
+                        }
+                    }
+                    dgx += step * 2
+                }
+                dgy += step * 2
+            }
+            // X/Y 坐标轴（世界 0,0）与原点
             val ox = 0f - game.camX
             val oy = 0f - game.camY
             if (ox > -10f && ox < size.width + 10f) drawLine(AXIS_C, Offset(ox, 0f), Offset(ox, size.height), 4f)
@@ -363,13 +419,72 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 drawCircle(PLAYER_C.copy(alpha = 0.22f * a), game.playerR * (0.35f + 0.4f * a), Offset(tx, ty))
             }
 
-            // 玩家（无敌帧期间闪烁）
+            // 玩家（批53：程序化发光火柴人——《火柴人vs数学》美术本体）
             val psx = game.px - game.camX
             val psy = game.py - game.camY
             val blink = game.invincibleNow() > 0f && (game.elapsed * 12f).toInt() % 2 == 0
             if (!blink) {
-                drawCircle(PLAYER_C, game.playerR, Offset(psx, psy))
-                drawCircle(Color.White, game.playerR - 5f, Offset(psx, psy))
+                val hf = (game.hurtFlash / 0.3f).coerceIn(0f, 1f)
+                val moving = game.joyActive && (game.joyX != 0f || game.joyY != 0f)
+                val walk = game.elapsed * 10f
+                val swing = if (moving) 1f else 0f
+                val bob = if (moving) kotlin.math.sin(walk * 2f) * 1.5f else kotlin.math.sin(game.elapsed * 2.2f) * 1.2f
+                val hipY = psy - 11f + bob * 0.4f
+                val neckY = psy - 22f + bob
+                val headY = neckY - 7.5f + bob
+                val legSwing = kotlin.math.sin(walk) * 7f * swing
+                val armSwing = kotlin.math.sin(walk + 3.14159f) * 5.5f * swing
+                val atkP = game.attackProg()
+                val fx = game.faceX; val fy = game.faceY
+                val fl = kotlin.math.hypot(fx, fy).coerceAtLeast(0.001f)
+                val dirX = fx / fl; val dirY = fy / fl
+                val segs = mutableListOf<Pair<Offset, Offset>>()
+                val neck = Offset(psx, neckY)
+                val hip = Offset(psx, hipY)
+                segs.add(neck to hip)   // 躯干
+                val knee1 = Offset(psx + legSwing * 0.55f, hipY + 5.5f)
+                val foot1 = Offset(knee1.x + legSwing * 0.5f, psy)
+                val knee2 = Offset(psx - legSwing * 0.55f, hipY + 5.5f)
+                val foot2 = Offset(knee2.x - legSwing * 0.5f, psy)
+                segs.add(hip to knee1); segs.add(knee1 to foot1)
+                segs.add(hip to knee2); segs.add(knee2 to foot2)
+                val shoulder = Offset(neck.x, neck.y + 1.5f)
+                val attacking = atkP < 0.25f
+                if (attacking) {
+                    // 批53：攻击姿态——前臂伸向目标方向（射击方向即朝向）
+                    val hand = Offset(neck.x + dirX * 15f, neck.y + dirY * 15f - 3f)
+                    val elbow = Offset((neck.x + hand.x) / 2f, (neck.y + hand.y) / 2f + 2f)
+                    segs.add(shoulder to elbow); segs.add(elbow to hand)
+                    val arm2Elbow = Offset(neck.x - dirX * 4f - armSwing * 0.4f, neck.y + 6f)
+                    val arm2Hand = Offset(arm2Elbow.x - 3f, arm2Elbow.y + 7f)
+                    segs.add(shoulder to arm2Elbow); segs.add(arm2Elbow to arm2Hand)
+                } else {
+                    val el1 = Offset(shoulder.x + armSwing * 0.5f, shoulder.y + 5.5f)
+                    val hd1 = Offset(el1.x + armSwing * 0.45f, el1.y + 6f)
+                    segs.add(shoulder to el1); segs.add(el1 to hd1)
+                    val el2 = Offset(shoulder.x - armSwing * 0.5f, shoulder.y + 5.5f)
+                    val hd2 = Offset(el2.x - armSwing * 0.45f, el2.y + 6f)
+                    segs.add(shoulder to el2); segs.add(el2 to hd2)
+                }
+                // 受击挤压拉伸（绕脚底缩放，衰减随 hurtFlash）
+                withTransform({
+                    scale(1f + 0.12f * hf, 1f - 0.16f * hf, pivot = Offset(psx, psy))
+                }) {
+                    // 光晕层（粗线低透明）→ 主干层（细线）——火柴人是发光体
+                    for (seg in segs) {
+                        drawLine(PLAYER_C.copy(alpha = 0.30f), seg.first, seg.second, 8f)
+                    }
+                    for (seg in segs) {
+                        drawLine(PLAYER_C, seg.first, seg.second, 3.5f)
+                    }
+                    // 头：发光圆 + 白核（朝向侧微偏）
+                    val headPos = Offset(psx + dirX * 1.5f, headY)
+                    drawCircle(PLAYER_C.copy(alpha = 0.30f), 9.5f, headPos)
+                    drawCircle(PLAYER_C, 6.5f, headPos)
+                    drawCircle(Color.White, 2.6f, Offset(headPos.x - 1f, headPos.y - 1.5f))
+                    // 关节点（肘/膝小亮点）
+                    for (j in listOf(knee1, knee2)) drawCircle(Color.White.copy(alpha = 0.5f), 1.5f, j)
+                }
             }
 
             // 虚拟摇杆
@@ -604,9 +719,9 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                                     Text(
                                         if (up.rare) "✦ 稀有强化" else "强化 0${idx + 1}",
                                         fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                                        color = if (up.rare) Color(0xFFFFB74D) else GameUi.Gold,
+                                        color = if (up.rare) GameUi.Gold.copy(alpha = 0.55f + 0.45f * kotlin.math.abs(kotlin.math.sin(game.elapsed * 5f))) else GameUi.Gold,
                                         modifier = Modifier.padding(start = 8.dp),
-                                    )   // 批45：稀有卡金标
+                                    )   // 批45：稀有卡金标；批53：流光
                                 }
                                 Text(
                                     up.name,
@@ -616,6 +731,28 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                                     modifier = Modifier.padding(top = 4.dp),
                                 )
                                 Text(up.desc, style = MaterialTheme.typography.bodySmall, color = GameUi.TextDim)
+                                // 批53：数值对比（当前 → 升级后，从实际数值计算）
+                                val curTxt = when (up.id) {
+                                    "atk", "atk2" -> "伤害 ${"%.0f".format(game.attackDmg)}"
+                                    "aspd" -> "间隔 ${"%.2f".format(game.attackInterval)}s"
+                                    "spd" -> "移速 ${"%.0f".format(game.moveSpeed)}"
+                                    "hp", "hp2" -> "生命 ${"%.0f".format(game.maxHp)}"
+                                    else -> "拾取 ${"%.0f".format(game.pickupRange)}"
+                                }
+                                val aftTxt = when (up.id) {
+                                    "atk" -> "伤害 ${"%.0f".format(game.attackDmg * 1.25f)}"
+                                    "atk2" -> "伤害 ${"%.0f".format(game.attackDmg * 1.5f)}"
+                                    "aspd" -> "间隔 ${"%.2f".format(game.attackInterval * 0.85f)}s"
+                                    "spd" -> "移速 ${"%.0f".format(game.moveSpeed * 1.10f)}"
+                                    "hp" -> "生命 ${"%.0f".format(game.maxHp + 25f)}"
+                                    "hp2" -> "生命 ${"%.0f".format(game.maxHp + 60f)}"
+                                    else -> "拾取 ${"%.0f".format(game.pickupRange * 1.30f)}"
+                                }
+                                Text(
+                                    "$curTxt → $aftTxt",
+                                    fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GameUi.Xp,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
                                 Spacer(Modifier.height(12.dp))
                                 GameActionButton(
                                     "选择",
@@ -631,6 +768,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
         }
+        }   // 批53：Box(graphicsLayer) 闭合
 
         // ---------- Paused（批24 统一弹窗） ----------
         if (hud.phase == SurvivorGame.Phase.PAUSED) {
@@ -670,6 +808,24 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
 
         // ---------- GameOver（批24：结算统计格） ----------
         if (hud.phase == SurvivorGame.Phase.GAMEOVER) {
+            // 批53：结算卡入场动画 + 新纪录脉动
+            val goIn = remember { androidx.compose.animation.core.Animatable(0f) }
+            val recPulse = rememberInfiniteTransition(label = "recPulse")
+            val recA = recPulse.animateFloat(0.45f, 1f, infiniteRepeatable(tween(600, easing = androidx.compose.animation.core.EaseInOutSine), RepeatMode.Reverse), label = "recA")
+            androidx.compose.runtime.LaunchedEffect(hud.phase) {
+                if (hud.phase == SurvivorGame.Phase.GAMEOVER) {
+                    goIn.snapTo(0f)
+                    goIn.animateTo(1f, androidx.compose.animation.core.tween(220))
+                }
+            }
+            Box(
+                Modifier.fillMaxSize().graphicsLayer {
+                    alpha = 0.3f + 0.7f * goIn.value
+                    val sc = 0.9f + 0.1f * goIn.value
+                    scaleX = sc; scaleY = sc
+                },
+                contentAlignment = Alignment.Center,
+            ) {
             GameDialog(title = "💀 游戏结束", accent = GameUi.Hp, width = 480.dp) {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     if (newRecord) {
@@ -677,7 +833,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                             "🎉 新纪录！",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = GameUi.Gold,
+                            color = GameUi.Gold.copy(alpha = recA.value),   // 批53：金色脉动
                         )
                     }
                     Spacer(Modifier.height(8.dp))
