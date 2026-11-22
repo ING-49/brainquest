@@ -96,7 +96,11 @@ def food_cell(img, box):
 
 
 def head_cell(img, box):
-    return mask_cell(img, box, close_to_any(img, HEAD, 30))
+    m = close_to_any(img, HEAD, 30)
+    m |= close_to_any(img, dim(HEAD), 30)
+    # 批55：死亡变灰（graphicsLayer alpha 0.5 合成深绿底）→ 观察色 ≈ (63,144,100)
+    m |= close_to(img, (63, 144, 100), 30)
+    return mask_cell(img, box, m)
 
 
 def read_hud():
