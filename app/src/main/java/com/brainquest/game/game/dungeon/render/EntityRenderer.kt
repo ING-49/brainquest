@@ -339,7 +339,11 @@ object EntityRenderer {
                 else -> SpriteAnims.KIND_NAMES[e.kind.name]
             }
             if (spriteName != null) {
-                val frames = SpriteAnims.frames(spriteName, run = e.hitSquash > 0f || e.kbT > 0f)
+                // 批54：移动步态——非前摇状态下播 run 帧（13 精灵的 run 动画全活）
+                val frames = SpriteAnims.frames(
+                    spriteName,
+                    run = e.hitSquash > 0f || e.kbT > 0f || (!e.dormant && e.atkState == 0),
+                )
                 if (frames.isNotEmpty()) {
                     val (fw, fh) = SpriteAnims.firstSize(frames)
                     val fi = ((time * (if (e.atkState == 1) 12f else 6f) + e.wobbleSeed).toInt()).mod(frames.size)
@@ -976,6 +980,11 @@ object EntityRenderer {
             else 0f
         } ?: 0f
         val deg = Math.toDegrees((game.engine.facing + sin(game.engine.walkPhase * 0.5f) * 0.2f).toDouble()).toFloat() + swingOff
+        // 批54：骑士蓄力环（对齐精灵路径批18：atkProg>0.78 蓄力预警）
+        if (cls.id == "knight" && atkProg > 0.78f) {
+            val ck = (atkProg - 0.78f) / 0.22f
+            drawCircle(GamePalette.UI_GOLD.copy(alpha = 0.45f * ck), 26f + 4f * ck, Offset(sx, sy), style = Stroke(2.5f))
+        }
         scope.rotate(deg, pivot = Offset(handX, handY)) {
             when (cls.id) {
                 "knight" -> if (spritesOn) Unit else {   // 精灵玩家自带剑（批17）
