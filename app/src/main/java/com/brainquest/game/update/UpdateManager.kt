@@ -61,12 +61,34 @@ class UpdateManager(private val context: Context) {
         var lastErr: Exception? = null
         for (base in ordered) {
             try {
-                return download(UpdateManager.joinUrl(base, relative), expectedSha256, onProgress, outputName)
+                return downloadSmart(base, relative, expectedSha256, onProgress, outputName)
             } catch (e: Exception) {
                 lastErr = e
             }
         }
         throw lastErr ?: IOException("所有更新源下载失败")
+    }
+
+    /**
+     * 批59 修复：GitHub Releases 资产是平铺的，manifest 的 file 字段带 patches/packs/apks
+     * 目录前缀会拼出 404（本地静态服务器目录吻合能过，线上 GitHub/镜像源一直 404）。
+     * 完整路径 404 时自动回退试平铺文件名——两种服务器形态都兼容。
+     */
+    private fun downloadSmart(
+        base: String,
+        relative: String,
+        expectedSha256: String,
+        onProgress: (DownloadProgress) -> Unit,
+        outputName: String?,
+    ): File {
+        return try {
+            download(UpdateManager.joinUrl(base, relative), expectedSha256, onProgress, outputName)
+        } catch (e: IOException) {
+            val bare = relative.substringAfterLast('/')
+            if (relative.contains('/') && e.message?.contains("HTTP 404") == true) {
+                download(UpdateManager.joinUrl(base, bare), expectedSha256, onProgress, outputName)
+            } else throw e
+        }
     }
 
     /** 当前应使用的下载基址（多源回退结果） */
@@ -97,8 +119,7 @@ class UpdateManager(private val context: Context) {
             val local = localVersions[pack.id] ?: 0
             if (pack.version <= local) continue
             onProgress("下载内容包：${pack.id} v${pack.version}")
-            val url = Companion.joinUrl(baseUrl, pack.file)
-            val file = download(url, pack.sha256)
+            val file = downloadSmart(baseUrl, pack.file, pack.sha256, { }, null)
             onProgress("校验并解压：${pack.id}")
             unzipJsons(file, File(contentDir, pack.id))
             updated.add(pack)
