@@ -133,6 +133,10 @@ App:  下载补丁 → SHA-256 校验 → 读已安装 base.apk → 重放操作
 - **考研模式**：`PlayerState.hardMode` → 设置开关。每日挑战走 `pickDaily`（开=大学五科 60% 真题+40% 难度4，关=基础五科难度2）；闯关/战斗 v1.6.0 起同样联动（`BattleState(subject, level, hardMode=…)`，非数学/逻辑科目走 `pickKaoyanBattleExcluding` 真题+高难并去重），战斗页标题带 🎓 徽标
 - **错题本艾宾浩斯复习**（v1.6.0）：`WrongEntry.stage/nextReviewAt` + `PlayerState.reviewIntervalMs`（答错当天→1→2→4→7→15 天）；复习答对 stage+1，答错退回 stage0 且 60s 后重练；`AppViewModel.dueReviewQuestions()` 汇总到期题，错题本页顶部「今日待复习」卡片一键进入复习
 
+## 五之〇之二、敌人 run 帧闲置修复实录（批54）
+
+0x72 精灵包 13 角色 × 4 帧 run 动画自批17 就已加载，但敌人平时移动只播 idle——`run = hitSquash>0 || kbT>0`（仅受击/击退时切 run），即 **run 帧生成了从未消费**。修复：非前摇（atkState≠1）且非待机（!dormant）一律播 run。教训与粒子 g/drag 同源：**给数据/资产加内容时，确认消费端真的在读它**。
+
 ## 五之〇之一、地牢粒子物理修复实录（批51）
 
 ParticleFx 的 `g`（重力）与 `drag`（阻尼）字段自批24 就存在（各类发射时赋值：死亡碎片 g300/drag1.2、风压 drag4、暴风雪迸溅 g260/drag2.6），但推进代码只有匀速位移——**字段生成了从未消费**，碎片不落地、风压不衰减。修复：推进处补 `vy += g*dt` 与 `exp(-drag*dt)` 阻尼（DungeonScreen 粒子推进段）。教训：给数据结构加字段时，确认消费端真的在读它。

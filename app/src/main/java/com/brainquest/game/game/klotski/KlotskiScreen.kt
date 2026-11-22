@@ -424,7 +424,14 @@ private fun KlotskiBlock(
             }
             .background(color, shape)
             .border(
-                BorderStroke(if (selected) 3.dp else 1.dp, if (selected) SELECT_RING else PIECE_EDGE),
+                BorderStroke(
+                    if (selected) 3.dp else if (isCao) 2.dp else 1.dp,
+                    when {
+                        selected -> SELECT_RING
+                        isCao -> Color(0xFFFFB300)   // 批55：曹操金边（主将识别）
+                        else -> PIECE_EDGE
+                    },
+                ),
                 shape,
             )
             .clickable { onSelect() }
@@ -470,6 +477,21 @@ private fun KlotskiBlock(
             },
         contentAlignment = Alignment.Center,
     ) {
+        // 批55：雕刻感——顶部高光条 + 底部暗边（木雕印章质感）
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth(0.9f)
+                .height(3.dp)
+                .background(Color(0x1FFFFFFF), RoundedCornerShape(2.dp)),
+        )
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(0.9f)
+                .height(3.dp)
+                .background(Color(0x33000000), RoundedCornerShape(2.dp)),
+        )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (block.w == 1 && block.h == 2) {
                 // 竖将：名字竖排

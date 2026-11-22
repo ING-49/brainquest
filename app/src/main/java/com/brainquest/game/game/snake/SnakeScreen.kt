@@ -242,13 +242,31 @@ fun SnakeScreen(vm: AppViewModel, nav: NavHostController) {
                     Box(
                         Modifier
                             .offset(x = cell * c, y = cell * r)
-                            .size(cell)
+                            .size(cell * (if (i == 0) headPop.value else 1f))   // 批52：吃豆头闪消费
                             .padding(cell * 0.08f)
                             .background(color, shape)
                             .then(
                                 if (i == 0) Modifier.border(BorderStroke(1.5.dp, HEAD_EDGE), shape) else Modifier,
-                            ),
-                    )
+                            )
+                            .graphicsLayer { alpha = if (game.gameOver) 0.5f else 1f },   // 批55：死亡变灰
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (i == 0) {
+                            // 批55：蛇头双眼（按移动方向分布；dir=(行,列)）
+                            val dRow = game.dir.first; val dCol = game.dir.second
+                            Row(
+                                Modifier.offset(
+                                    x = cell * 0.10f * dCol,
+                                    y = cell * 0.10f * dRow,
+                                ),
+                                horizontalArrangement = Arrangement.spacedBy(cell * 0.16f),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(Modifier.size(cell * 0.14f).background(Color.White, CircleShape))
+                                Box(Modifier.size(cell * 0.14f).background(Color.White, CircleShape))
+                            }
+                        }
+                    }
                 }
                 if (!game.started) {
                     Box(

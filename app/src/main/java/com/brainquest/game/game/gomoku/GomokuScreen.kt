@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
@@ -486,10 +487,32 @@ private fun GomokuBoard(
                         contentAlignment = Alignment.Center,
                     ) {
                         if (v != 0) {
+                            // 批55：玉质感——落影 + 径向渐变 + 高光
+                            Box(
+                                Modifier
+                                    .offset(x = cell * c + cell * 0.06f, y = cell * r + cell * 0.08f)
+                                    .size(cell * 0.82f)
+                                    .background(Color(0x26000000), CircleShape),
+                            )
                             Box(
                                 Modifier
                                     .size(cell * 0.82f * if (isLast) pop.value else 1f)
-                                    .background(if (v == 1) BLACK_STONE else WHITE_STONE, CircleShape)
+                                    .background(
+                                        if (v == 1) {
+                                            Brush.radialGradient(
+                                                0f to Color(0xFF5A5A5A),
+                                                0.55f to Color(0xFF212121),
+                                                1f to Color(0xFF0A0A0A),
+                                            )
+                                        } else {
+                                            Brush.radialGradient(
+                                                0f to Color(0xFFFFFFFF),
+                                                0.55f to Color(0xFFFDFDFD),
+                                                1f to Color(0xFFDDD4C8),
+                                            )
+                                        },
+                                        CircleShape,
+                                    )
                                     .border(
                                         BorderStroke(
                                             if (v == 1) 1.dp else 1.5.dp,
