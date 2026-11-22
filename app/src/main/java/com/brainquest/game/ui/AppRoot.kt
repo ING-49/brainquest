@@ -1,5 +1,10 @@
 package com.brainquest.game.ui
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -149,6 +154,11 @@ fun AppRoot(vm: AppViewModel) {
             navController = nav,
             startDestination = Routes.HOME,
             modifier = if (fullBleed) Modifier else Modifier.padding(inner),
+            // 批57：全局过渡统一（轻量空间连续性：前进=新页自下微升入，返回=旧页沉出；纯透明度/位移不触发重排）
+            enterTransition = { fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 40 } },
+            exitTransition = { fadeOut(tween(180)) },
+            popEnterTransition = { fadeIn(tween(220)) },
+            popExitTransition = { fadeOut(tween(180)) + slideOutVertically(tween(220)) { it / 40 } },
         ) {
             composable(Routes.HOME) { HomeScreen(vm, nav) }
             composable(Routes.SUBJECTS) { SubjectsScreen(vm, nav) }

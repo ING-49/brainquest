@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -180,6 +181,9 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
                         val key = subjectKey(subject)
                         val shape = RoundedCornerShape(14.dp)
                         val subInteraction = remember { MutableInteractionSource() }
+                        // 批57：进行中科目（与"继续冒险"CTA 同源计算，无新增存储）
+                        val isCurrent = cont != null && unlocked && subject == cont.subject
+                        val completedAll = unlocked && cleared == 8
                         Column(
                             Modifier
                                 .pressScale(subInteraction, 0.965f)
@@ -202,6 +206,7 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
                                 Box(
                                     Modifier
                                         .size(38.dp)
+                                        .graphicsLayer { alpha = if (unlocked) 1f else 0.55f }   // 批57：锁定灰化整体压暗
                                         .background(
                                             if (unlocked) subjectColor(subject).copy(alpha = 0.16f)
                                             else MaterialTheme.colorScheme.surfaceVariant,
@@ -216,7 +221,19 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
                                     )
                                 }
                                 Column(Modifier.weight(1f).padding(start = 9.dp)) {
-                                    Text(subject, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(subject, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                                        if (completedAll) {
+                                            // 批57：全科通关完成感（金色 ✓）
+                                            Text(
+                                                "✓",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFF9A825),
+                                                modifier = Modifier.padding(start = 4.dp),
+                                            )
+                                        }
+                                    }
                                     Text(
                                         if (unlocked) "${Subjects.desc(subject)}" else "前一科通过 2 关解锁",
                                         style = MaterialTheme.typography.labelSmall,
@@ -229,7 +246,19 @@ fun SubjectsScreen(vm: AppViewModel, nav: NavHostController) {
                                 Modifier.fillMaxWidth().padding(top = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                if (unlocked) {
+                                if (isCurrent) {
+                                    // 批57：进行中徽章（与关卡列表同语言——当前焦点科目一目了然）
+                                    Text(
+                                        "▶ 进行中",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .background(MaterialTheme.colorScheme.primary)
+                                            .padding(horizontal = 9.dp, vertical = 3.dp),
+                                    )
+                                } else if (unlocked) {
                                     // 批31：科目色实心胶囊 CTA，替代裸文本
                                     Text(
                                         "开始冒险",
@@ -337,20 +366,28 @@ fun LevelListScreen(vm: AppViewModel, nav: NavHostController, subject: String) {
                             else -> MaterialTheme.colorScheme.surfaceContainerLowest
                         },
                     ),
-                    border = if (isNext) BorderStroke(1.8.dp, MaterialTheme.colorScheme.primary) else null,
+                    border = when {
+                        isNext -> BorderStroke(1.8.dp, MaterialTheme.colorScheme.primary)
+                        // 批57：BOSS 红色渐变描边（危险感身份色，一眼区分普通关）
+                        isBoss && unlocked -> BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(Color(0x73C62828), Color(0x40C62828))))
+                        else -> null
+                    },
                 ) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // 批57：BOSS 圆底改红渐变+投影（替代浅红平底）
+                        val lvIconBg: Modifier = if (isBoss && unlocked) {
+                            Modifier.background(Brush.verticalGradient(listOf(Color(0xFFEF5350), Color(0xFFC62828))), CircleShape)
+                        } else {
+                            Modifier.background(
+                                if (!unlocked) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer,
+                                CircleShape,
+                            )
+                        }
                         Box(
                             Modifier
                                 .size(44.dp)
-                                .background(
-                                    when {
-                                        !unlocked -> MaterialTheme.colorScheme.surfaceVariant
-                                        isBoss -> Color(0xFFFFEBEE)
-                                        else -> MaterialTheme.colorScheme.primaryContainer
-                                    },
-                                    CircleShape,
-                                ),
+                                .let { m -> if (isBoss && unlocked) m.shadow(3.dp, CircleShape) else m }
+                                .then(lvIconBg),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
@@ -364,9 +401,15 @@ fun LevelListScreen(vm: AppViewModel, nav: NavHostController, subject: String) {
                                 if (isBoss) "BOSS 战" else "第 $level 关",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
+                                color = if (isBoss && unlocked) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                if (isBoss) "最强敌人，谨慎挑战！" else "难度 ${level / 2 + 1} · 答题攻击敌人",
+                                when {
+                                    isBoss -> "最强敌人，谨慎挑战！"
+                                    // 批57：锁定提示透明化（齐加尼克——告诉玩家差一步在哪，而非只说锁着）
+                                    !unlocked -> "通关第 ${level - 1} 关解锁"
+                                    else -> "难度 ${level / 2 + 1} · 答题攻击敌人"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -384,11 +427,16 @@ fun LevelListScreen(vm: AppViewModel, nav: NavHostController, subject: String) {
                                     .padding(horizontal = 9.dp, vertical = 3.dp),
                             )
                         } else {
-                            Text(
-                                starText(stars),
-                                color = Color(0xFFFFB300),
-                                style = MaterialTheme.typography.titleMedium,
-                            )
+                            // 批57：星级图形化（三颗小星，实心金/空心灰——比文本 ★★☆ 更有收集感）
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                repeat(3) { i ->
+                                    Text(
+                                        if (i < stars) "★" else "☆",
+                                        fontSize = 16.sp,
+                                        color = if (i < stars) Color(0xFFFFB300) else MaterialTheme.colorScheme.outlineVariant,
+                                    )
+                                }
+                            }
                         }
                     }
                 }

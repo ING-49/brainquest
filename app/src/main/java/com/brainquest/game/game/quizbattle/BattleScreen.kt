@@ -2,14 +2,19 @@ package com.brainquest.game.game.quizbattle
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,7 +32,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -63,13 +69,16 @@ import com.brainquest.game.AppViewModel
 import com.brainquest.game.ui.Routes
 import com.brainquest.game.data.Items
 import com.brainquest.game.data.question.Subjects
+import com.brainquest.game.ui.CoinText
 import com.brainquest.game.ui.PageHeader
-import com.brainquest.game.ui.starText
 import com.brainquest.game.util.Sfx
 import com.brainquest.game.util.SfxType
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.brainquest.game.ui.BqProgressBar
+import com.brainquest.game.ui.coinColor
+import com.brainquest.game.ui.pressScale
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -194,6 +203,11 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
             )
         }
 
+        // 批57：幕布上缘柔化——暗带与暖白页头之间加过渡渐变（消除硬切，保留全宽出血）
+        Box(
+            Modifier.fillMaxWidth().height(10.dp)
+                .background(Brush.verticalGradient(listOf(Color(0x001C2434), Color(0xFF1C2434))))
+        )
         // 批41：敌方阵营暗带（战斗氛围，全宽出血）——品类参照：回合制战斗的"敌方区域"
         Box(
             Modifier.fillMaxWidth()
@@ -212,6 +226,8 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
+                    // 批57：脚下椭圆地面阴影（敌人从"悬浮"落地——接地感）
+                    EnemyGroundShadow(Modifier.align(Alignment.BottomCenter))
                     Text(
                         battle.enemy.emoji,
                         fontSize = 34.sp,
@@ -254,27 +270,50 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
             }
         }
 
-        // 我方状态
-        Row(
-            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // 批57：幕布下缘柔化
+        Box(
+            Modifier.fillMaxWidth().height(10.dp)
+                .background(Brush.verticalGradient(listOf(Color(0xFF121826), Color(0x00121826))))
+        )
+
+        // 批57：我方状态卡化（与敌方幕布视觉对等：敌方=暗色战场，我方=亮色营地卡）
+        Card(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         ) {
-            Text("🧑‍⚔️${player.nickname}", style = MaterialTheme.typography.labelLarge)
-            BqProgressBar(
-                progress = battle.playerHp / 100f,
-                modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                color = Color(0xFF43A047),
-                height = 10.dp,
-            )
-            Text("❤️ ${battle.playerHp}", style = MaterialTheme.typography.labelLarge)
-            // 批33：金币撤出战斗页（金币与战斗决策无关=噪声，见设计说明 §4）
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(28.dp).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
+                ) { Text("🧑‍⚔️", fontSize = 13.sp) }
+                Text(
+                    player.nickname,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+                BqProgressBar(
+                    progress = battle.playerHp / 100f,
+                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                    color = Color(0xFF43A047),
+                    height = 10.dp,
+                )
+                Text("❤️ ${battle.playerHp}", style = MaterialTheme.typography.labelLarge)
+                // 批33：金币撤出战斗页（金币与战斗决策无关=噪声，见设计说明 §4）
+            }
         }
 
         // 伤害飘字
         Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(36.dp), contentAlignment = Alignment.Center) {
             androidx.compose.animation.AnimatedVisibility(
                 visible = feedback != null,
-                enter = fadeIn() + slideInVertically { -it },
+                enter = fadeIn() + slideInVertically { -it } +
+                    scaleIn(initialScale = 0.6f, animationSpec = tween(150)),   // 批57：弹出感
                 exit = fadeOut(),
             ) {
                 Text(
@@ -354,7 +393,9 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
             }
         }
 
-        // 道具栏
+        // 道具栏（批57：按压反馈与全站一致）
+        val hintInter = remember { MutableInteractionSource() }
+        val skipInter = remember { MutableInteractionSource() }
         Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -366,6 +407,8 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                     }
                 },
                 enabled = !answered && resultState == 0 && (player.items[Items.ITEM_HINT] ?: 0) > 0 && battle.canUseHint(),
+                interactionSource = hintInter,
+                modifier = Modifier.pressScale(hintInter, 0.96f),
             ) { Text("💡提示 ${player.items[Items.ITEM_HINT] ?: 0}") }
             OutlinedButton(
                 onClick = {
@@ -375,76 +418,242 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                     }
                 },
                 enabled = !answered && resultState == 0 && (player.items[Items.ITEM_SKIP] ?: 0) > 0,
+                interactionSource = skipInter,
+                modifier = Modifier.pressScale(skipInter, 0.96f),
             ) { Text("🌀跳过 ${player.items[Items.ITEM_SKIP] ?: 0}") }
         }
     }
 
-    // 胜负结算
+    // 胜负结算（批57：自定义 overlay 演出卡——峰终定律，战斗体验的终点时刻决定记忆）
     when (resultState) {
         1 -> {
             val stars = battle.stars()
+            val coinsReward = battle.coins()
+            val xpReward = battle.xp()
             LaunchedEffect(Unit) {
                 Sfx.play(context, sfxOn, hapticOn, SfxType.WIN)
             }
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text(if (battle.isBoss) "🏆 BOSS 击败！" else "🎉 通关成功！") },
-                text = {
-                    Column {
-                        Text("评价：${starText(stars)}", fontSize = 22.sp)
-                        Text("答对 ${battle.correctCount} / ${battle.answered} · 最高连击 x${battle.maxCombo}")
-                        Text("💰 金币 +${battle.coins()}  ⭐ 经验 +${battle.xp()}")
+            // 入场（批53 GAMEOVER 同款 goIn：淡入+微缩放）
+            val goIn = remember { Animatable(0f) }
+            LaunchedEffect(Unit) {
+                goIn.snapTo(0f); goIn.animateTo(1f, tween(220))
+            }
+            // 星星逐个弹出（延迟递增 + 弹性 overshoot）
+            val starAnims = List(3) { remember { Animatable(0f) } }
+            LaunchedEffect(Unit) {
+                starAnims.forEachIndexed { i, a ->
+                    launch {
+                        delay(280L + i * 130L)
+                        a.animateTo(
+                            1f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
                     }
-                },
-                confirmButton = {
-                    if (level < BattleState.LEVEL_COUNT) {
-                        Button(onClick = {
-                            vm.finishLevel(subject, level, stars, battle.coins(), battle.xp())
-                            nav.popBackStack()
-                            nav.navigate(Routes.battle(com.brainquest.game.data.subjectKey(subject), level + 1))
-                        }) { Text("下一关") }
-                    } else {
-                        Button(onClick = {
-                            vm.finishLevel(subject, level, stars, battle.coins(), battle.xp())
-                            nav.popBackStack()
-                        }) { Text("领取奖励") }
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        vm.finishLevel(subject, level, stars, battle.coins(), battle.xp())
-                        nav.popBackStack()
-                    }) { Text("返回") }
-                },
+                }
+            }
+            // 奖励数字滚动（星星之后）
+            val coinAnim = remember { Animatable(0f) }
+            val xpAnim = remember { Animatable(0f) }
+            LaunchedEffect(Unit) {
+                delay(680L)
+                launch { coinAnim.animateTo(coinsReward.toFloat(), tween(600)) }
+                launch { xpAnim.animateTo(xpReward.toFloat(), tween(600)) }
+            }
+            // 满星金色脉动（批53 recPulse 同款）
+            val perfect = stars >= 3
+            val recPulse = rememberInfiniteTransition(label = "recPulse")
+            val recA = recPulse.animateFloat(
+                0.45f, 1f,
+                infiniteRepeatable(tween(600, easing = androidx.compose.animation.core.EaseInOutSine), RepeatMode.Reverse),
+                label = "recA",
             )
+            BackHandler(enabled = true) {
+                vm.finishLevel(subject, level, stars, coinsReward, xpReward)
+                nav.popBackStack()
+            }
+            Box(
+                Modifier.fillMaxSize()
+                    .background(Color(0x66000000))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
+                contentAlignment = Alignment.Center,
+            ) {
+                Card(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 28.dp)
+                        .graphicsLayer {
+                            alpha = 0.3f + 0.7f * goIn.value
+                            val sc = 0.9f + 0.1f * goIn.value
+                            scaleX = sc; scaleY = sc
+                        },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            if (battle.isBoss) "🏆 BOSS 击败！" else "🎉 通关成功！",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        // 星星行（逐个弹出；实心金 / 空心灰）
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(top = 14.dp),
+                        ) {
+                            repeat(3) { i ->
+                                val filled = i < stars
+                                Text(
+                                    if (filled) "★" else "☆",
+                                    fontSize = 40.sp,
+                                    color = if (filled) Color(0xFFFFB300) else MaterialTheme.colorScheme.outlineVariant,
+                                    modifier = Modifier.graphicsLayer {
+                                        val s = starAnims[i].value
+                                        scaleX = s; scaleY = s
+                                        alpha = s.coerceIn(0f, 1f)
+                                    },
+                                )
+                            }
+                        }
+                        if (perfect) {
+                            Text(
+                                "✨ 完美通关！",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFB300).copy(alpha = recA.value),
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                        Text(
+                            "答对 ${battle.correctCount} / ${battle.answered} · 最高连击 x${battle.maxCombo}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 10.dp),
+                        )
+                        // 奖励行：CoinText（金币图标代码绘制，非 emoji）+ 数字滚动
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.padding(top = 12.dp),
+                        ) {
+                            CoinText(
+                                coinAnim.value.roundToInt(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = coinColor,
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("⭐", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "+${xpAnim.value.roundToInt()}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        if (level < BattleState.LEVEL_COUNT) {
+                            Button(
+                                onClick = {
+                                    vm.finishLevel(subject, level, stars, coinsReward, xpReward)
+                                    nav.popBackStack()
+                                    nav.navigate(Routes.battle(com.brainquest.game.data.subjectKey(subject), level + 1))
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
+                            ) { Text("下一关") }
+                        } else {
+                            Button(
+                                onClick = {
+                                    vm.finishLevel(subject, level, stars, coinsReward, xpReward)
+                                    nav.popBackStack()
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
+                            ) { Text("领取奖励") }
+                        }
+                        TextButton(
+                            onClick = {
+                                vm.finishLevel(subject, level, stars, coinsReward, xpReward)
+                                nav.popBackStack()
+                            },
+                            modifier = Modifier.padding(top = 2.dp),
+                        ) { Text("返回") }
+                    }
+                }
+            }
         }
         2 -> {
             LaunchedEffect(Unit) { Sfx.play(context, sfxOn, hapticOn, SfxType.LOSE) }
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text("💀 战败了…") },
-                text = { Text("别灰心，看看${battle.question?.explanation ?: ""}，恢复一下再战！") },
-                confirmButton = {
-                    if ((player.items[Items.ITEM_REVIVE] ?: 0) > 0 && !revivedOnce) {
-                        Button(onClick = {
-                            if (vm.useItem(Items.ITEM_REVIVE)) {
-                                battle.revive()
-                                battle.nextQuestion()
-                                revivedOnce = true
-                                resultState = 0
+            val goIn = remember { Animatable(0f) }
+            LaunchedEffect(Unit) { goIn.snapTo(0f); goIn.animateTo(1f, tween(220)) }
+            BackHandler(enabled = true) { nav.popBackStack() }
+            Box(
+                Modifier.fillMaxSize()
+                    .background(Color(0x66000000))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
+                contentAlignment = Alignment.Center,
+            ) {
+                Card(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 28.dp)
+                        .graphicsLayer {
+                            alpha = 0.3f + 0.7f * goIn.value
+                            val sc = 0.9f + 0.1f * goIn.value
+                            scaleX = sc; scaleY = sc
+                        },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("💀 战败了…", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            "别灰心，看看解析，恢复一下再战！",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        battle.question?.explanation?.let { exp ->
+                            Card(
+                                Modifier.fillMaxWidth().padding(top = 10.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                            ) {
+                                Text(
+                                    "💡 $exp",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                )
                             }
-                        }) { Text("🧪 使用复活药水") }
-                    } else {
-                        Button(onClick = {
-                            nav.popBackStack()
-                            nav.navigate(Routes.battle(com.brainquest.game.data.subjectKey(subject), level))
-                        }) { Text("重新挑战") }
+                        }
+                        if ((player.items[Items.ITEM_REVIVE] ?: 0) > 0 && !revivedOnce) {
+                            Button(
+                                onClick = {
+                                    if (vm.useItem(Items.ITEM_REVIVE)) {
+                                        battle.revive()
+                                        battle.nextQuestion()
+                                        revivedOnce = true
+                                        resultState = 0
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                            ) { Text("🧪 使用复活药水") }
+                        } else {
+                            Button(
+                                onClick = {
+                                    nav.popBackStack()
+                                    nav.navigate(Routes.battle(com.brainquest.game.data.subjectKey(subject), level))
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                            ) { Text("重新挑战") }
+                        }
+                        TextButton(onClick = { nav.popBackStack() }, modifier = Modifier.padding(top = 2.dp)) { Text("撤退") }
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { nav.popBackStack() }) { Text("撤退") }
-                },
-            )
+                }
+            }
         }
         3 -> { /* 退出中 */ }
     }
@@ -483,6 +692,17 @@ private suspend fun handleAnswer(
             battle.nextQuestion()
         }
     }
+}
+
+/** 批57：敌人脚下椭圆地面阴影（radialGradient 在宽扁盒内形成椭圆软斑，半径=半宽） */
+@Composable
+private fun EnemyGroundShadow(modifier: Modifier = Modifier) {
+    val r = with(LocalDensity.current) { 22.dp.toPx() }
+    Box(
+        modifier
+            .size(width = 44.dp, height = 12.dp)
+            .background(Brush.radialGradient(listOf(Color(0x4D000000), Color(0x00000000)), radius = r))
+    )
 }
 
 /** 批41：浅色分段血条（敌方暗带上用；5 段，分段思路参考 GameUi.HudHpBar） */
