@@ -1,11 +1,14 @@
 package com.brainquest.game.ui.meta
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -22,12 +25,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.ui.PageHeader
 import com.brainquest.game.ui.QuizRunner
+import com.brainquest.game.ui.pressScale
 
 /** 错题本：查看错题 + 复习模式（复习答对自动标记已掌握） */
 @Composable
@@ -162,12 +168,38 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
         }
 
         val shown = if (filterSubject == null) player.wrongBook else player.wrongBook.filter { it.question.subject == filterSubject }
+        if (shown.isEmpty()) {
+            // 批58：空状态占位（空白列表无反馈 → 完成感时刻）
+            Card(
+                Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            ) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🎉", fontSize = 40.sp)
+                    Text(
+                        "错题清零！",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Text(
+                        "这一范围没有错题——去答题冒险攒新的经验吧",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+        }
         LazyColumn(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)) {
             items(shown.size) { i ->
                 val entry = shown[i]
                 val q = entry.question
+                // 错题卡无点击行为（批58：仅描边强化；按压反馈留给真正可点的卡）
                 Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
                     colors = CardDefaults.cardColors(
                         containerColor = if (entry.mastered) MaterialTheme.colorScheme.surfaceContainerLowest
                         else MaterialTheme.colorScheme.surfaceContainerLow,
@@ -195,12 +227,20 @@ fun WrongBookScreen(vm: AppViewModel, nav: NavHostController) {
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(vertical = 4.dp),
                         )
-                        Text(
-                            "你的答案：${if (entry.chosen < 0) "超时" else "${'A' + entry.chosen}. ${q.options.getOrNull(entry.chosen) ?: "-"}"}" +
-                                " ｜ 正确：${'A' + q.answer}. ${q.options.getOrNull(q.answer) ?: ""}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
+                        // 批58：色语义精确化——红=你的错，绿=正确答案（原来整行红=语义噪声）
+                        Row {
+                            Text(
+                                "你的答案：${if (entry.chosen < 0) "超时" else "${'A' + entry.chosen}. ${q.options.getOrNull(entry.chosen) ?: "-"}"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            Text(
+                                "  ｜  正确：${'A' + q.answer}. ${q.options.getOrNull(q.answer) ?: ""}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32),
+                            )
+                        }
                         if (q.explanation.isNotBlank()) {
                             com.brainquest.game.ui.FormulaText(
                                 "💡 ${q.explanation}",

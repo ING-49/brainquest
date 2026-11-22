@@ -10,6 +10,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,9 +24,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +56,7 @@ import com.brainquest.game.data.Items
 import com.brainquest.game.ui.CoinIcon
 import com.brainquest.game.ui.CoinText
 import com.brainquest.game.ui.PageHeader
+import com.brainquest.game.ui.pressScale
 import com.brainquest.game.ui.components.KawaiiAvatar
 import com.brainquest.game.ui.theme.AppThemes
 
@@ -114,6 +119,7 @@ fun ShopScreen(vm: AppViewModel, nav: NavHostController) {
             Text("🧰 道具", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 6.dp))
             Items.all.forEach { def ->
                 val shortage = player.coins < def.price
+                val buyInter = remember { MutableInteractionSource() }
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -130,9 +136,16 @@ fun ShopScreen(vm: AppViewModel, nav: NavHostController) {
                                 }
                             }
                         }
-                        OutlinedButton(
+                        // 批58：金币消费动作统一金色语言（与主页任务领取按钮同款：金底深棕字）
+                        Button(
                             onClick = { pending = PendingPurchase("item", def.id, def.name, def.price) },
                             enabled = !shortage,
+                            interactionSource = buyInter,
+                            modifier = Modifier.pressScale(buyInter, 0.95f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFFB300),
+                                contentColor = Color(0xFF4E342E),
+                            ),
                         ) {
                             CoinText(def.price, style = MaterialTheme.typography.labelLarge)
                         }
@@ -147,12 +160,20 @@ fun ShopScreen(vm: AppViewModel, nav: NavHostController) {
                     rowThemes.forEach { theme ->
                         val owned = player.ownedThemes.contains(theme.id)
                         val active = player.activeTheme == theme.id
+                        val tInter = remember { MutableInteractionSource() }
                         Card(
                             onClick = {
                                 if (owned) vm.setTheme(theme.id)
                                 else pending = PendingPurchase("theme", theme.id, theme.name, theme.price)
                             },
-                            modifier = Modifier.weight(1f),
+                            // 批58：按压反馈 + 激活态主色描边强化
+                            modifier = Modifier.weight(1f)
+                                .pressScale(tInter, 0.96f)
+                                .then(
+                                    if (active) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                                    else Modifier
+                                ),
+                            interactionSource = tInter,
                             colors = CardDefaults.cardColors(
                                 containerColor = if (active) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceContainerLow,
@@ -193,12 +214,19 @@ fun ShopScreen(vm: AppViewModel, nav: NavHostController) {
                         val id = "kawaii_$v"
                         val owned = player.ownedAvatars.contains(id) || v == 0   // kawaii_0 体验款
                         val active = player.avatar == id
+                        val aInter = remember { MutableInteractionSource() }
                         Card(
                             onClick = {
                                 if (owned) vm.setAvatar(id)
                                 else pending = PendingPurchase("avatar", id, KAWAII_NAMES[v], KAWAII_PRICE)
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f)
+                                .pressScale(aInter, 0.96f)
+                                .then(
+                                    if (active) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                                    else Modifier
+                                ),
+                            interactionSource = aInter,
                             colors = CardDefaults.cardColors(
                                 containerColor = if (active) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceContainerLow,
