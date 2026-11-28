@@ -38,6 +38,11 @@ class Room(
     var populated = false        // 敌人已布置（预刷新幂等）
     var secondWave = false       // 怪海第二波已触发（战斗房首波清空后概率补波）
     var cleared = type == RoomType.START  // 清怪开门；起点房常开
+        set(value) {
+            if (value && !field) clearedAtWall = System.currentTimeMillis()   // 批64：清房亮起过渡时刻
+            field = value
+        }
+    var clearedAtWall = 0L       // 批64：清房时刻（墙钟 ms），0=未清
     val discovered: Boolean get() = visited || neighbors.values.any { it.visited }
 
     /** 相邻房间（由生成器填好，键为方向） */

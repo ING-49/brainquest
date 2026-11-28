@@ -616,6 +616,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 val pz = if (DungeonSettings.critZoom(context)) 1f + game.engine.punchZoom else 1f   // 暴击 punch-zoom（Dead Cells）：只影响世界层，HUD 在变换外（坑35）；设置可关（批12）
                 scale(game.camZoom * DungeonGame.BASE_ZOOM * pz, game.camZoom * DungeonGame.BASE_ZOOM * pz, pivot = Offset(size.width / 2f, size.height / 2f))
             }) {
+            EntityRenderer.drawAmbient(this, game, t)   // 批64：房外氛围层（远景剪影/远处火光——压在房间下被自然遮盖）
             EntityRenderer.drawWorld(this, game, t)
             EntityRenderer.drawFixtures(this, game, t)
             EntityRenderer.drawPortal(this, game, t)
@@ -682,6 +683,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     )
                 }
                 torchHolder[0]?.let { drawRect(it, topLeft = Offset.Zero, size = size) }
+            // 批64：火把闪烁 overlay——玩家周身暖色呼吸（不重建 Brush，单 circle）
+            val flick = 1f + kotlin.math.sin(t * 11f) * 0.04f + kotlin.math.sin(t * 23f + 1.7f) * 0.03f
+            drawCircle(
+                Color(0x14FFB300),
+                120f * flick,
+                Offset(game.engine.px - game.camX, game.engine.py - game.camY),
+            )
             }
             // 特效：闪电 → 粒子 → 伤害飘字
             for (b in bolts) {
@@ -888,6 +896,22 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }   // withTransform（震屏+缩放）——数值条/暗角在屏幕层
             // 批24：玩家血条/经验条已并入顶部 Compose 玩家面板，旧 Canvas 数值条退场（避免双份 HUD）
             vignetteHolder[0]?.let { drawRect(it) }
+            // 批64：漂浮尘埃（屏域 14 颗，缓慢漂移环绕——全屏氛围，不参与交互）
+            run {
+                val n = 14
+                var i = 0
+                while (i < n) {
+                    val hs = i * 2654435761L
+                    val sp = 6f + (hs % 9)
+                    val rawX = (hs % 1080) + t * sp * (if (hs % 2 == 0L) 1f else -1f)
+                    val x = ((rawX % size.width).let { if (it < 0) it + size.width else it })
+                    val y = (((hs / 7) % 2400).toFloat() + kotlin.math.sin(t * 0.7f + i) * 30f)
+                        .let { v -> (v % size.height).let { if (it < 0) it + size.height else it } }
+                    val a = 0.05f + 0.05f * (0.5f + 0.5f * kotlin.math.sin(t * 1.1f + i * 1.7f))
+                    drawCircle(Color(0xFFFFFFFF).copy(alpha = a), 1.5f + (hs % 3), Offset(x, y))
+                    i++
+                }
+            }
             if (game.engine.timeScale < 1f) drawRect(Color(0x14264CCF))   // 缓时滤镜
             if (lvlFlash.floatValue > 0f) drawRect(Color.White.copy(alpha = lvlFlash.floatValue.coerceAtMost(0.5f)))   // 升级白光
             if (banners.isNotEmpty()) {   // Boss 出场横幅（屏幕层，Hades 式）+ 暗角脉冲

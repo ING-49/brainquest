@@ -61,15 +61,23 @@ object GamePalette {
     // ---------- 阴影 ----------
     val SHADOW = Color(0x59000000)
 
-    /** 每层地牢环境色（地板/墙/格线/门），索引 = floor-1 */
-    data class FloorTone(val floor: Color, val wall: Color, val line: Color, val door: Color)
+    /** 每层地牢环境色（地板/墙/格线/门/贴图色板），索引 = floor-1 */
+    data class FloorTone(val floor: Color, val wall: Color, val line: Color, val door: Color, val tex: TexTone)
+
+    /** 批64：程序化贴图色板——base 砖底 / hi 砖面提亮 / lo 砖面压暗 / grout 砖缝 / crack 裂纹 / accent 层主题点缀 */
+    data class TexTone(val base: Color, val hi: Color, val lo: Color, val grout: Color, val crack: Color, val accent: Color)
 
     private val FLOOR_TONES = listOf(
-        FloorTone(Color(0xFF2B2F45), Color(0xFF14161F), Color(0xFF353A54), Color(0xFF4A5170)),  // 1 石窟
-        FloorTone(Color(0xFF25333D), Color(0xFF111A20), Color(0xFF304552), Color(0xFF43606F)),  // 2 冰窟
-        FloorTone(Color(0xFF273427), Color(0xFF121A12), Color(0xFF33452F), Color(0xFF4A6642)),  // 3 毒沼
-        FloorTone(Color(0xFF332A44), Color(0xFF181322), Color(0xFF453862), Color(0xFF5E4E86)),  // 4 幽殿
-        FloorTone(Color(0xFF3D2626), Color(0xFF1D1010), Color(0xFF553232), Color(0xFF7A4747)),  // 5 熔核
+        FloorTone(Color(0xFF2B2F45), Color(0xFF14161F), Color(0xFF353A54), Color(0xFF4A5170),
+            TexTone(Color(0xFF2B2F45), Color(0xFF3A4060), Color(0xFF232738), Color(0xFF14161F), Color(0xFF4A5170), Color(0xFF6E7FB8))),  // 1 石窟
+        FloorTone(Color(0xFF25333D), Color(0xFF111A20), Color(0xFF304552), Color(0xFF43606F),
+            TexTone(Color(0xFF25333D), Color(0xFF34495A), Color(0xFF1C2A34), Color(0xFF111A20), Color(0xFF43606F), Color(0xFF7FD0E8))),  // 2 冰窟
+        FloorTone(Color(0xFF273427), Color(0xFF121A12), Color(0xFF33452F), Color(0xFF4A6642),
+            TexTone(Color(0xFF273427), Color(0xFF37482F), Color(0xFF1F2A1F), Color(0xFF121A12), Color(0xFF4A6642), Color(0xFF79C26A))),  // 3 毒沼
+        FloorTone(Color(0xFF332A44), Color(0xFF181322), Color(0xFF453862), Color(0xFF5E4E86),
+            TexTone(Color(0xFF332A44), Color(0xFF483A66), Color(0xFF282036), Color(0xFF181322), Color(0xFF5E4E86), Color(0xFFB388D9))),  // 4 幽殿
+        FloorTone(Color(0xFF3D2626), Color(0xFF1D1010), Color(0xFF553232), Color(0xFF7A4747),
+            TexTone(Color(0xFF3D2626), Color(0xFF573636), Color(0xFF2E1C1C), Color(0xFF1D1010), Color(0xFF7A4747), Color(0xFFE57943))),  // 5 熔核
     )
 
     fun floorPalette(floor: Int): FloorTone = FLOOR_TONES[(floor - 1).coerceIn(0, FLOOR_TONES.lastIndex)]

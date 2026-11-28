@@ -6,6 +6,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -200,21 +202,25 @@ object EntityRenderer {
         val w = room.w
         val h = room.h
 
-        // 地板
-        scope.drawRoundRect(pal.floor, Offset(l, t), Size(w, h), CornerRadius(18f))
-        // 地板拼格线（细分 40px：画面更显大，后续地形/陷阱可直接挂格）
+        // 地板（批64 贴图化）：程序化砖块贴图 BitmapShader 平铺——每房 1 次 shader 调用，替代平涂+网格线
+        val tex = pal.tex
         val step = 40f
-        var gx = l + step
-        while (gx < l + w - 4f) {
-            scope.drawLine(pal.line, Offset(gx, t + 12f), Offset(gx, t + h - 12f), 2f)
-            gx += step
+        scope.drawIntoCanvas { cv ->
+            cv.nativeCanvas.drawRoundRect(
+                android.graphics.RectF(l, t, l + w, t + h), 18f, 18f,
+                TileTex.floorPaint(game.floor, pal),
+            )
         }
-        var gy = t + step
-        while (gy < t + h - 4f) {
-            scope.drawLine(pal.line, Offset(l + 12f, gy), Offset(l + w - 12f, gy), 2f)
-            gy += step
+        // 批64：清房亮起过渡（峰终反馈）——0.8s 扩散亮环+地板增亮
+        if (room.cleared && room.clearedAtWall > 0L) {
+            val dt = (System.currentTimeMillis() - room.clearedAtWall) / 1000f
+            if (dt < 0.8f) {
+                val k = dt / 0.8f
+                scope.drawRoundRect(Color.White.copy(alpha = (1f - k) * 0.25f), Offset(l, t), Size(w, h), CornerRadius(18f))
+                scope.drawCircle(GamePalette.UI_GOLD.copy(alpha = (1f - k) * 0.8f), 120f + 480f * k, Offset(l + w / 2f, t + h / 2f), style = Stroke(6f * (1f - k) + 1.5f))
+            }
         }
-        // 无状态地板装饰：按 (房间网格, 格索引) hash 撒裂缝/碎石/骨头/苔藓（每层色调不同、每格恒定）
+        // 无状态地板装饰（批64：降频让位贴图纹理，色随层 accent）——按 (房间网格, 格索引) hash，每格恒定
         run {
             var cx2 = l + step / 2f
             var col = 0
@@ -224,19 +230,22 @@ object EntityRenderer {
                 while (cy2 < t + h - 8f) {
                     val hsh = (room.gx * 73856093) xor (room.gy * 19349663) xor (col * 83492791) xor (row * 29712150)
                     when ((hsh ushr 7) % 100) {
-                        in 0..5 -> {   // 裂缝：三段折线
-                            val cc = pal.line.copy(alpha = 0.85f)
+                        in 0..2 -> {   // 裂纹：三段折线（层裂纹色）
+                            val cc = tex.crack.copy(alpha = 0.8f)
                             scope.drawLine(cc, Offset(cx2 - 9f, cy2 - 4f), Offset(cx2, cy2 + 2f), 1.5f)
                             scope.drawLine(cc, Offset(cx2, cy2 + 2f), Offset(cx2 + 8f, cy2 - 5f), 1.5f)
                         }
-                        in 6..10 -> scope.drawCircle(Color(0x20FFFFFF), 3.2f, Offset(cx2, cy2))   // 碎石
-                        in 11..13 -> {   // 骨头：短杆+两端节
+                        in 3..4 -> scope.drawCircle(Color(0x22FFFFFF), 3.2f, Offset(cx2, cy2))   // 碎石
+                        in 5..6 -> {   // 骨头：短杆+两端节
                             val bc = Color(0x4DECEFF1)
                             scope.drawLine(bc, Offset(cx2 - 5f, cy2 + 3f), Offset(cx2 + 5f, cy2 - 3f), 2f)
                             scope.drawCircle(bc, 1.8f, Offset(cx2 - 5f, cy2 + 3f))
                             scope.drawCircle(bc, 1.8f, Offset(cx2 + 5f, cy2 - 3f))
                         }
-                        in 14..19 -> scope.drawCircle(Color(0x1A66BB6A), 5.5f, Offset(cx2, cy2))   // 苔藓
+                        in 7..9 -> {   // 层主题点缀（accent）
+                            scope.drawCircle(tex.accent.copy(alpha = 0.30f), 4.5f, Offset(cx2, cy2))
+                            scope.drawCircle(tex.accent.copy(alpha = 0.18f), 7f, Offset(cx2, cy2))
+                        }
                         else -> {}
                     }
                     cy2 += step; row++
@@ -261,15 +270,99 @@ object EntityRenderer {
             }
             else -> {}
         }
-        // 墙（描边）+ 墙顶亮边 + 墙体投影暗带（立体感）
-        scope.drawRoundRect(pal.wall, Offset(l, t), Size(w, h), CornerRadius(18f), style = Stroke(DungeonGame.WALL))
+        // 墙（描边）+ 墙顶亮边 + 墙体投影暗带（立体感）——批64：Boss 房墙描边慢脉动（未清时"门后有大家伙"）
+        val wallC = if (room.type == RoomType.BOSS && !room.cleared)
+            pal.wall.copy(alpha = 0.72f + 0.28f * (0.5f + 0.5f * sin(time * 2f)))
+        else pal.wall
+        scope.drawRoundRect(wallC, Offset(l, t), Size(w, h), CornerRadius(18f), style = Stroke(DungeonGame.WALL))
         scope.drawRect(GamePalette.BG_WALL_TOP, Offset(l + DungeonGame.WALL, t + DungeonGame.WALL), Size(w - DungeonGame.WALL * 2, 6f))
+        // 批64：墙带内砖纹（横缝 12px + 错缝竖 joint——贴墙语言）
+        run {
+            val mortar = tex.grout.copy(alpha = 0.55f)
+            var wy = t + DungeonGame.WALL + 12f
+            var wi = 0
+            while (wy < t + h - DungeonGame.WALL - 8f) {
+                scope.drawLine(mortar, Offset(l + 3f, wy), Offset(l + w - 3f, wy), 1.5f)
+                var jx = l + (if (wi % 2 == 0) 30f else 62f)
+                while (jx < l + w - 4f) {
+                    scope.drawLine(mortar, Offset(jx, wy - 12f), Offset(jx, wy), 1.5f)
+                    jx += 64f
+                }
+                wy += 12f; wi++
+            }
+        }
         // 批34：房间内阴影补全——光从上来：顶边亮带保留（原有），左/右/底加暗带。
         // 房间=下沉的坑，四边都有暗带才有"凹陷感"，此前只有顶边（1/4）
         scope.drawRect(Color(0x30000000), Offset(l + DungeonGame.WALL, t + DungeonGame.WALL + 6f), Size(w - DungeonGame.WALL * 2, 24f))
         scope.drawRect(Color(0x1C000000), Offset(l + DungeonGame.WALL, t + DungeonGame.WALL + 6f), Size(20f, h - DungeonGame.WALL * 2 - 6f))
         scope.drawRect(Color(0x1C000000), Offset(l + w - DungeonGame.WALL - 20f, t + DungeonGame.WALL + 6f), Size(20f, h - DungeonGame.WALL * 2 - 6f))
         scope.drawRect(Color(0x24000000), Offset(l + DungeonGame.WALL + 20f, t + h - DungeonGame.WALL - 20f), Size(w - DungeonGame.WALL * 2 - 40f, 20f))
+        // 批64：南墙挤出立面（面向镜头的砖纹墙脚）——底边南邻接时跳过门口段
+        run {
+            val faceH = 20f
+            val fy = t + h + DungeonGame.WALL / 2f
+            val faceC = tex.lo
+            val hasSouth = room.neighbors.containsKey(Dir.DOWN)
+            fun faceSeg(x0: Float, x1: Float) {
+                val wSeg = x1 - x0
+                if (wSeg <= 4f) return
+                scope.drawRect(faceC, Offset(x0, fy), Size(wSeg, faceH))
+                scope.drawLine(tex.grout.copy(alpha = 0.6f), Offset(x0, fy + faceH * 0.4f), Offset(x1, fy + faceH * 0.4f), 1.5f)
+                scope.drawLine(tex.grout.copy(alpha = 0.6f), Offset(x0, fy + faceH * 0.75f), Offset(x1, fy + faceH * 0.75f), 1.5f)
+                var jx = x0 + 26f
+                var k = 0
+                while (jx < x1 - 8f) {
+                    scope.drawLine(tex.grout.copy(alpha = 0.45f), Offset(jx, fy + (if (k % 2 == 0) 0f else faceH * 0.4f)), Offset(jx, fy + (if (k % 2 == 0) faceH * 0.4f else faceH)), 1.5f)
+                    jx += 44f; k++
+                }
+                scope.drawLine(Color(0x26FFFFFF), Offset(x0, fy), Offset(x1, fy), 1.5f)   // 顶面亮线
+            }
+            val doorL = l + w / 2f - DungeonGame.DOOR_H / 2f
+            val doorR = l + w / 2f + DungeonGame.DOOR_H / 2f
+            if (hasSouth) {
+                faceSeg(l + DungeonGame.WALL / 2f, doorL)
+                faceSeg(doorR, l + w - DungeonGame.WALL / 2f)
+            } else {
+                faceSeg(l + DungeonGame.WALL / 2f, l + w - DungeonGame.WALL / 2f)
+            }
+        }
+        // 批64：墙面火把——沿墙 hash 等距（避门口），壁架+双层火苗(sin(time*13f) 闪烁)+暖光晕+熏黑；
+        // Boss 房未清改红光；战斗聚焦（未清战斗房火苗亮度略降）
+        run {
+            val space = 420f
+            fun torch(x: Float, y: Float, seed: Int) {
+                val hs = (room.gx * 83492791) xor (room.gy * 29712150) xor seed * 126271
+                val fl = 0.72f + 0.28f * (0.5f + 0.5f * sin(time * 13f + (hs % 628) / 100f))
+                val dim = if (room.cleared || room.type == RoomType.START) 1f else 0.7f
+                val warm = if (room.type == RoomType.BOSS && !room.cleared) Color(0x30E15A5A) else Color(0x2AFFB300)
+                scope.drawCircle(warm, 58f * fl, Offset(x, y))                                     // 暖光晕
+                scope.drawCircle(Color(0x14000000), 30f, Offset(x, y))                             // 墙面熏黑
+                scope.drawRoundRect(Color(0xFF4E342E), Offset(x - 7f, y - 2f), Size(14f, 5f), CornerRadius(2f))   // 壁架
+                scope.drawOval(Color(0xFFFFB300).copy(alpha = 0.85f * fl * dim), Offset(x - 5f, y - 20f + (1f - fl) * 3f), Size(10f, 18f * fl))   // 火苗外层
+                scope.drawOval(Color(0xFFFFF59D).copy(alpha = 0.9f * fl * dim), Offset(x - 2.5f, y - 13f + (1f - fl) * 2f), Size(5f, 10f * fl))   // 火苗内芯
+            }
+            val doorHalf = DungeonGame.DOOR_H / 2f + 60f
+            var tx = l + 220f
+            while (tx < l + w - 160f) {
+                val nearDoor = room.neighbors.containsKey(Dir.UP) && kotlin.math.abs(tx - (l + w / 2f)) < doorHalf
+                if (!nearDoor) torch(tx, t + DungeonGame.WALL / 2f + 4f, tx.toInt())
+                tx += space
+            }
+            var bx2 = l + 220f
+            while (bx2 < l + w - 160f) {
+                val nearDoor = room.neighbors.containsKey(Dir.DOWN) && kotlin.math.abs(bx2 - (l + w / 2f)) < doorHalf
+                if (!nearDoor) torch(bx2, t + h - DungeonGame.WALL / 2f - 2f, bx2.toInt() + 7)
+                bx2 += space
+            }
+            var ly = t + 320f
+            while (ly < t + h - 200f) {
+                val nearDoorL = room.neighbors.containsKey(Dir.LEFT) && kotlin.math.abs(ly - (t + h / 2f)) < doorHalf
+                if (!nearDoorL) torch(l + DungeonGame.WALL / 2f + 4f, ly, ly.toInt() + 13)
+                val nearDoorR = room.neighbors.containsKey(Dir.RIGHT) && kotlin.math.abs(ly - (t + h / 2f)) < doorHalf
+                if (!nearDoorR) torch(l + w - DungeonGame.WALL / 2f - 4f, ly, ly.toInt() + 29)
+                ly += space * 1.6f
+            }
+        }
         // 清怪后的房间中心标记（房型）
         val cx = l + w / 2
         val cy = t + h / 2
@@ -288,6 +381,57 @@ object EntityRenderer {
         // Boss 房地面红圈预警
         if (room.type == RoomType.BOSS) {
             scope.drawCircle(Color(0x33E15A5A), 150f, Offset(cx, cy), style = Stroke(5f))
+        }
+    }
+
+    /** 批64：房外氛围层（画在走廊/房间之下，只在外部黑暗区可见）——远景石柱剪影（视差 0.5）+ hash 钉扎的远处火光 */
+    fun drawAmbient(scope: DrawScope, game: DungeonGame, time: Float) {
+        val vw = scope.size.width
+        val vh = scope.size.height
+        // 远景剪影：220px 网格 hash，视差 0.5（camX*0.5——比场景"更远"，移动更慢）
+        run {
+            val px = game.camX * 0.5f
+            val py = game.camY * 0.5f
+            val cell = 220f
+            var cx = -(px % cell).let { if (it < 0) it + cell else it }
+            var col = (px / cell).toInt()
+            while (cx < vw) {
+                var cy = -(py % cell).let { if (it < 0) it + cell else it }
+                var row = (py / cell).toInt()
+                while (cy < vh) {
+                    val hsh = (col * 73856093) xor (row * 19349663)
+                    if ((hsh ushr 5) % 100 < 26) {
+                        val jx = cx + (hsh % 90)
+                        val jy = cy + ((hsh ushr 8) % 120)
+                        val ph = 60f + (hsh ushr 12) % 90f
+                        val c = Color(0x0AFFFFFF)
+                        scope.drawLine(c, Offset(jx, jy + ph), Offset(jx + ph * 0.22f, jy), 7f)
+                        scope.drawLine(c, Offset(jx + ph * 0.22f, jy), Offset(jx + ph * 0.4f, jy + ph), 7f)
+                    }
+                    cy += cell; row++
+                }
+                cx += cell; col++
+            }
+        }
+        // 远处火光：640px 网格 hash 钉扎（视差 1，世界锚定），暖金闪烁
+        run {
+            val cell = 640f
+            var cx = -(game.camX % cell).let { if (it < 0) it + cell else it }
+            var col = (game.camX / cell).toInt()
+            while (cx < vw) {
+                var cy = -(game.camY % cell).let { if (it < 0) it + cell else it }
+                var row = (game.camY / cell).toInt()
+                while (cy < vh) {
+                    val hsh = (col * 83492791) xor (row * 29712150)
+                    if ((hsh ushr 6) % 100 < 18) {
+                        val fl = 0.5f + 0.5f * sin(time * 7f + (hsh % 628) / 100f)
+                        scope.drawCircle(Color(0x1AFFB300).copy(alpha = 0.5f + 0.5f * fl), 26f + fl * 10f, Offset(cx + 60f, cy + 40f))
+                        scope.drawCircle(Color(0x2AFFB74D), 8f + fl * 3f, Offset(cx + 60f, cy + 40f))
+                    }
+                    cy += cell; row++
+                }
+                cx += cell; col++
+            }
         }
     }
 
@@ -701,12 +845,17 @@ object EntityRenderer {
                 // 脉动金光 + 影子
                 drawCircle(Color(0x33FFD54F), 46f + sin(time * 4f) * 6f, Offset(sx, sy))
                 drawOval(SHADOW, Offset(sx - 24f, sy + 16f), Size(48f, 14f))
-                // 箱体 + 金边 + 锁扣
-                drawRoundRect(Color(0xFF795548), Offset(sx - 26f, sy - 14f), Size(52f, 34f), CornerRadius(6f))
-                drawRoundRect(Color(0xFF5D4037), Offset(sx - 26f, sy - 14f), Size(52f, 12f), CornerRadius(6f))
-                drawRect(GamePalette.UI_GOLD, Offset(sx - 26f, sy - 3f), Size(52f, 4f))
-                drawRect(GamePalette.UI_GOLD, Offset(sx - 4f, sy - 6f), Size(8f, 12f))
-                drawCircle(Color(0xFFFFF59D), 2.5f, Offset(sx, sy))
+            // 箱体 + 金边 + 锁扣——批64：箱盖微颤 + 锁扣偶发星光
+            drawRoundRect(Color(0xFF795548), Offset(sx - 26f, sy - 14f), Size(52f, 34f), CornerRadius(6f))
+            drawRoundRect(Color(0xFF5D4037), Offset(sx - 26f, sy - 14f + kotlin.math.sin(time * 9f) * 1.2f), Size(52f, 12f), CornerRadius(6f))
+            drawRect(GamePalette.UI_GOLD, Offset(sx - 26f, sy - 3f), Size(52f, 4f))
+            drawRect(GamePalette.UI_GOLD, Offset(sx - 4f, sy - 6f), Size(8f, 12f))
+            drawCircle(Color(0xFFFFF59D), 2.5f, Offset(sx, sy))
+            if (sin(time * 2.3f) > 0.88f) {
+                val sp = (sin(time * 2.3f) - 0.88f) / 0.12f
+                drawLine(Color.White.copy(alpha = 0.8f * sp), Offset(sx - 8f, sy - 12f), Offset(sx + 8f, sy - 4f), 1.5f)
+                drawLine(Color.White.copy(alpha = 0.8f * sp), Offset(sx + 8f, sy - 12f), Offset(sx - 8f, sy - 4f), 1.5f)
+            }
             }
         }
         game.shop?.let { s ->
@@ -719,11 +868,11 @@ object EntityRenderer {
                 // 柜台
                 drawRoundRect(Color(0xFF6D4C41), Offset(sx - 40f, sy - 6f), Size(80f, 26f), CornerRadius(5f))
                 drawRect(Color(0xFF8D6E63), Offset(sx - 40f, sy - 6f), Size(80f, 7f))
-                // 遮阳棚：红白条纹
-                repeat(4) { i ->
-                    val c = if (i % 2 == 0) Color(0xFFE15A5A) else Color(0xFFF5F5F5)
-                    drawRect(c, Offset(sx - 40f + i * 20f, sy - 34f), Size(20f, 16f))
-                }
+        // 遮阳棚：红白条纹——批64：布幔 sway（逐条微移，宽 22f 重叠防露缝）
+        repeat(4) { i ->
+            val c = if (i % 2 == 0) Color(0xFFE15A5A) else Color(0xFFF5F5F5)
+            drawRect(c, Offset(sx - 40f + i * 20f + sin(time * 2f + i) * 1.4f, sy - 34f), Size(22f, 16f))
+        }
                 drawRect(Color(0xFF4E342E), Offset(sx - 40f, sy - 18f), Size(80f, 4f))
                 // 金币招牌
                 drawCircle(GamePalette.UI_GOLD, 9f, Offset(sx, sy - 48f))
@@ -742,15 +891,17 @@ object EntityRenderer {
                 drawCircle(Color(0xFF5D4037), 30f, Offset(sx, sy))
                 drawCircle(Color(0xFF795548), 25f, Offset(sx, sy))
                 drawCircle(Color(0xFF3E2723), 30f, Offset(sx, sy), style = Stroke(3f))
-                // 桌上骰子两枚（红白）
-                drawRoundRect(Color(0xFFE15A5A), Offset(sx - 14f, sy - 8f), Size(12f, 12f), CornerRadius(3f))
-                drawCircle(Color.White, 1.5f, Offset(sx - 10f, sy - 4f))
-                drawRoundRect(Color(0xFFF5F5F5), Offset(sx + 2f, sy - 4f), Size(12f, 12f), CornerRadius(3f))
-                drawCircle(Color(0xFF263238), 1.5f, Offset(sx + 5f, sy))
-                drawCircle(Color(0xFF263238), 1.5f, Offset(sx + 9f, sy + 3f))
-                // 顶部紫水晶
-                drawCircle(Color(0xFFBA68C8), 8f, Offset(sx, sy - 44f))
-                drawCircle(Color(0xFFE1BEE7), 3.5f, Offset(sx, sy - 44f))
+        // 桌上骰子两枚（红白）——批64：骰子 idle 微滚
+        scope.withTransform({ rotate(sin(time * 1.5f) * 0.18f, pivot = Offset(sx - 8f, sy - 2f)) }) {
+            drawRoundRect(Color(0xFFE15A5A), Offset(sx - 14f, sy - 8f), Size(12f, 12f), CornerRadius(3f))
+            drawCircle(Color.White, 1.5f, Offset(sx - 10f, sy - 4f))
+        }
+        drawRoundRect(Color(0xFFF5F5F5), Offset(sx + 2f, sy - 4f), Size(12f, 12f), CornerRadius(3f))
+        drawCircle(Color(0xFF263238), 1.5f, Offset(sx + 5f, sy))
+        drawCircle(Color(0xFF263238), 1.5f, Offset(sx + 9f, sy + 3f))
+        // 顶部紫水晶——批64：呼吸
+        drawCircle(Color(0xFFBA68C8), 8f + sin(time * 2.5f) * 1.5f, Offset(sx, sy - 44f))
+        drawCircle(Color(0xFFE1BEE7), 3.5f, Offset(sx, sy - 44f))
             }
         }
     }
@@ -838,8 +989,9 @@ object EntityRenderer {
                 val frame = framesP[fi]
                 val dsize = 46
                 val flip = !facingRight
-                scope.drawCircle(Color(0x06FFFFFF), 95f, Offset(sx, sy))
-                scope.drawCircle(Color(0x0AFFFFFF), 60f, Offset(sx, sy))
+                val flick = 1f + sin(time * 11f) * 0.04f + sin(time * 23f + 1.7f) * 0.03f   // 批64：火把呼吸
+                scope.drawCircle(Color(0x06FFFFFF), 95f * flick, Offset(sx, sy))
+                scope.drawCircle(Color(0x0AFFFFFF), 60f * flick, Offset(sx, sy))
                 scope.drawOval(SHADOW, Offset(sx - 18f, sy + 14f), Size(36f, 10f))
                 // 出手前冲（批17）：刚出手瞬间向面向位移，攻击可见
                 val atkProgP = if (game.engine.attackInterval > 0f)
@@ -905,9 +1057,10 @@ object EntityRenderer {
 
         // 移动倾斜（批16）：随步伐 ±3° 摇摆，加动感
         val lean = if (game.engine.moving) sin(game.engine.walkPhase) * 3f else 0f
-        // 0 角色微光（同心圆代替渐变笔刷，零分配）
-        scope.drawCircle(Color(0x06FFFFFF), 95f, Offset(sx, sy))
-        scope.drawCircle(Color(0x0AFFFFFF), 60f, Offset(sx, sy))
+        // 0 角色微光（同心圆代替渐变笔刷，零分配）——批64：火把呼吸
+        val flick = 1f + sin(time * 11f) * 0.04f + sin(time * 23f + 1.7f) * 0.03f
+        scope.drawCircle(Color(0x06FFFFFF), 95f * flick, Offset(sx, sy))
+        scope.drawCircle(Color(0x0AFFFFFF), 60f * flick, Offset(sx, sy))
         scope.withTransform({ rotate(lean, pivot = Offset(sx, sy)) }) {
         // 1 阴影
         scope.drawOval(SHADOW, Offset(sx - 18f, sy + 14f), Size(36f, 10f))
