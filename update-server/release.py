@@ -212,7 +212,12 @@ def build_patch(manifest):
         patches.append({"from": code_o, "to": code_n, "file": f"patches/{patch_name}",
                         "sha256": sha256(patch_path), "size": len(data)})
         print(f"[patch] v{name_o}(code={code_o})→v{name_n}: {len(data)/1024:.1f} KB")
-    manifest["patches"] = sorted(patches, key=lambda p: p["from"])
+    # 批59：按 (from,to) 去重——补丁文件重生成后旧条目残留同键旧 sha，
+    # App 端 firstOrNull 可能取到失效条目导致 sha 校验失败；后写覆盖前写（新条目 sha 与文件一致）
+    _dedup = {}
+    for _p in patches:
+        _dedup[(_p["from"], _p["to"])] = _p
+    manifest["patches"] = sorted(_dedup.values(), key=lambda p: p["from"])
     print(f"[patch] 阶段制：基线 {base_name}，跳过基线前旧版 {skipped} 个（走全量）")
     print(f"[patch] 本阶段补丁链共 {len(manifest['patches'])} 条")
 

@@ -125,21 +125,40 @@ def main():
         try:
             with urllib.request.urlopen(latest, timeout=30) as resp:
                 served = json.loads(resp.read())
-            if served["latestVersionCode"] == gh_manifest["latestVersionCode"]:
+            if manifest_matches(served, gh_manifest):
                 break
         except Exception as e:
             print(f"  第{attempt+1}次校验未就绪: {e}")
         time.sleep(5)
-    if not (served and served["latestVersionCode"] == gh_manifest["latestVersionCode"]):
+    if not (served and manifest_matches(served, gh_manifest)):
         # 坑34：直连常命中 CDN 旧缓存 → gh api 兜底复核
         print("直连校验未通过（疑似 CDN 旧缓存），改走 gh api 复核…")
-        assert verify_via_gh_api(latest, gh_manifest["latestVersionCode"]), "latest manifest 校验失败（含 API 兜底）"
+        assert verify_via_gh_api(latest, gh_manifest), "latest manifest 校验失败（含 API 兜底）"
         served = gh_manifest
     print(f"✓ GitHub 托管生效：latest → v{served['latestVersionName']}(code {served['latestVersionCode']})")
     print(f"App 服务器地址填: {latest.rsplit('/', 1)[0]}")
 
 
-def verify_via_gh_api(repo_url: str, expect_code: int) -> bool:
+def manifest_files(m: dict) -> set:
+    """manifest 中全部 file 引用（fullApk + 补丁 + 内容包）"""
+    files = {m.get("fullApk", "")}
+    files |= {p.get("file", "") for p in m.get("patches", [])}
+    files |= {p.get("file", "") for p in m.get("contentPacks", [])}
+    files.discard("")
+    return files
+
+
+def manifest_matches(served: dict, expected: dict) -> bool:
+    """坑43：除版本号外逐项比对 file 引用——GitHub 资产是平铺的，
+    若线上 manifest 带目录前缀（如误传本地版 update-server/manifest.json），
+    所有旧版 App 的应用内更新会整体 404。版本号相同也可能 file 形态错误，
+    必须逐项比对才算真成功。"""
+    if served.get("latestVersionCode") != expected.get("latestVersionCode"):
+        return False
+    return manifest_files(served) == manifest_files(expected)
+
+
+def verify_via_gh_api(repo_url: str, expected: dict) -> bool:
     """坑34 兜底：直连 releases/latest/download 常命中 CDN 旧缓存导致假失败，
     改走 gh api 读 release 资产元数据核对（API 不吃 CDN 缓存）。"""
     import subprocess, re, tempfile
@@ -161,7 +180,7 @@ def verify_via_gh_api(repo_url: str, expect_code: int) -> bool:
         return False
     with open(os.path.join(tmp, "manifest.json"), encoding="utf-8") as f:
         served = json.load(f)
-    return served.get("latestVersionCode") == expect_code
+    return manifest_matches(served, expected)
 
 
 if __name__ == "__main__":
