@@ -25,6 +25,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -522,6 +528,16 @@ fun LobbyNavItem(
     }
 }
 
+/** 批61：横屏游戏顶部锚定——Top 用 statusBars（系统栏隐藏后=0，顶栏贴合屏幕上缘；
+ *  下拉临时呼出时才让位），Horizontal 仍用 safeDrawing（真·侧边挖孔照常避让）。
+ *  缘由：荣耀 Magic OS 横屏下仍按竖屏方向上报挖孔 Top inset（实测 78px），
+ *  safeDrawing.Top 会把顶栏整体压出一条空带（DVC-AN00 真机复现实证）；
+ *  window 级 cutout ALWAYS（manifest+AppRoot）只解决窗口 letterbox，管不到 Compose inset。 */
+@Composable
+fun Modifier.gameTopInsets(): Modifier =
+    windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))
+        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+
 /** 统一游戏弹窗：暗色幕布 + 描边面板 + 标题栏（可关闭） */
 @Composable
 fun GameDialog(
@@ -538,6 +554,7 @@ fun GameDialog(
         Column(
             Modifier
                 .widthIn(max = width)
+                .windowInsetsPadding(WindowInsets.safeDrawing)   // 批61：弹窗外壳避让挖孔/手势条（窄横屏不再贴边）
                 .padding(horizontal = 24.dp, vertical = 16.dp)
                 .clip(RoundedCornerShape(20.dp))
                 .background(Brush.verticalGradient(listOf(Color(0xFA1D2536), Color(0xFA10151F))))

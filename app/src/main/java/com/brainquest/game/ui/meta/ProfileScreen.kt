@@ -60,6 +60,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Arrangement
 import com.brainquest.game.ui.SectionCard
 import com.brainquest.game.ui.pressScale
+import com.brainquest.game.ui.enterStagger
 import kotlinx.coroutines.launch
 
 @Composable
@@ -92,7 +93,7 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        ElevatedCard(Modifier.fillMaxWidth()) {
+        ElevatedCard(Modifier.fillMaxWidth().enterStagger(0)) {
             Column(
                 Modifier
                     .padding(2.dp)   // 露出卡片圆角内的渐变描边
@@ -125,7 +126,7 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().enterStagger(1), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
             // 批31：语义色上色——对=绿 错=红 率=蓝 星=金
             StatChip("🎯", "答对", "${player.totalCorrect}", Modifier.weight(1f), tint = Color(0xFF2E7D32))
             StatChip("💥", "答错", "${player.totalWrong}", Modifier.weight(1f), tint = Color(0xFFC62828))
@@ -149,7 +150,7 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
         val weekCorrect = weekBars.sumOf { it.second }
         val weekTotal = weekBars.sumOf { it.third }
         val maxBar = weekBars.maxOf { it.second }.coerceAtLeast(1)
-        SectionCard("📅 本周学习") {
+        SectionCard("📅 本周学习", Modifier.enterStagger(2)) {
             Text(
                 if (weekTotal > 0) "本周答对 $weekCorrect / $weekTotal" else "本周还没答题，去闯一闯吧",
                 style = MaterialTheme.typography.bodySmall,
@@ -191,11 +192,11 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // 批31：每行独立主题色（成就金 / 错题红 / 商店琥珀 / 设置蓝灰）
-        MenuCard("🏅", "成就墙", "已解锁 ${player.achievements.size} 个成就", Color(0xFFFFB300)) { nav.navigate(Routes.ACHIEVEMENTS) }
-        MenuCard("📖", "错题本", "${player.wrongBook.count { !it.mastered }} 道待复习", Color(0xFFC62828)) { nav.navigate(Routes.WRONGBOOK) }
-        MenuCard("🛒", "商店", "道具 · 主题 · 头像", Color(0xFFF9A825)) { nav.navigate(Routes.SHOP) }
-        MenuCard("⚙️", "设置与更新", "音效 · 震动 · 热更新 · APK升级", Color(0xFF546E7A)) { nav.navigate(Routes.SETTINGS) }
+        // 批31：每行独立主题色（成就金 / 错题红 / 商店金 / 设置蓝灰）；批63：商店 tint 归一 FFB300（"花钱动作一种颜色"）+ enterStagger
+        MenuCard("🏅", "成就墙", "已解锁 ${player.achievements.size} 个成就", Color(0xFFFFB300), Modifier.enterStagger(3)) { nav.navigate(Routes.ACHIEVEMENTS) }
+        MenuCard("📖", "错题本", "${player.wrongBook.count { !it.mastered }} 道待复习", Color(0xFFC62828), Modifier.enterStagger(4)) { nav.navigate(Routes.WRONGBOOK) }
+        MenuCard("🛒", "商店", "道具 · 主题 · 头像", Color(0xFFFFB300), Modifier.enterStagger(5)) { nav.navigate(Routes.SHOP) }
+        MenuCard("⚙️", "设置与更新", "音效 · 震动 · 热更新 · APK升级", Color(0xFF546E7A), Modifier.enterStagger(6)) { nav.navigate(Routes.SETTINGS) }
 
         if (showAvatarPicker) {
             // Q 版头像需拥有才能选（kawaii_0 为体验款人人可用），其余可在商店购入
@@ -386,13 +387,14 @@ fun ProfileScreen(vm: AppViewModel, nav: NavHostController) {
     }
 }
 
-/** 菜单卡（批31：emoji 彩底方 tile，行首有锚点不再是一行灰字） */
+/** 菜单卡（批31：emoji 彩底方 tile，行首有锚点不再是一行灰字；批63：加 modifier 参数供 enterStagger） */
 @Composable
-private fun MenuCard(emoji: String, title: String, subtitle: String, tint: Color, onClick: () -> Unit) {
+private fun MenuCard(emoji: String, title: String, subtitle: String, tint: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val mcInteraction = remember { MutableInteractionSource() }
     Card(
         modifier = Modifier
             .pressScale(mcInteraction)
+            .then(modifier)
             .fillMaxWidth()
             .clickable(interactionSource = mcInteraction, indication = null, onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),

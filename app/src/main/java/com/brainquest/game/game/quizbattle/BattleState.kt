@@ -13,7 +13,8 @@ import kotlin.random.Random
 
 data class Enemy(
     val name: String,
-    val emoji: String,
+    val kind: Int,    // 批61（卡2）：EnemyArt 自绘分发号（0-6 七系 / 7 BOSS）
+    val halo: Long,   // 批60：怪种身份光环色 ARGB（实体身份色，非 UI 语义色，见设计说明 §三.4）
     val maxHp: Int,
     val isBoss: Boolean,
 )
@@ -62,7 +63,17 @@ class BattleState(
     val questionDifficulty: Int = (level / 2 + 1).coerceIn(1, 5)
     val timeLimitSec: Int = if (isBoss) 12 else (20 - level).coerceAtLeast(10)
 
-    private val enemyNames = listOf("哥布林", "史莱姆", "小恶魔", "蝙蝠兵", "石头人", "暗影法师", "骷髅武士")
+    // 批60：怪种七系——名字/光环三位一体（批61 卡2 起形象由 EnemyArt 按 kind 自绘，emoji 不再承担实体形象；
+    // 原形象参照：👺哥布林 赤 / 🦠史莱姆 橙焰 / 😈小恶魔 绛 / 🦇蝙蝠兵 紫 / 🗿石头人 石板 / 🧙暗影法师 深靛 / 💀骷髅武士 骨白）
+    private val enemyKinds = listOf(
+        "哥布林" to 0xFFE53935L,   // 赤
+        "史莱姆" to 0xFFFF7043L,   // 橙焰
+        "小恶魔" to 0xFFC2185BL,   // 绛
+        "蝙蝠兵" to 0xFF7E57C2L,   // 紫（地牢蝙蝠矢量同源）
+        "石头人" to 0xFF78909CL,   // 石板
+        "暗影法师" to 0xFF5C6BC0L, // 深靛（地牢 caster 同源）
+        "骷髅武士" to 0xFFB0BEC5L, // 骨白（地牢 skeleton 同源）
+    )
     private val bossNames = mapOf(
         Subjects.MATH to "魔王·拉格朗日",
         Subjects.LOGIC to "谜题领主·斯芬克斯",
@@ -78,9 +89,8 @@ class BattleState(
 
     init {
         enemy = if (isBoss) {
-            Enemy(bossNames[subject] ?: "知识魔王", "👹", 260 + level * 20, true)
+            Enemy(bossNames[subject] ?: "知识魔王", 7, 0xFFE53935, 260 + level * 20, true)
         } else {
-            val name = enemyNames[(level - 1) % enemyNames.size]
             val prefix = when (subject) {
                 Subjects.MATH -> "算术"
                 Subjects.LOGIC -> "谜题"
@@ -94,13 +104,9 @@ class BattleState(
                 Subjects.COMMUNICATION -> "信号"
                 else -> "知识"
             }
-            val emoji = when (level % 4) {
-                0 -> "👺"
-                1 -> "🧟"
-                2 -> "🦇"
-                else -> "👾"
-            }
-            Enemy("$prefix${name}·Lv$level", emoji, 55 + level * 22, false)
+            val kind = (level - 1) % enemyKinds.size
+            val (kindName, kindHalo) = enemyKinds[kind]
+            Enemy("$prefix${kindName}·Lv$level", kind, kindHalo, 55 + level * 22, false)
         }
         enemyHp = enemy.maxHp
         nextQuestion()

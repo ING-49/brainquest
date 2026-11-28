@@ -97,33 +97,46 @@ fun AppRoot(vm: AppViewModel) {
 
     // 方向/沉浸按路由统一管理（批14：DungeonScreen 的 onDispose 会在新页组合后执行，
     // 页面自管方向会被覆盖——天赋页竖屏 bug 的根因。横屏路由：地牢/迷你幸存者/天赋）
+    // 批61：沉浸权收敛为 AppRoot 单一所有者——地牢/幸存者屏级 hide/show 已移除（横屏路由间
+    // 跳转时旧屏 onDispose{show()} 后执行会赢，系统栏复现）；挖孔模式 ALWAYS（荣耀等 Magic OS
+    // 忽略 attach 后的运行时修改，manifest 已同步 windowLayoutInDisplayCutoutMode="always"）；
+    // 窗口重获焦点即重 hide（Magic OS 恢复前台/关弹窗会吐回状态栏，导致横屏顶栏上方留空）
     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
     androidx.compose.runtime.DisposableEffect(currentRoute) {
         val landscape = currentRoute in listOf(Routes.DUNGEON, Routes.SURVIVOR, Routes.TALENTS)
         activity?.requestedOrientation = if (landscape)
             android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        var focusListener: android.view.ViewTreeObserver.OnWindowFocusChangeListener? = null
         activity?.window?.let { w ->
             androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, !landscape)
+            val controller = androidx.core.view.WindowInsetsControllerCompat(w, w.decorView)
             if (landscape) {
                 w.setStatusBarColor(android.graphics.Color.TRANSPARENT)
                 w.setNavigationBarColor(android.graphics.Color.TRANSPARENT)
                 @Suppress("DEPRECATION")
                 w.attributes = w.attributes.apply {
                     layoutInDisplayCutoutMode =
-                        android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                        if (android.os.Build.VERSION.SDK_INT >= 28)
+                            android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                        else android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
                 }
-                androidx.core.view.WindowInsetsControllerCompat(w, w.decorView).apply {
-                    hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-                    systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat
-                        .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                controller.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat
+                    .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                focusListener = android.view.ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+                    if (hasFocus) controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
                 }
+                w.decorView.viewTreeObserver.addOnWindowFocusChangeListener(focusListener!!)
             } else {
-                androidx.core.view.WindowInsetsControllerCompat(w, w.decorView)
-                    .show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }
         }
-        onDispose { }   // 方向随 currentRoute 变化处理，无需在此恢复
+        onDispose {
+            focusListener?.let { l ->
+                activity?.window?.decorView?.viewTreeObserver?.removeOnWindowFocusChangeListener(l)
+            }
+        }
     }
 
     Scaffold(

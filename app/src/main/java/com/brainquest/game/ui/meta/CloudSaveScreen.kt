@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +39,8 @@ import com.brainquest.game.net.PkEvent
 import com.brainquest.game.net.PkClient
 import com.brainquest.game.ui.PageHeader
 import com.brainquest.game.ui.Routes
+import com.brainquest.game.ui.pressScale
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 /**
@@ -180,15 +184,31 @@ fun CloudSaveScreen(vm: AppViewModel, nav: NavHostController) {
                 )
                 Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     // 弹窗每次打开都清空口令/恢复输入，防上次输入残留（口令累加类事故）
-                    Button(onClick = { uploadPassword = ""; showUploadDialog = true }, enabled = cloudAction.isEmpty()) { Text("⬆️ 上传存档") }
+                    // 批63：上传=金（保存成果）、恢复=绿（完成语义）、删除=红（危险语义）＋ pressScale
+                    val upInter = remember { MutableInteractionSource() }
+                    Button(
+                        onClick = { uploadPassword = ""; showUploadDialog = true },
+                        enabled = cloudAction.isEmpty(),
+                        interactionSource = upInter,
+                        modifier = Modifier.weight(1f).pressScale(upInter),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB300), contentColor = Color(0xFF4E342E)),
+                    ) { Text("⬆️ 上传存档") }
+                    val dlInter = remember { MutableInteractionSource() }
                     OutlinedButton(
                         onClick = { dlCodeInput = ""; dlOwnerInput = ""; dlPassword = ""; showDownloadDialog = true },
                         enabled = cloudAction.isEmpty(),
+                        interactionSource = dlInter,
+                        modifier = Modifier.weight(1f).pressScale(dlInter),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2E7D32)),
                     ) { Text("⬇️ 下载恢复") }
                 }
+                val delInter = remember { MutableInteractionSource() }
                 TextButton(
                     onClick = { pendingDelete = true },
                     enabled = cloudAction.isEmpty() && player.cloudCode.isNotBlank(),
+                    interactionSource = delInter,
+                    modifier = Modifier.pressScale(delInter),
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFC62828)),
                 ) { Text("🗑 删除云端存档") }
                 if (cloudStatus.isNotBlank()) {
                     Text(cloudStatus, style = MaterialTheme.typography.bodySmall,
@@ -326,15 +346,19 @@ fun CloudSaveScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
-                        val ok = vm.importCloudSave(data, restorePassword.trim())
-                        cloudStatus = when {
-                            ok -> "✅ 已恢复云端存档"
-                            encrypted -> "❌ 口令错误或存档已损坏，未恢复"
-                            else -> "❌ 存档解析失败"
-                        }
-                        pendingRestore = null
-                    }) { Text("覆盖恢复") }
+                    // 批63：覆盖恢复=危险操作 → 危险红
+                    Button(
+                        onClick = {
+                            val ok = vm.importCloudSave(data, restorePassword.trim())
+                            cloudStatus = when {
+                                ok -> "✅ 已恢复云端存档"
+                                encrypted -> "❌ 口令错误或存档已损坏，未恢复"
+                                else -> "❌ 存档解析失败"
+                            }
+                            pendingRestore = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828), contentColor = Color.White),
+                    ) { Text("覆盖恢复") }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = { pendingRestore = null; cloudStatus = "已取消" }) { Text("取消") }
@@ -348,12 +372,16 @@ fun CloudSaveScreen(vm: AppViewModel, nav: NavHostController) {
                 title = { Text("删除云端存档？") },
                 text = { Text("将删除服务器上存档码 ${(if (dlCodeInput.isNotBlank()) dlCodeInput else player.cloudCode).ifBlank { player.cloudCode }} 对应的云端存档，本机进度不受影响。此操作不可恢复。") },
                 confirmButton = {
-                    Button(onClick = {
-                        pendingDelete = false
-                        cloudAction = "del"
-                        cloudStatus = "连接服务器…"
-                        cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
-                    }) { Text("删除") }
+                    // 批63：删除=危险操作 → 危险红
+                    Button(
+                        onClick = {
+                            pendingDelete = false
+                            cloudAction = "del"
+                            cloudStatus = "连接服务器…"
+                            cloudClient.connect(player.pkServerUrl, player.nickname, "idle", version = BuildConfig.VERSION_NAME)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828), contentColor = Color.White),
+                    ) { Text("删除") }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = { pendingDelete = false }) { Text("取消") }

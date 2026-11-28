@@ -15,7 +15,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.combinedClickable
@@ -43,6 +42,8 @@ import com.brainquest.game.update.UpdateManifest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.brainquest.game.ui.BqProgressBar
+import com.brainquest.game.ui.pressScale
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -104,7 +105,11 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // 通用设置
+        // 通用设置（批63：区块卡语言，与首页/我的区块一致）
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        ) {
         SettingRow("🔊 音效", player.soundOn) { vm.setSettings(sound = it) }
         SettingRow("📳 震动反馈", player.hapticsOn) { vm.setSettings(haptics = it) }
         SettingRow(
@@ -112,13 +117,16 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             subtitle = "开：每日挑战出大学科目高难题（高数/线代/概率/高频/通信，考研向）\n关：每日挑战出基础入门题（数学口算/逻辑/英语/科学/编程）",
             checked = player.hardMode,
         ) { vm.setSettings(hard = it) }
+        }
 
-        // 云存档：独立一层页面（口令等属隐私操作）
+        // 云存档：独立一层页面（口令等属隐私操作）——批63：pressScale 与全站入口卡一致
+        val cloudEntryInter = remember { MutableInteractionSource() }
         Card(
             modifier = Modifier
+                .pressScale(cloudEntryInter)
                 .fillMaxWidth()
                 .padding(top = 8.dp)
-                .clickable { nav.navigate(com.brainquest.game.ui.Routes.CLOUD_SAVE) },
+                .clickable(interactionSource = cloudEntryInter, indication = null) { nav.navigate(com.brainquest.game.ui.Routes.CLOUD_SAVE) },
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         ) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -183,6 +191,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                     modifier = Modifier.padding(vertical = 6.dp),
                 )
 
+                val checkInter = remember { MutableInteractionSource() }
                 Button(
                     onClick = {
                         busy = true
@@ -240,11 +249,14 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                         }
                     },
                     enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().pressScale(checkInter),
+                    interactionSource = checkInter,
                 ) { Text("检查更新") }
 
                 // 内容包更新
                 val currentManifest = manifest
                 if (currentManifest != null && currentManifest.contentPacks.any { it.version > (player.contentVersions[it.id] ?: 0) }) {
+                    val packInter = remember { MutableInteractionSource() }
                     Button(
                         onClick = {
                             busy = true
@@ -271,7 +283,8 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                             }
                         },
                         enabled = !busy,
-                        modifier = Modifier.padding(top = 6.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp).pressScale(packInter),
+                        interactionSource = packInter,
                     ) { Text("📦 更新全部内容包") }
                 }
 
@@ -281,6 +294,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                     val patch = m.patches.firstOrNull {
                         it.from == BuildConfig.VERSION_CODE && it.to == m.latestVersionCode
                     }
+                    val apkInter = remember { MutableInteractionSource() }
                     Button(
                         onClick = {
                             if (android.os.Build.VERSION.SDK_INT >= 33 &&
@@ -325,16 +339,19 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                             }
                         },
                         enabled = !busy,
-                        modifier = Modifier.padding(top = 6.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp).pressScale(apkInter),
+                        interactionSource = apkInter,
                     ) {
                         Text(if (patch != null) "⚡ 增量更新到 v${m.latestVersionName}（推荐）" else "⬇️ 全量更新到 v${m.latestVersionName}")
                     }
                 }
 
                 if (pendingApk != null) {
+                    val contInter = remember { MutableInteractionSource() }
                     Button(
                         onClick = { ApkInstaller.installApk(context, pendingApk!!) },
-                        modifier = Modifier.padding(top = 6.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp).pressScale(contInter),
+                        interactionSource = contInter,
                     ) { Text("已授权，继续安装") }
                 }
 

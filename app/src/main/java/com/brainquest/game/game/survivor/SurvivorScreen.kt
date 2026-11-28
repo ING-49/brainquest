@@ -60,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -74,6 +75,7 @@ import com.brainquest.game.game.dungeon.render.GameBackdrop
 import com.brainquest.game.game.dungeon.render.GameDialog
 import com.brainquest.game.game.dungeon.render.GamePanel
 import com.brainquest.game.game.dungeon.render.GameUi
+import com.brainquest.game.game.dungeon.render.gameTopInsets
 import com.brainquest.game.game.dungeon.render.HudHpBar
 import com.brainquest.game.game.dungeon.render.HudStatChip
 import com.brainquest.game.game.dungeon.render.HudXpBar
@@ -120,18 +122,8 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
     val player by vm.player.collectAsState()
     val context = LocalContext.current
 
-    // 批38：沉浸全屏（批37 地牢屏同款）——横屏游戏页隐藏系统栏，离开自动恢复
-    val dndView = androidx.compose.ui.platform.LocalView.current
-    androidx.compose.runtime.DisposableEffect(dndView) {
-        val window = (dndView.context as? android.app.Activity)?.window
-        val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, dndView) }
-        controller?.systemBarsBehavior =
-            androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        controller?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-        onDispose {
-            controller?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-        }
-    }
+    // 沉浸全屏已收敛至 AppRoot 单一所有者（批61：屏级 hide/show 会与横屏路由间跳转的 onDispose 顺序打架）
+    // （批38 原注释：横屏游戏页隐藏系统栏，离开自动恢复）
 
     // 游戏实例全局唯一：重开用 game.start()（内部 reset），防止 pointerInput(Unit) 闭包绑到旧实例
     val game = remember { SurvivorGame() }
@@ -143,6 +135,11 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
     val frame = remember { mutableIntStateOf(0) }
     val sfxPrev = remember { intArrayOf(0, 0, 0, 0, 0) }   // 批50：音效差量基线
     val joyMaxPx = with(LocalDensity.current) { 48.dp.toPx() }
+    // 批61：浮动摇杆出生点安全夹取基准（px）——避挖孔/手势条，环 r56px
+    val dSIns = LocalDensity.current
+    val joySafeL = WindowInsets.safeDrawing.getLeft(dSIns, androidx.compose.ui.platform.LocalLayoutDirection.current).toFloat()
+    val joySafeT = WindowInsets.safeDrawing.getTop(dSIns).toFloat()
+    val joySafeB = WindowInsets.safeDrawing.getBottom(dSIns).toFloat()
     // 批42：数学字形测量缓存（drawText 需要 TextLayoutResult；按字形缓存避免每帧测量）
     val textMeasurer = rememberTextMeasurer()
     val glyphMetrics = remember { mutableMapOf<String, androidx.compose.ui.text.TextLayoutResult>() }
@@ -208,11 +205,11 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = { off ->
-                            // 左半屏按下生成浮动摇杆；右半屏忽略
+                            // 左半屏按下生成浮动摇杆；右半屏忽略；出生点夹进安全区（批61：避挖孔/手势条）
                             if (off.x <= size.width / 2f) {
                                 game.joyActive = true
-                                game.joyBaseX = off.x
-                                game.joyBaseY = off.y
+                                game.joyBaseX = off.x.coerceIn(joySafeL + 56f, size.width / 2f)
+                                game.joyBaseY = off.y.coerceIn(joySafeT + 56f, size.height - joySafeB - 56f)
                                 game.joyX = 0f
                                 game.joyY = 0f
                             }
@@ -517,7 +514,7 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
         if (hud.phase == SurvivorGame.Phase.PLAYING) {
             Row(
                 Modifier.fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                    .gameTopInsets()
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.Top,
             ) {
@@ -564,11 +561,13 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
             Box(Modifier.fillMaxSize().background(Color(0xE6070A14))) {
                 Column(
                     Modifier.fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))   // 批61：图鉴补 insets（Top 用 statusBars，同 gameTopInsets 缘由）
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                         .padding(horizontal = 24.dp, vertical = 14.dp)
                         .verticalScroll(rememberScrollState()),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RoundIconButton("←", onClick = { showCodex = false }, size = 38.dp)
+                        RoundIconButton("←", onClick = { showCodex = false }, size = 42.dp)
                         Column(Modifier.padding(start = 10.dp)) {
                             Text("📐 数学空间图鉴", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = GameUi.Gold)
                             Text(
@@ -605,7 +604,10 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
             Box(Modifier.fillMaxSize()) {
                 GameBackdrop(accent = Color(0xFF4FC3F7))
                 Column(
-                    Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                    Modifier.fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))   // 批61：READY 补 insets
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
+                        .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
@@ -688,7 +690,10 @@ fun SurvivorScreen(vm: AppViewModel, nav: NavHostController) {
                 contentAlignment = Alignment.Center,
             ) {
                 Column(
-                    Modifier.padding(horizontal = 24.dp),
+                    Modifier
+                        .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))   // 批61：升级三选一补 insets
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
+                        .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

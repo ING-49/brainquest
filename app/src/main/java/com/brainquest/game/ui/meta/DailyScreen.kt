@@ -1,6 +1,7 @@
 package com.brainquest.game.ui.meta
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,7 +28,10 @@ import androidx.navigation.NavHostController
 import com.brainquest.game.AppViewModel
 import com.brainquest.game.ui.PageHeader
 import com.brainquest.game.ui.QuizRunner
-import com.brainquest.game.ui.starText
+import com.brainquest.game.ui.StarIcon
+import com.brainquest.game.ui.pressScale
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 
 /** 每日挑战：每天 10 道混合题，答完结算连续天数。题目范围随设置中的「大学考研模式」变化 */
 @Composable
@@ -75,17 +79,22 @@ fun DailyScreen(vm: AppViewModel, nav: NavHostController) {
                         )
                     }
                     if (player.hardMode) {
+                        val paperInter = remember { MutableInteractionSource() }
                         androidx.compose.material3.OutlinedButton(
                             onClick = { nav.navigate(com.brainquest.game.ui.Routes.PAPERS) },
-                            modifier = Modifier.padding(top = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).pressScale(paperInter),
+                            interactionSource = paperInter,
                         ) { Text("📄 真题试卷（历年真题精选，含解析）") }
                     }
+                    val ctaInter = remember { MutableInteractionSource() }
                     Button(
                         onClick = { started = true },
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp)
+                            .pressScale(ctaInter, 0.97f),   // 批63：主 CTA 按压反馈
+                        interactionSource = ctaInter,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFFFB300),
-                            contentColor = Color(0xFF3E2723),
+                            contentColor = Color(0xFF4E342E),   // 批63：深棕对齐商店金钮语言（3E2723→4E342E）
                         ),
                     ) {
                         Text(
@@ -113,7 +122,12 @@ fun DailyScreen(vm: AppViewModel, nav: NavHostController) {
             title = { Text("🎯 挑战完成！") },
             text = {
                 Column {
-                    Text("答对 $correct / $total ${starText(if (correct >= 9) 3 else if (correct >= 6) 2 else 1)}")
+                    Text("答对 $correct / $total")
+                    // 批63：结算星 Canvas 化（复用批61 卡2 产出 StarIcon，替代 ★☆ 系统字形）
+                    Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        val stars = if (correct >= 9) 3 else if (correct >= 6) 2 else 1
+                        repeat(3) { i -> StarIcon(filled = i < stars, size = 22.dp) }
+                    }
                     // 批39：streak 闭环——结算即预告明日（损失厌恶）
                     Text(
                         if (player.dailyStreak > 1) "🔥 已连续挑战 ${player.dailyStreak} 天 · 明天再来别断"

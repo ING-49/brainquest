@@ -125,6 +125,30 @@ fun CoinText(
     }
 }
 
+/** 五角星图标：代码绘制（★☆ 为系统字形，跨设备渲染不一致——CoinIcon 同源问题，批61 卡2） */
+@Composable
+fun StarIcon(filled: Boolean, modifier: Modifier = Modifier, size: Dp = 24.dp) {
+    val emptyColor = MaterialTheme.colorScheme.outlineVariant
+    Canvas(modifier.size(size)) {
+        val r = this.size.minDimension / 2f
+        val path = androidx.compose.ui.graphics.Path()
+        for (i in 0 until 10) {
+            val ang = -1.5707963f + i * 0.6283185f
+            val rad = if (i % 2 == 0) r else r * 0.45f
+            val x = center.x + rad * kotlin.math.cos(ang)
+            val y = center.y + rad * kotlin.math.sin(ang)
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        path.close()
+        if (filled) {
+            drawPath(path, Color(0xFFFFB300))
+            drawPath(path, Color(0xFFD97706), style = Stroke(width = r * 0.09f))
+        } else {
+            drawPath(path, emptyColor, style = Stroke(width = r * 0.16f))
+        }
+    }
+}
+
 /** 玩家等级经验条（批31：Lv 徽章药丸化，强化等级身份感） */
 @Composable
 fun XpBar(xp: Int, modifier: Modifier = Modifier) {

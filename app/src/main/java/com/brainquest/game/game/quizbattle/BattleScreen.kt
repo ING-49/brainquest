@@ -82,6 +82,15 @@ import com.brainquest.game.ui.pressScale
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import com.brainquest.game.ui.AvatarBadge
+import com.brainquest.game.ui.StarIcon
 
 @Composable
 fun BattleScreen(vm: AppViewModel, nav: NavHostController, subject: String, level: Int) {
@@ -105,6 +114,14 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
     val hpFlash = remember { Animatable(0f) }        // 敌方血条受击闪白
     var prevEnemyHp by remember { mutableIntStateOf(battle.enemyHp) }
     val comboScale = remember { Animatable(1f) }     // 连击文字弹跳
+    // 批60：出招反馈层状态（根级瞬时叠层；一次性 Animatable，无画布/帧循环）
+    var attackDir by remember { mutableIntStateOf(1) }      // 1=我方出招 -1=敌方还击
+    var enemyCenter by remember { mutableStateOf<Offset?>(null) }
+    var playerCenter by remember { mutableStateOf<Offset?>(null) }
+    val strike = remember { Animatable(0f) }                // 0→1：0~0.6 光痕飞行，0.6~1 命中环
+    val launchPulse = remember { Animatable(1f) }           // 我方头像蓄力/回弹
+    val enemyLunge = remember { Animatable(0f) }            // 敌人前扑
+    val playerFlash = remember { Animatable(0f) }           // 我方卡受击红闪
     val urgentTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "urgent")
     val urgentAlpha by urgentTransition.animateFloat(
         0.4f, 1f,
@@ -115,12 +132,49 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
     val sfxOn = player.soundOn
     val hapticOn = player.hapticsOn
 
+    suspend fun shakeEnemy() {
+        enemyShake.snapTo(0f)
+        enemyShake.animateTo(1f, tween(120))
+        enemyShake.animateTo(0f, tween(200))
+        if (battle.enemyHp < prevEnemyHp) {
+            hpFlash.snapTo(1f)
+            hpFlash.animateTo(0f, tween(320))
+        }
+        prevEnemyHp = battle.enemyHp
+    }
+
+    // 批60：出招时序（预备→飞行→命中→回弹）；命中反馈在飞行段结束瞬间并行发起（动效投资对标批57 结算演出）
+    suspend fun playStrike(dir: Int) {
+        attackDir = dir
+        strike.snapTo(0f)
+        if (dir > 0) {
+            launchPulse.snapTo(1f)
+            launchPulse.animateTo(1.16f, tween(80))       // 蓄力
+        } else {
+            enemyLunge.snapTo(0f)
+            enemyLunge.animateTo(1f, tween(80))           // 前扑预备
+        }
+        strike.animateTo(0.6f, tween(180, easing = LinearEasing))   // 光痕飞行
+        if (dir > 0) {
+            scope.launch { shakeEnemy() }                 // 命中：敌人抖动+血条闪白
+        } else {
+            scope.launch {
+                playerFlash.snapTo(1f)
+                playerFlash.animateTo(0f, tween(320))     // 命中：我方卡红闪
+            }
+        }
+        strike.animateTo(1f, tween(180))                  // 命中环扩散
+        strike.snapTo(0f)
+        if (dir > 0) launchPulse.animateTo(1f, tween(120)) else enemyLunge.animateTo(0f, tween(120))  // 回弹
+    }
+
     fun onTimeout() {
         if (answered || resultState != 0) return
         answered = true // 同步置位，防重复触发
         scope.launch {
             handleAnswer(vm, battle, context, sfxOn, hapticOn, -1, onDone = { dmg, fb ->
                 lastDamage = dmg; feedback = fb
+                if (dmg < 0) playStrike(-1)
             }, onEnd = { rs -> resultState = rs }, onNextQuestion = { answered = false; chosen = -1 })
         }
     }
@@ -141,17 +195,6 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
         }
     }
 
-    suspend fun shakeEnemy() {
-        enemyShake.snapTo(0f)
-        enemyShake.animateTo(1f, tween(120))
-        enemyShake.animateTo(0f, tween(200))
-        if (battle.enemyHp < prevEnemyHp) {
-            hpFlash.snapTo(1f)
-            hpFlash.animateTo(0f, tween(320))
-        }
-        prevEnemyHp = battle.enemyHp
-    }
-
     fun doFill(input: String) {
         if (answered || resultState != 0 || input.isBlank()) return
         answered = true
@@ -159,7 +202,7 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
         scope.launch {
             handleAnswer(vm, battle, context, sfxOn, hapticOn, index = -100, fillInput = input, onDone = { dmg, fb ->
                 lastDamage = dmg; feedback = fb
-                if (dmg > 0) shakeEnemy()
+                if (dmg > 0) playStrike(1) else if (dmg < 0) playStrike(-1)
             }, onEnd = { rs -> resultState = rs }, onNextQuestion = { answered = false; chosen = -1 })
         }
     }
@@ -171,13 +214,14 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
         scope.launch {
             handleAnswer(vm, battle, context, sfxOn, hapticOn, index, onDone = { dmg, fb ->
                 lastDamage = dmg; feedback = fb
-                if (dmg > 0) {
-                    shakeEnemy()
-                }
+                if (dmg > 0) playStrike(1) else if (dmg < 0) playStrike(-1)
             }, onEnd = { rs -> resultState = rs }, onNextQuestion = { answered = false; chosen = -1 })
         }
     }
 
+    // 批60：我方出招=主题色（primary=我方身份延伸），敌袭=红
+    val strikeColor = if (attackDir > 0) MaterialTheme.colorScheme.primary else Color(0xFFE53935)
+    Box(Modifier.fillMaxSize()) {
     Column(
         Modifier.fillMaxSize()
             .background(Brush.verticalGradient(listOf(Color(0xFFFFFBF2), Color(0xFFF4F6FB))))
@@ -215,26 +259,38 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // 批60：怪种身份光环（实体身份色，见设计说明 §三.4）；BOSS 放大+描边环
+                val halo = Color(battle.enemy.halo)
                 Box(
-                    Modifier.size(72.dp)
+                    Modifier.size(if (battle.isBoss) 88.dp else 72.dp)
+                        .onGloballyPositioned { p ->
+                            val r = p.boundsInRoot()
+                            enemyCenter = Offset(r.left + r.width / 2f, r.top + r.height / 2f)
+                        }
                         .background(
                             Brush.radialGradient(
-                                0f to Color(0x55E53935),
-                                0.7f to Color(0x22E53935),
-                                1f to Color(0x00E53935),
+                                0f to halo.copy(alpha = 0.55f),
+                                0.7f to halo.copy(alpha = 0.22f),
+                                1f to halo.copy(alpha = 0f),
                             )
+                        )
+                        .then(
+                            if (battle.isBoss) Modifier.border(2.dp, Color(0x66E15A5A), CircleShape) else Modifier
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
                     // 批57：脚下椭圆地面阴影（敌人从"悬浮"落地——接地感）
                     EnemyGroundShadow(Modifier.align(Alignment.BottomCenter))
-                    Text(
-                        battle.enemy.emoji,
-                        fontSize = 34.sp,
-                        modifier = Modifier.graphicsLayer {
-                            translationX = enemyShake.value * if (enemyShake.value < 0.5f) -14f else 14f
-                        },
-                    )
+                    Canvas(
+                        Modifier.size(if (battle.isBoss) 68.dp else 52.dp)
+                            .graphicsLayer {
+                                translationX = enemyShake.value * if (enemyShake.value < 0.5f) -14f else 14f
+                                translationY = enemyLunge.value * 14f      // 批60：敌袭前扑
+                            },
+                    ) {
+                        // 批61（卡2）：怪种自绘（坑20：emoji 不承担唯一关键视觉；剪影互异+批54 明暗三件套）
+                        EnemyArt.drawEnemy(battle.enemy.kind, this)
+                    }
                 }
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
@@ -282,15 +338,19 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         ) {
+            Box {   // 批60：受击红闪叠层
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // 批60：接入玩家自选头像（与大厅同组件）——我方"有身体"才是出招主体；蓄力/回弹脉冲
                 Box(
-                    Modifier.size(28.dp).clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center,
-                ) { Text("🧑‍⚔️", fontSize = 13.sp) }
+                    Modifier.graphicsLayer { val s = launchPulse.value; scaleX = s; scaleY = s }
+                        .onGloballyPositioned { p ->
+                            val r = p.boundsInRoot()
+                            playerCenter = Offset(r.left + r.width / 2f, r.top + r.height / 2f)
+                        }
+                ) { AvatarBadge(player.avatar, size = 32) }
                 Text(
                     player.nickname,
                     style = MaterialTheme.typography.labelLarge,
@@ -305,6 +365,13 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                 )
                 Text("❤️ ${battle.playerHp}", style = MaterialTheme.typography.labelLarge)
                 // 批33：金币撤出战斗页（金币与战斗决策无关=噪声，见设计说明 §4）
+            }
+                if (playerFlash.value > 0f) {
+                    Box(
+                        Modifier.matchParentSize()
+                            .background(Color(0xFFE53935).copy(alpha = playerFlash.value * 0.18f), RoundedCornerShape(12.dp))
+                    )
+                }
             }
         }
 
@@ -424,6 +491,44 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
         }
     }
 
+        // 批60：出招光痕叠层（0~0.6 飞行 / 0.6~1 命中环；瞬时层，无 pointerInput 不拦点击）
+        Canvas(Modifier.matchParentSize()) {
+            val s = playerCenter ?: return@Canvas
+            val e = enemyCenter ?: return@Canvas
+            val p = strike.value
+            if (p <= 0f) return@Canvas
+            val from = if (attackDir > 0) s else e
+            val to = if (attackDir > 0) e else s
+            if (p < 0.6f) {
+                val t = p / 0.6f
+                val pos = androidx.compose.ui.geometry.lerp(from, to, t)
+                val dx = to.x - from.x; val dy = to.y - from.y
+                val len = kotlin.math.hypot(dx, dy)
+                if (len > 1f) {
+                    val ux = dx / len; val uy = dy / len
+                    drawLine(
+                        strikeColor.copy(alpha = 0.8f),
+                        Offset(pos.x - ux * 26.dp.toPx(), pos.y - uy * 26.dp.toPx()), pos,
+                        strokeWidth = 7.dp.toPx(), cap = StrokeCap.Round,
+                    )
+                    drawLine(
+                        Color.White.copy(alpha = 0.9f),
+                        Offset(pos.x - ux * 11.dp.toPx(), pos.y - uy * 11.dp.toPx()), pos,
+                        strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round,
+                    )
+                }
+            } else {
+                val t = (p - 0.6f) / 0.4f
+                drawCircle(
+                    strikeColor.copy(alpha = (1f - t) * 0.65f),
+                    radius = 8.dp.toPx() + (26.dp.toPx() - 8.dp.toPx()) * t,
+                    center = to,
+                    style = Stroke(width = 3.5.dp.toPx()),
+                )
+            }
+        }
+    }
+
     // 胜负结算（批57：自定义 overlay 演出卡——峰终定律，战斗体验的终点时刻决定记忆）
     when (resultState) {
         1 -> {
@@ -505,10 +610,10 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                         ) {
                             repeat(3) { i ->
                                 val filled = i < stars
-                                Text(
-                                    if (filled) "★" else "☆",
-                                    fontSize = 40.sp,
-                                    color = if (filled) Color(0xFFFFB300) else MaterialTheme.colorScheme.outlineVariant,
+                                // 批61（卡2）：星星 Canvas 化（★☆ 系统字形跨密度不一致，CoinIcon 同源问题）
+                                StarIcon(
+                                    filled = filled,
+                                    size = 40.dp,
                                     modifier = Modifier.graphicsLayer {
                                         val s = starAnims[i].value
                                         scaleX = s; scaleY = s
@@ -544,7 +649,7 @@ var resultState by remember { mutableIntStateOf(0) } // 0战斗中 1胜 2负
                                 color = coinColor,
                             )
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text("⭐", style = MaterialTheme.typography.titleMedium)
+                                StarIcon(filled = true, size = 20.dp)   // 批61（卡2）：经验图标代码绘制（替代 ⭐ 裸 emoji）
                                 Text(
                                     "+${xpAnim.value.roundToInt()}",
                                     style = MaterialTheme.typography.titleMedium,

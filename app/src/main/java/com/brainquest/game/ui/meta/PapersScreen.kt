@@ -1,7 +1,9 @@
 package com.brainquest.game.ui.meta
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,10 +22,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.brainquest.game.ui.PageHeader
+import com.brainquest.game.ui.pressScale
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -103,7 +107,8 @@ fun PapersScreen(vm: com.brainquest.game.AppViewModel, nav: NavHostController) {
                             Text(
                                 "答案：${item.a}",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32),   // 批63：答案=正确语义（批58 红绿语言对齐）
                                 modifier = Modifier.padding(top = 6.dp),
                             )
                             Text(
@@ -129,8 +134,13 @@ fun PapersScreen(vm: com.brainquest.game.AppViewModel, nav: NavHostController) {
         LazyColumn(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)) {
             items(papers.size) { i ->
                 val p = papers[i]
+                val pInter = remember { MutableInteractionSource() }
+                // 批63：行卡描边 + pressScale（与错题本卡语言一致）
                 Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp).clickable { openPaper = p },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)
+                        .pressScale(pInter)
+                        .clickable(interactionSource = pInter, indication = null) { openPaper = p }
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f), RoundedCornerShape(12.dp)),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                 ) {
                     Column(Modifier.padding(14.dp)) {

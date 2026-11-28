@@ -33,7 +33,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -73,6 +72,14 @@ import com.brainquest.game.util.Sfx
 import com.brainquest.game.util.SfxType
 import kotlinx.coroutines.delay
 import com.brainquest.game.ui.BqProgressBar
+import com.brainquest.game.ui.pressScale
+import com.brainquest.game.ui.enterStagger
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import kotlin.math.roundToInt
 
 private const val QUESTION_TIME_MS = 15_000L
 private const val PK_QUESTION_COUNT = 10
@@ -216,11 +223,13 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 matching = false
                 status = "已加入房间，等待双方准备…"
                 phase = "matched"
+                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CHEER)   // 批62：加入房间庆祝音
             }
             is PkEvent.PeerJoined -> {
                 peerName = event.peer
                 status = "匹配成功！"
                 phase = "matched"   // 匹配成功动画 + 双方确认
+                Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CHEER)   // 批62：匹配成功庆祝音
                 if (embedded != null) {
                     // 仅局域网/热点对战（内嵌服务器无题库）：房主本地选题
                     runCatching {
@@ -288,7 +297,12 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 reconnecting = false
                 phase = "result"
                 vm.recordPkResult(event.outcome == "win", event.outcome == "draw")
-                Sfx.play(context, player.soundOn, SfxType.WIN)
+                // 批62：按胜负分支（原败局也放 WIN）＋ 4 参重载补振动
+                Sfx.play(context, player.soundOn, player.hapticsOn, when (event.outcome) {
+                    "win" -> SfxType.WIN
+                    "lose" -> SfxType.LOSE
+                    else -> SfxType.CLICK
+                })
             }
             is PkEvent.PeerLeft -> {
                 status = "对手离开了房间"
@@ -454,7 +468,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
         if (correct) myCorrect++
         answered = true
         chosen = idx
-        Sfx.play(context, player.soundOn, if (correct) SfxType.CORRECT else SfxType.WRONG)
+        Sfx.play(context, player.soundOn, player.hapticsOn, if (correct) SfxType.CORRECT else SfxType.WRONG)   // 批62：4 参补振动
         vm.recordAnswer(q, idx)
         val peerMsg = buildJsonObject {
             put("t", "peer_answer"); put("idx", qIndex); put("correct", correct); put("timeMs", spent)
@@ -510,7 +524,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
             "lobby" -> {
                 Column(Modifier.fillMaxWidth().padding(top = 8.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     // 战绩 + 模式页签
-                    Card(Modifier.fillMaxWidth(),
+                    Card(Modifier.fillMaxWidth().enterStagger(0),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text("当前战绩：${player.pkWins} 胜 ${player.pkLosses} 负", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -525,7 +539,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
 
                     if (pkTab == "remote") {
                         // ---- 远程：在线人数 + 快速匹配 + 好友房间 ----
-                        Card(Modifier.fillMaxWidth(),
+                        Card(Modifier.fillMaxWidth().enterStagger(1),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("🌐 远程对战（服务器中转 · 随时随地）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -543,7 +557,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     },
                                 )
                                 if (!matching) {
-                                    Button(onClick = {
+                                    PkActionButton("⚡ 快速匹配（同版本随机对手）", onClick = {
+                                        Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)   // 批62
                                         matching = true
                                         lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
@@ -554,7 +569,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                             connectedUrl = serverUrl
                                             pendingMatch = true
                                         }
-                                    }, modifier = Modifier.fillMaxWidth()) { Text("⚡ 快速匹配（同版本随机对手）") }
+                                    }, modifier = Modifier.fillMaxWidth())
                                 } else {
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -570,10 +585,11 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                         }) { Text("取消") }
                                     }
                                 }
-                                OutlinedButton(onClick = {
+                                PkActionButton("🏆 排行榜（快速匹配积分）", filled = false, onClick = {
+                                    Sfx.play(context, player.soundOn, player.hapticsOn, SfxType.CLICK)   // 批62
                                     showBoard = true
                                     queryBoard("混合")   // 打开优先显示混合榜
-                                }, modifier = Modifier.fillMaxWidth()) { Text("🏆 排行榜（快速匹配积分）") }
+                                }, modifier = Modifier.fillMaxWidth())
                                 HorizontalDivider()
                                 Text("对战科目（出题用 · 快速匹配按先匹配者，好友房按创建者）", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -590,16 +606,16 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     modifier = Modifier.fillMaxWidth(), singleLine = true,
                                 )
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(onClick = {
+                                    PkActionButton("🚪 加入房间", onClick = {
                                         lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
                                         client.connect(serverUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME, identity = player.identity)
-                                    }, enabled = serverUrl.isNotBlank()) { Text("🚪 加入房间") }
-                                    OutlinedButton(onClick = {
+                                    }, enabled = serverUrl.isNotBlank(), modifier = Modifier.weight(1f))
+                                    PkActionButton("🏠 创建房间", filled = false, onClick = {
                                         lanSession = false
                                         vm.setSettings(pkServer = serverUrl)
                                         client.connect(serverUrl, player.nickname, "create", version = BuildConfig.VERSION_NAME, subject = matchSubject ?: "混合", identity = player.identity)
-                                    }) { Text("🏠 创建房间") }
+                                    }, modifier = Modifier.weight(1f))
                                 }
                             }
                         }
@@ -655,11 +671,25 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                                 style = MaterialTheme.typography.bodyMedium)
                                             else -> {
                                                 list.forEachIndexed { i, r ->
-                                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                        val mine = if (r.id.isNotBlank()) r.id == player.identity else r.name == player.nickname
-                                                        Text("${i + 1}. ${r.name}",
-                                                            style = MaterialTheme.typography.bodyMedium,
-                                                            fontWeight = if (mine) FontWeight.Bold else FontWeight.Normal)
+                                                    val mine = if (r.id.isNotBlank()) r.id == player.identity else r.name == player.nickname
+                                                    // 批62：行卡化 + 名次徽章（1-3 金银铜）+ 我的行 primary 描边
+                                                    Row(
+                                                        Modifier.fillMaxWidth()
+                                                            .clip(RoundedCornerShape(10.dp))
+                                                            .background(if (mine) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surfaceContainerLow)
+                                                            .border(1.dp, if (mine) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f) else Color.Transparent, RoundedCornerShape(10.dp))
+                                                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            RankBadge(i + 1)
+                                                            Text(
+                                                                " ${r.name}",
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                fontWeight = if (mine) FontWeight.Bold else FontWeight.Normal,
+                                                            )
+                                                        }
                                                         Text("${r.rating} 分 · ${r.wins}胜${r.losses}负",
                                                             style = MaterialTheme.typography.bodySmall,
                                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -683,10 +713,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                         }
                     } else {
                         // ---- 局域网：创建（本机做服务器）+ 搜索 + 手动直连 ----
-                        Card(Modifier.fillMaxWidth(),
+                        Card(Modifier.fillMaxWidth().enterStagger(1),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = {
+                                PkActionButton("🏠 创建房间（本机做服务器 · 热点可离线）", onClick = {
                                     // 本机做服务器：内嵌 WebSocket + UDP 信标
                                     val code = (0..999999).random().toString().padStart(6, '0')
                                     val srv = com.brainquest.game.net.EmbeddedPkServer(8765, player.nickname, BuildConfig.VERSION_NAME) { pkEvents.tryEmit(it) }
@@ -698,7 +728,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     lanSession = true
                                     status = "房间已创建，等待对手加入…"
                                     phase = "waiting"
-                                }, modifier = Modifier.fillMaxWidth()) { Text("🏠 创建房间（本机做服务器 · 热点可离线）") }
+                                }, modifier = Modifier.fillMaxWidth())
                                 OutlinedButton(onClick = { searching = !searching }, modifier = Modifier.fillMaxWidth()) {
                                     Text(if (searching) "收起搜索" else "🔍 搜索附近的房间")
                                 }
@@ -723,7 +753,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 }
                             }
                         }
-                        Card(Modifier.fillMaxWidth(),
+                        Card(Modifier.fillMaxWidth().enterStagger(2),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("⌨️ 手动连接（输入房主 IP · 搜索失败兜底）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -737,10 +767,10 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     label = { Text("房间码（连房主本机服务器时可不填）") },
                                     modifier = Modifier.fillMaxWidth(), singleLine = true,
                                 )
-                                Button(onClick = {
+                                PkActionButton("🚪 直连加入", onClick = {
                                     lanSession = true
                                     client.connect(lanUrl, player.nickname, "join", joinCode, BuildConfig.VERSION_NAME, identity = player.identity)
-                                }, enabled = lanUrl.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("🚪 直连加入") }
+                                }, enabled = lanUrl.isNotBlank(), modifier = Modifier.fillMaxWidth())
                             }
                         }
                     }
@@ -773,25 +803,25 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     val iAmHost = embedded != null || !joinedAsGuest
                     // v1.6.10：远程对战为服务器中立，无房主概念 → 标「你 / 对手」；
                     // 局域网/热点对战内嵌服务器在房主本机 → 保留「房主 / 挑战者」真实角色
+                    // 批62：accent 跟身份走（你=蓝 / 对手=红），不跟卡片位置走——
+                    // 第一张卡是"先匹配方"，我作为 guest 加入时它是"对手"（真机实证）
                     PlayerReadyCard(
                         label = if (embedded != null) "房主（本机做服务器）"
                                 else if (iAmHost) "你（先匹配）" else "对手（先匹配）",
                         name = if (iAmHost) player.nickname else peerName,
                         ready = if (iAmHost) myReady else peerReady,
-                        accent = Color(0xFFEF5350),
+                        accent = if (embedded != null || iAmHost) Color(0xFF42A5F5) else Color(0xFFEF5350),
                     )
-                    Text("VS", style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                    VsText(MaterialTheme.typography.headlineSmall)   // 批62：VS 统一蓝红渐变
                     PlayerReadyCard(
                         label = if (embedded != null) "挑战者"
                                 else if (iAmHost) "对手" else "你",
                         name = if (iAmHost) peerName else player.nickname,
                         ready = if (iAmHost) peerReady else myReady,
-                        accent = Color(0xFF42A5F5),
+                        accent = if (embedded != null || iAmHost) Color(0xFFEF5350) else Color(0xFF42A5F5),
                     )
-                    Button(onClick = { sendReady() }, enabled = !myReady, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (myReady) "已准备，等待对方…" else "✋ 准备就绪")
-                    }
+                    PkActionButton(if (myReady) "已准备，等待对方…" else "✋ 准备就绪",
+                        onClick = { sendReady() }, enabled = !myReady, modifier = Modifier.fillMaxWidth())
                     if (myReady && peerReady) Text("双方已就绪，即将开始！",
                         color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
                     Text(status, style = MaterialTheme.typography.bodySmall,
@@ -799,13 +829,23 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
             "countdown" -> {
+                // 批62：逐数 spring 弹出 + 红橙绿起跑灯（3 紧迫 / 2 预备 / 1 就绪）
+                val pop = remember { Animatable(1f) }
+                LaunchedEffect(countdown) {
+                    pop.snapTo(1.6f)
+                    pop.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+                }
                 Column(
                     Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Text("$countdown", style = MaterialTheme.typography.displayLarge, fontSize = 96.sp,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "$countdown", fontSize = 96.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when (countdown) { 3 -> Color(0xFFC62828); 2 -> Color(0xFFFFB74D); else -> Color(0xFF2E7D32) },
+                        modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value },
+                    )
                     Text("准备开始！", style = MaterialTheme.typography.titleLarge)
                 }
             }
@@ -827,6 +867,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                             BqProgressBar(
                                 progress = peerAnswered.toFloat() / questions.size,
                                 modifier = Modifier.fillMaxWidth(),
+                                color = Color(0xFFEF5350),   // 批62：观战对手条=敌红（原默认 primary，红蓝贯穿断链）
                             )
                             Text(status, style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -855,7 +896,18 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                 color = MaterialTheme.colorScheme.primary)
                         }
                     }
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    // 批62：三颗金色呼吸点（交错 600ms，替代裸 LinearProgressIndicator——BqProgressBar 房规的等待页等价物）
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        repeat(3) { i ->
+                            val tr = rememberInfiniteTransition(label = "waitDot$i")
+                            val a = tr.animateFloat(
+                                0.25f, 1f,
+                                infiniteRepeatable(tween(600, delayMillis = i * 200), RepeatMode.Reverse),
+                                label = "waitA",
+                            )
+                            Box(Modifier.size(12.dp).clip(CircleShape).background(Color(0xFFFFB300).copy(alpha = a.value)))
+                        }
+                    }
                     Text("把房间码告诉你的朋友，等 TA 加入后自动开始", style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -863,9 +915,36 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 val q = questions.getOrNull(qIndex)
                 key(qIndex) {
                     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                        if (reconnecting) {   // 批62：重连中琥珀胶囊（原纯文本藏在 mydone，战斗中不可见）
+                            Text(
+                                "⛓ 网络中断，重连中…",
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0x1AE65100))
+                                    .border(1.dp, Color(0x55E65100), RoundedCornerShape(8.dp))
+                                    .padding(vertical = 6.dp),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE65100),
+                            )
+                        }
                         // 批41：对抗横幅（红蓝双方对撞，竞技视觉）
                         val myScoreNow = if (answered) qIndex + 1 else qIndex
                         val peerScoreNow = peerAnswered.coerceAtMost(questions.size)
+                        // 批62：得分弹跳 + 计时脉动（对标批60 quizbattle 标准）
+                        val myScorePop = remember { Animatable(1f) }
+                        LaunchedEffect(myScoreNow) {
+                            if (myScoreNow > 0) { myScorePop.snapTo(1.5f); myScorePop.animateTo(1f, tween(180)) }
+                        }
+                        val peerScorePop = remember { Animatable(1f) }
+                        LaunchedEffect(peerScoreNow) {
+                            if (peerScoreNow > 0) { peerScorePop.snapTo(1.5f); peerScorePop.animateTo(1f, tween(180)) }
+                        }
+                        val urgent = rememberInfiniteTransition(label = "urgent")
+                        val urgentAlpha = urgent.animateFloat(
+                            0.4f, 1f,
+                            infiniteRepeatable(tween(400), RepeatMode.Reverse),
+                            label = "urgentA",
+                        )
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -879,16 +958,21 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     .padding(horizontal = 10.dp, vertical = 7.dp)
                             ) {
                                 Text("🧑 我", style = MaterialTheme.typography.labelSmall, color = Color(0xFF1565C0))
-                                Text("$myScoreNow", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                                Text(
+                                    "$myScoreNow",
+                                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0),
+                                    modifier = Modifier.graphicsLayer { scaleX = myScorePop.value; scaleY = myScorePop.value },   // 批62：得分弹跳
+                                )
                                 BqProgressBar(myScoreNow / questions.size.toFloat(), Modifier.fillMaxWidth().padding(top = 3.dp), height = 5.dp, color = Color(0xFF42A5F5))
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("VS", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                VsText(MaterialTheme.typography.titleLarge)   // 批62：VS 统一蓝红渐变
                                 Text("Q${qIndex + 1}/${questions.size}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                                 Text(
                                     "⏳ ${timeLeftMs / 1000}s",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (timeLeftMs < 5000) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.graphicsLayer { alpha = if (timeLeftMs < 5000) urgentAlpha.value else 1f },   // 批62：≤5s 脉动
                                 )
                             }
                             Column(
@@ -902,10 +986,14 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                                     if (peerLost) "⛓ 掉线" else "对手",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color(0xFFC62828),
+                                    modifier = if (peerLost) Modifier.clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0x26C62828))
+                                        .padding(horizontal = 6.dp, vertical = 1.dp) else Modifier,   // 批62：掉线红胶囊
                                 )
                                 Text(
                                     if (peerLost) "--" else "$peerScoreNow",
                                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFFC62828),
+                                    modifier = Modifier.graphicsLayer { scaleX = peerScorePop.value; scaleY = peerScorePop.value },   // 批62：得分弹跳
                                 )
                                 BqProgressBar(
                                     peerScoreNow / questions.size.toFloat(),
@@ -916,7 +1004,8 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                         }
                         BqProgressBar(
                             progress = (timeLeftMs.toFloat() / QUESTION_TIME_MS).coerceIn(0f, 1f),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth()
+                                .graphicsLayer { alpha = if (timeLeftMs < 5000) urgentAlpha.value else 1f },   // 批62：≤5s 脉动
                             height = 6.dp,
                             color = if (timeLeftMs < 5000) Color(0xFFC62828) else MaterialTheme.colorScheme.primary,
                         )
@@ -949,8 +1038,21 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                 val outcome = result!!.outcome
                 val myC = result!!.myCorrect
                 val peerC = result!!.peerCorrect
+                // 批62：入场 goIn（批53 同款）+ 积分数字滚动（批57 同款）
+                val goIn = remember { Animatable(0f) }
+                LaunchedEffect(Unit) { goIn.snapTo(0f); goIn.animateTo(1f, tween(220)) }
+                val ratingAnim = remember { Animatable(0f) }
+                LaunchedEffect(Unit) {
+                    delay(400)
+                    ratingAnim.animateTo(if (result!!.ranked) result!!.myRating.toFloat() else 0f, tween(600))
+                }
                 Column(
-                    Modifier.fillMaxWidth().padding(top = 40.dp),
+                    Modifier.fillMaxWidth().padding(top = 40.dp)
+                        .graphicsLayer {
+                            alpha = 0.3f + 0.7f * goIn.value
+                            val sc = 0.94f + 0.06f * goIn.value
+                            scaleX = sc; scaleY = sc
+                        },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -981,7 +1083,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     Text("我 $myC 题 ｜ 对手 $peerC 题", style = MaterialTheme.typography.titleMedium)
                     if (result!!.ranked) {
-                        Text("🏅 积分 ${result!!.myRating}（${if (result!!.ratingDelta >= 0) "+" else ""}${result!!.ratingDelta}）",
+                        Text("🏅 积分 ${ratingAnim.value.roundToInt()}（${if (result!!.ratingDelta >= 0) "+" else ""}${result!!.ratingDelta}）",
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                             color = Color(0xFF2E7D32))
                     } else {
@@ -989,9 +1091,7 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text("我的用时 ${result!!.myTimeMs / 1000} 秒", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Button(onClick = { backToLobby() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("再来一局")
-                    }
+                    PkActionButton("再来一局", onClick = { backToLobby() }, modifier = Modifier.fillMaxWidth())
                 }
             }
         }
@@ -999,11 +1099,13 @@ fun PkBattleScreen(vm: AppViewModel, nav: NavHostController) {
 }
 
 
-/** 匹配页玩家卡：角色标签 + 名称 + 准备状态 */
+/** 匹配页玩家卡：角色标签 + 名称 + 准备状态
+ *  批62：激活红蓝身份（accent 曾是死参数、且你/对手颜色颠倒——现在 你=蓝 42A5F5 / 对手=红 EF5350，
+ *  与对抗横幅"我蓝敌红"同语言）；accent 贯穿 描边/名字/头像圈首字；就绪态绿勾语言保留 */
 @Composable
 private fun PlayerReadyCard(label: String, name: String, ready: Boolean, accent: Color) {
     Card(
-        Modifier.fillMaxWidth(),
+        Modifier.fillMaxWidth().border(1.6.dp, accent.copy(alpha = 0.55f), RoundedCornerShape(12.dp)),
         colors = CardDefaults.cardColors(
             containerColor = if (ready) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceContainerLow,
         ),
@@ -1012,10 +1114,18 @@ private fun PlayerReadyCard(label: String, name: String, ready: Boolean, accent:
             Modifier.padding(14.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
+            Box(
+                Modifier.size(40.dp).clip(CircleShape)
+                    .background(accent.copy(alpha = 0.16f))
+                    .border(1.2.dp, accent, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(name.take(1).ifBlank { "?" }, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = accent)
+            }
+            Column(Modifier.padding(start = 10.dp).weight(1f)) {
                 Text(label, style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = accent)
             }
             Text(
                 if (ready) "✓ 已准备" else "⏳ 未准备",
@@ -1024,5 +1134,54 @@ private fun PlayerReadyCard(label: String, name: String, ready: Boolean, accent:
                 color = if (ready) Color(0xFF2E7D32) else Color(0xFF9E9E9E),
             )
         }
+    }
+}
+
+/** 批62：VS 记号统一——蓝→红对抗渐变字（匹配页与对抗横幅同语言） */
+@Composable
+private fun VsText(style: androidx.compose.ui.text.TextStyle) {
+    Text(
+        "VS",
+        style = style.copy(brush = Brush.horizontalGradient(listOf(Color(0xFF42A5F5), Color(0xFFEF5350)))),
+        fontWeight = FontWeight.Black,
+    )
+}
+
+/** 批62：排行榜名次徽章——1-3 金银铜圆徽（金=奖励语义系），其余灰底 */
+@Composable
+private fun RankBadge(rank: Int) {
+    val bg = when (rank) {
+        1 -> Color(0xFFFFB300)
+        2 -> Color(0xFFB0BEC5)
+        3 -> Color(0xFFCD7F32)
+        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+    }
+    val fg = when (rank) {
+        1 -> Color(0xFF3E2723)
+        2 -> Color(0xFF263238)
+        3 -> Color(0xFF3E2723)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Box(
+        Modifier.size(24.dp).clip(CircleShape).background(bg),
+        contentAlignment = Alignment.Center,
+    ) { Text("$rank", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = fg) }
+}
+
+/** 批62：带按压反馈的按钮（pressScale 全覆盖：大厅 CTA/准备/再来一局） */
+@Composable
+private fun PkActionButton(
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    filled: Boolean = true,
+    enabled: Boolean = true,
+) {
+    val inter = remember { MutableInteractionSource() }
+    val m = modifier.pressScale(inter, 0.96f)
+    if (filled) {
+        Button(onClick = onClick, modifier = m, enabled = enabled, interactionSource = inter) { Text(title) }
+    } else {
+        OutlinedButton(onClick = onClick, modifier = m, enabled = enabled, interactionSource = inter) { Text(title) }
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -87,6 +88,7 @@ import com.brainquest.game.game.dungeon.render.SpriteAnims
 import com.brainquest.game.game.dungeon.render.SpriteSheet
 import com.brainquest.game.game.dungeon.render.GamePalette
 import com.brainquest.game.game.dungeon.render.GameUi
+import com.brainquest.game.game.dungeon.render.gameTopInsets
 import com.brainquest.game.game.dungeon.render.GamePanel
 import com.brainquest.game.game.dungeon.render.PanelTitle
 import com.brainquest.game.game.dungeon.render.HudStatChip
@@ -183,20 +185,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     var showBag by remember { mutableStateOf(false) }
     var rerollPick by remember { mutableStateOf(false) }   // 商店重铸第二步（选槽位）；无条件 hoist（坑 21）
 
-    // 批37：沉浸全屏（隐藏状态栏/导航栏）——横屏高度寸土寸金（可视~390dp），
-    // 状态栏+insets 曾把大厅顶栏与局内 HUD 整体往下压（"最上面的部分不够上"）。
-    // sticky 模式：下拉临时呼出；离开地牢屏自动恢复系统栏
-    val dndView = androidx.compose.ui.platform.LocalView.current
-    androidx.compose.runtime.DisposableEffect(dndView) {
-        val window = (dndView.context as? android.app.Activity)?.window
-        val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, dndView) }
-        controller?.systemBarsBehavior =
-            androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        controller?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-        onDispose {
-            controller?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-        }
-    }
+    // 沉浸全屏已收敛至 AppRoot 单一所有者（批61：屏级 hide/show 会与横屏路由间跳转的
+    // onDispose 顺序打架，系统栏复现；批37 原注释保留意图：横屏高度寸土寸金，sticky 下拉临时呼出）
     var joyBase by remember { mutableStateOf(Offset.Zero) }
     var joyOn by remember { mutableStateOf(false) }
     val frame = remember { mutableIntStateOf(0) }
@@ -204,6 +194,10 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
     val lowFpsT = remember { mutableFloatStateOf(0f) }   // 低帧持续时间（批20-E 自适应降档）
     val animT = remember { mutableFloatStateOf(0f) }   // 统一动画时间源（真实 dt 累计，秒）
     val joyMaxPx = with(LocalDensity.current) { 54.dp.toPx() }   // 批13：48→54
+    // 批61：摇杆圆心避让挖孔/手势条（Pixel insets=0 → 维持 86dp 原位；基距 = 安全长 + 64dp 圆心余量）
+    val dJIns = LocalDensity.current
+    val joyDistL = with(dJIns) { maxOf(86.dp, (WindowInsets.safeDrawing.getLeft(dJIns, androidx.compose.ui.platform.LocalLayoutDirection.current) / dJIns.density).dp + 64.dp) }
+    val joyDistB = with(dJIns) { maxOf(86.dp, (WindowInsets.safeDrawing.getBottom(dJIns) / dJIns.density).dp + 64.dp) }
     val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
 
     // 方向/沉浸由 AppRoot 按路由统一管理（批14：页面自管方向会被新页组合后的 onDispose 覆盖——天赋页竖屏根因）
@@ -575,7 +569,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                     detectDragGestures(
                         onDragStart = { off ->
                             // 触控范围 = 可视底座圈（白圈即可移动操作区）
-                            val base = Offset(86.dp.toPx(), size.height - 86.dp.toPx())
+                            val base = Offset(joyDistL.toPx(), size.height - joyDistB.toPx())   // 批61：避让挖孔/手势区
                             val r = 96.dp.toPx()   // 批13：不可见大热区（可视底座仍 58dp），降误触
                             val ddx = off.x - base.x; val ddy = off.y - base.y
                             if (ddx * ddx + ddy * ddy <= r * r) {
@@ -911,7 +905,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 drawText(bl, color = GamePalette.UI_GOLD.copy(alpha = a), topLeft = Offset((size.width - bl.size.width) / 2f, midY - bl.size.height / 2f))
             }
             // 虚拟摇杆（批24：暗底 + 金环 + 四向刻度，与整体 HUD 语言统一）
-            val jb = Offset(86.dp.toPx(), size.height - 86.dp.toPx())
+            val jb = Offset(joyDistL.toPx(), size.height - joyDistB.toPx())   // 批61：避让挖孔/手势区
             val jr = 58.dp.toPx()
             drawCircle(Color(0x7A070A12), jr, jb)
             drawCircle(Color(0x12FFFFFF), jr, jb)
@@ -944,7 +938,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                    .gameTopInsets()
                     .padding(horizontal = 12.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.Top,
             ) {
@@ -1019,7 +1013,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         if (hud.phase != DungeonGame.Phase.READY && hud.phase != DungeonGame.Phase.CLASS_SELECT) {
             GamePanel(
                 modifier = Modifier.align(Alignment.TopStart)
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                    .gameTopInsets()
                     .padding(start = 12.dp, top = 62.dp),   // 批37：沉浸后 HUD 行底≈57dp，装备栏紧随其后
                 contentPadding = 6.dp,
             ) {
@@ -1251,7 +1245,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         if (hud.bossHp > 0f) {
             Column(
                 Modifier.align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                    .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))   // 批61：statusBars（隐藏后=0；挖孔Top不避让，Magic OS横屏按竖屏上报是空带根因）
                     .padding(top = 66.dp)
                     .widthIn(min = 320.dp, max = 440.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -1310,13 +1304,13 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             }
         }
 
-        // FPS 显示（批16：设置开关，真机性能量化）
+        // FPS 显示（批16：设置开关，真机性能量化）——批61：改锚底部中央（原 top=142 硬叠在装备栏魔法高度下，会随装备栏变化错位）
         if (hud.phase == DungeonGame.Phase.EXPLORING && DungeonSettings.fpsVisible(context) && fpsAvg.floatValue > 0f) {
             Text(
                 "FPS ${fpsAvg.floatValue.toInt()}",
-                Modifier.align(Alignment.TopStart)
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                    .padding(start = 12.dp, top = 142.dp),
+                Modifier.align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                    .padding(bottom = 8.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (fpsAvg.floatValue >= 55f) Color(0xFF7EE38A) else if (fpsAvg.floatValue >= 40f) Color(0xFFFFD54F) else Color(0xFFFF6E6E),
             )
@@ -1327,7 +1321,8 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             Minimap(
                 game,
                 Modifier.align(Alignment.TopEnd)
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.End))
+                    .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))   // 批61：同上
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.End))
                     .padding(top = 62.dp, end = 12.dp),
             )
         }
@@ -1336,6 +1331,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
         if (hud.phase == DungeonGame.Phase.EXPLORING && (hud.streak >= 3 || hud.combo >= 5)) {
             Row(
                 Modifier.align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))   // 批61：statusBars（隐藏后=0；挖孔Top不避让，Magic OS横屏按竖屏上报是空带根因）   // 批61：补 safeDrawing（此前全项目唯一漏网）
                     .padding(top = if (hud.bossHp > 0f) 118.dp else 64.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(
@@ -1421,14 +1417,16 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
             val seenCount = player.seenMonsters.count { !it.startsWith("QUIZ_") }.coerceAtMost(12)
             val seenTotal = 12   // 批47：+泥沼傀儡
             GameBackdrop()
+            // 批61：顶栏与主体 Column 化——去 magic top=52（旧值硬凑 48dp 顶栏高度，顶栏任何变化都会错位）
+            Column(Modifier.fillMaxSize()) {
             // 顶栏：返回 / 标题 / 资源 / 设置
             Row(
-                Modifier.fillMaxWidth().align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                Modifier.fillMaxWidth()
+                    .gameTopInsets()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                RoundIconButton("←", onClick = { nav.popBackStack() }, size = 40.dp)
+                RoundIconButton("←", onClick = { nav.popBackStack() }, size = 42.dp)   // 批61：圆钮统一 42
                 Column(Modifier.padding(start = 10.dp).weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("🏰", fontSize = 20.sp)
@@ -1475,11 +1473,11 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 Spacer(Modifier.width(8.dp))
                 RoundIconButton("⚙", onClick = { showSettings = true })
             }
-            // 王者式三段主体
+            // 王者式三段主体（顶边由 Column 排布自然接在顶栏下；bottom=9 贴底为批37 有意设计，保留）
             Row(
-                Modifier.fillMaxSize().align(Alignment.BottomCenter)
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                    .padding(start = 14.dp, end = 14.dp, top = 52.dp, bottom = 9.dp),   // 批37：沉浸后无状态栏，贴紧顶栏(48dp)
+                Modifier.fillMaxWidth().weight(1f)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+                    .padding(start = 14.dp, end = 14.dp, bottom = 9.dp),
             ) {
                 // 左：职业列表（直选，替代左右翻页箭头）
                 Column(
@@ -1710,6 +1708,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                }
             }
             GameVignette()
         }
@@ -1720,7 +1719,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 GameBackdrop(accent = GamePalette.UI_EXP)
                 Column(
                     Modifier.fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                        .gameTopInsets()
                         .padding(horizontal = 28.dp, vertical = 14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
@@ -2186,7 +2185,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 GameBackdrop(accent = Color(0xFFBA68C8))
                 Column(
                     Modifier.fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                        .gameTopInsets()
                         .padding(horizontal = 20.dp, vertical = 10.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2328,7 +2327,7 @@ fun DungeonScreen(vm: AppViewModel, nav: NavHostController) {
                 Box(Modifier.fillMaxSize().background(Color(0xE6070A14))) {
                     Column(
                         Modifier.fillMaxSize()
-                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                            .gameTopInsets()
                             .padding(horizontal = 24.dp, vertical = 14.dp)
                             .verticalScroll(rememberScrollState()),
                     ) {

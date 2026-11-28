@@ -43,6 +43,7 @@ import com.brainquest.game.game.dungeon.render.GameActionButton
 import com.brainquest.game.game.dungeon.render.GameBackdrop
 import com.brainquest.game.game.dungeon.render.GamePanel
 import com.brainquest.game.game.dungeon.render.GameUi
+import com.brainquest.game.game.dungeon.render.gameTopInsets
 import com.brainquest.game.game.dungeon.render.GameVignette
 import com.brainquest.game.game.dungeon.render.PanelTitle
 import com.brainquest.game.game.dungeon.render.RoundIconButton
@@ -78,12 +79,12 @@ fun TalentScreen(vm: AppViewModel, nav: NavHostController) {
         GameBackdrop(accent = Color(0xFFBA68C8))
         Column(
             Modifier.fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                .gameTopInsets()
                 .padding(horizontal = 18.dp, vertical = 8.dp),
         ) {
             // 顶栏
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                RoundIconButton("←", onClick = { nav.popBackStack() }, size = 38.dp)
+                RoundIconButton("←", onClick = { nav.popBackStack() }, size = 42.dp)   // 批61：圆钮统一 42
                 Column(Modifier.padding(start = 10.dp).weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("⭐", fontSize = 18.sp)
